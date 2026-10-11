@@ -1,14 +1,4 @@
 node_modules
 dist
-dist-ssr
-*.local
-.env
-.env.*
-.DS_Store
 *.log
-.vscode/*
-!.vscode/extensions.json
-.idea
-coverage
-# セーブデータのバックアップ(個人のデータ)はリポジトリに含めない
-*.rugbysave.json
+.DS_Store
