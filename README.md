@@ -9,3 +9,11 @@
 - データはブラウザ内（localStorage）に保存
 
 開発: `npm install` → `npm test` → `npm run dev`
+
+
+## 追加ゲーム
+
+- [高校サッカー部監督物語](./public/soccer/index.html)：選手育成・戦術・練習試合
+- [高校野球部監督物語](./public/baseball/index.html)：選手育成・打席イベント・イニング進行
+
+Vite のビルド成果物には `public/` 以下が含まれます。GitHub Pages 公開後は `/soccer/` と `/baseball/` からプレイできます。
