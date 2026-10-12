@@ -136,6 +136,8 @@ export interface GameState {
   tactic?: Tactic;
   /** 大会を1試合ずつ進めるための途中状態 */
   pendingTour?: PendingTour;
+  /** 大会終了後、月送りを待っている月（旧セーブ互換のため任意） */
+  tourCompletedMonth?: number;
 }
 
 export const MAX_COMMIT = 14;
@@ -463,6 +465,7 @@ function finishTour(s: GameState): TourRecord {
   s.tours.push(rec);
   if (s.tours.length > 80) s.tours.shift();
   s.pendingTour = undefined;
+  s.tourCompletedMonth = s.month;
   if (p.kind === 'pref') s.qualified = result === '優勝' || result === '準優勝';
   if (p.kind === 'nat') s.qualified = false;
   return rec;
@@ -588,7 +591,7 @@ export function advanceMonth(s: GameState): AdvanceResult {
   ensureMatchSetup(s);
   const r: AdvanceResult = { monthBefore: s.month, yearBefore: s.year, lines: [], scouted: [] };
 
-  // 大会は1試合ずつ進行。試合の間に戦術・先発を変更できる。
+  // 大会中は1回の操作で必ず1試合だけ進める。最終試合後も月送りは別操作。
   if (s.pendingTour) {
     const played = playPendingMatch(s);
     r.match = played.match;
@@ -597,9 +600,16 @@ export function advanceMonth(s: GameState): AdvanceResult {
     r.tour = played.tour;
     r.pending = !!s.pendingTour;
     r.lines.push(`${played.match.label}：${played.match.my}-${played.match.their}（${played.match.win ? '勝利' : '敗戦'}）`);
-    if (played.tour) r.lines.push(`${played.tour.name}：${played.tour.result}`);
-    if (s.pendingTour) return r;
-  } else {
+    if (played.tour) {
+      r.lines.push(`${played.tour.name}：${played.tour.result}`);
+      pushNews(s, `${s.year}年目 ${played.tour.name}：${played.tour.result}`);
+      if (played.tour.kind === 'pref') r.lines.push(s.qualified ? '花園への出場権を獲得した！' : '花園への出場はならなかった。');
+    }
+    return r;
+  }
+
+  // 大会が終了した月は、次の操作で月送りだけを行い、大会を再開しない。
+  if (s.tourCompletedMonth !== s.month) {
     let kind: TourKind | null = null;
     if (s.month === 7) kind = 'summer';
     else if (s.month === 11) kind = 'pref';
@@ -615,20 +625,19 @@ export function advanceMonth(s: GameState): AdvanceResult {
       r.tour = played.tour;
       r.pending = !!s.pendingTour;
       r.lines.push(`${played.match.label}：${played.match.my}-${played.match.their}（${played.match.win ? '勝利' : '敗戦'}）`);
-      if (played.tour) r.lines.push(`${played.tour.name}：${played.tour.result}`);
-      if (s.pendingTour) return r;
-    } else if (s.month === 12) {
-      r.lines.push('今年は全国大会に出場できなかった。');
+      if (played.tour) {
+        r.lines.push(`${played.tour.name}：${played.tour.result}`);
+        pushNews(s, `${s.year}年目 ${played.tour.name}：${played.tour.result}`);
+        if (played.tour.kind === 'pref') r.lines.push(s.qualified ? '花園への出場権を獲得した！' : '花園への出場はならなかった。');
+      }
+      return r;
     }
-  }
-
-  if (r.tour) {
-    pushNews(s, `${s.year}年目 ${r.tour.name}：${r.tour.result}`);
-    if (r.tour.kind === 'pref') r.lines.push(s.qualified ? '花園への出場権を獲得した！' : '花園への出場はならなかった。');
+    if (s.month === 12) r.lines.push('今年は全国大会に出場できなかった。');
   }
 
   growPlayers(s);
   s.scoutedThisMonth = false;
+  s.tourCompletedMonth = undefined;
 
   if (s.month === 3) {
     r.grad = graduate(s);
