@@ -337,8 +337,9 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   const selectionChance = careerAppearanceProbability(s);
   let role: CareerRole = 'メンバー外';
   if (s.injuryMonths > 0) role = 'メンバー外';
+  else if (s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed) role = '先発';
   else if (rand() < selectionChance) {
-    const starterChance = clamp(0.32 + (o - expected) / 100 + (s.professionalStarterGuaranteed && s.phase === 'professional' && s.stageYear === 1 ? 0.6 : 0) + (s.morale - 60) / 300 - s.fatigue / 350, 0.12, 0.95);
+    const starterChance = clamp(0.32 + (o - expected) / 100 + (s.morale - 60) / 300 - s.fatigue / 350, 0.12, 0.95);
     role = rand() < starterChance ? '先発' : '途中出場';
   } else role = rand() < 0.58 ? '控え' : 'メンバー外';
   const appeared = role === '先発' || role === '途中出場';
