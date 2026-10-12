@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { seed } from '../src/rng';
 import { PREFS } from '../src/data';
-import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer } from '../src/career';
+import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore } from '../src/career';
 
 console.log('career mode tests');
 function advanceCalendarMonth(s: ReturnType<typeof newCareer>): void {
@@ -131,4 +131,25 @@ const proStar = careerAppearanceProbability(appearances);
 assert.equal(proStar, 1, 'a guaranteed professional starter must always appear in the match simulation');
 assert.ok(proStar > proReserve + 0.4, 'university stars with a guaranteed starting role should start their pro career with much higher selection odds');
 console.log('  ok - appearance opportunities progress by year and reflect reputation, competition, and pro starter contracts');
-console.log('\n8 passed');
+assert.ok(proStar > proReserve + 0.4, 'university stars with a guaranteed starting role should start their pro career with much higher selection odds');
+appearances.injuryMonths = 2;
+assert.equal(careerAppearanceProbability(appearances), 0, 'injured players cannot be selected even with a guaranteed starter contract');
+appearances.injuryMonths = 0;
+assert.equal(appearances.trainingPlan, 'バランス');
+setCareerTrainingPlan(appearances, '回復');
+assert.equal(appearances.trainingPlan, '回復', 'training plans can be changed and saved with the career state');
+const transfer = newCareer('移籍テスト', 'CTB');
+transfer.phase = 'professional'; transfer.age = 26; transfer.professionalTeam = 'テストクラブ'; transfer.proDivision = 2;
+transfer.pendingTransfer = { age: 26, offers: [{ team: '海外クラブ（欧州リーグ）', division: 1, salary: 2800, overseas: true }] };
+resolveCareerTransfer(transfer, 0);
+assert.equal(transfer.professionalTeam, '海外クラブ（欧州リーグ）');
+assert.equal(transfer.proDivision, 1);
+assert.equal(transfer.proSalary, 2800);
+assert.equal(transfer.pendingTransfer, undefined);
+assert.ok(transfer.transferHistory[0].includes('海外移籍'));
+assert.ok(careerLegacyScore(transfer) >= 0, 'career legacy score is computed from career achievements');
+assert.ok(s.seasons.every((r) => (r.starts ?? 0) + (r.substituteApps ?? 0) + (r.bench ?? 0) + (r.notSelected ?? 0) === r.played), 'every played fixture is recorded as starter, substitute, bench, or not selected');
+assert.ok(s.matchHistory.every((m) => ['先発','途中出場','控え','メンバー外'].includes(m.role ?? (m.appeared ? '先発' : 'メンバー外'))), 'match reports include an explicit selection role');
+assert.ok(s.rivals.length >= 3, 'career includes persistent rivals');
+console.log('  ok - selection roles, injury/fatigue, training plans, transfers, rivals, and legacy records');
+console.log('\n9 passed');
