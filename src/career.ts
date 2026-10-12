@@ -46,7 +46,13 @@ export interface CareerMatch {
 }
 export interface CareerFixture {
   date: string; label: string; opponent: string; difficulty: number;
-  kind: 'university-league' | 'university-spring' | 'university-championship' | 'professional-league' | 'professional-playoff' | 'japan-test';
+  kind: 'university-league' | 'university-spring' | 'university-championship' | 'professional-league' | 'professional-playoff' | 'japan-test' | 'highschool' | 'world';
+}
+export type CareerMatchAction = 'carry' | 'pass' | 'kick' | 'goal' | 'scrum' | 'lineout' | 'rush' | 'drift' | 'jackal';
+export interface CareerLiveMatch {
+  source: 'tournament' | 'fixture'; fixture: CareerFixture; elapsed: number; possession: '自チーム' | '相手'; fieldPosition: number;
+  scoreFor: number; scoreAgainst: number; role: CareerRole; tries: number; carries: number; tackles: number; lineBreaks: number; kicks: number; errors: number;
+  scenes: string[]; lastEvent: string; actions: number;
 }
 export interface CareerPlayer {
   name: string;
@@ -70,7 +76,7 @@ export interface CareerState {
   qualified: boolean;
   universityTournamentFinalist: boolean;
   pendingTournament?: { name: string; kind: 'summer' | 'pref' | 'nat' | 'newbie' | 'world'; totalRounds: number; rounds: number; wins: number };
-  pendingFixtures?: CareerFixture[]; lastMatch?: CareerMatch; matchHistory: CareerMatch[];
+  pendingFixtures?: CareerFixture[]; liveMatch?: CareerLiveMatch; lastMatch?: CareerMatch; matchHistory: CareerMatch[];
   highSchoolAppearances: number; highSchoolTries: number; highSchoolRatingTotal: number; highSchoolRatingCount: number;
   nationalCandidate: boolean; worldTournamentWins: number;
   japanNationalTeamSelected: boolean; japanNationalTeamCaps: number; japanNationalTeamWins: number;
@@ -338,37 +344,37 @@ export function careerAppearanceProbability(s: CareerState): number {
   const fatigueAdjustment = -clamp(s.fatigue / 500, 0, 0.18);
   return clamp(chance + abilityAdjustment + talentAdjustment + rivalAdjustment + fatigueAdjustment, 0.08, s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed ? 0.99 : 0.92);
 }
-function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, opponent?: string, date?: string, kind: CareerFixture['kind'] | 'highschool' | 'world' = 'university-league', difficulty?: number): { my: number; their: number; win: boolean; exp: number; match: CareerMatch } {
+function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, opponent?: string, date?: string, kind: CareerFixture['kind'] | 'highschool' | 'world' = 'university-league', difficulty?: number, live?: CareerLiveMatch): { my: number; their: number; win: boolean; exp: number; match: CareerMatch } {
   const o = careerOverall(s), expected = s.phase === 'highschool' ? 43 : s.phase === 'university' ? 59 : 66;
   const selectionChance = careerAppearanceProbability(s);
-  let role: CareerRole = 'メンバー外';
-  if (s.injuryMonths > 0) role = 'メンバー外';
-  else if (s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed) role = '先発';
-  else if (rand() < selectionChance) {
+  let role: CareerRole = live?.role ?? 'メンバー外';
+  if (!live && s.injuryMonths > 0) role = 'メンバー外';
+  else if (!live && s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed) role = '先発';
+  else if (!live && rand() < selectionChance) {
     const starterChance = clamp(0.32 + (o - expected) / 100 + (s.morale - 60) / 300 - s.fatigue / 350, 0.12, 0.95);
     role = rand() < starterChance ? '先発' : '途中出場';
-  } else role = rand() < 0.58 ? '控え' : 'メンバー外';
+  } else if (!live) role = rand() < 0.58 ? '控え' : 'メンバー外';
   const appeared = role === '先発' || role === '途中出場';
   const teamBonus = s.phase === 'university' ? (s.universityTier === '最上位' ? 5 : s.universityTier === '上位' ? 3 : 0) : s.phase === 'professional' ? 4 : 0;
   const strength = o + teamBonus + gauss(0, 8), opponentStrength = difficulty ?? expected + gauss(0, 10);
-  const my = Math.max(0, Math.round(22 + (strength - opponentStrength) * 0.55 + gauss(0, 8)));
-  const their = Math.max(0, Math.round(22 + (opponentStrength - strength) * 0.55 + gauss(0, 8)));
+  const my = live ? live.scoreFor : Math.max(0, Math.round(22 + (strength - opponentStrength) * 0.55 + gauss(0, 8)));
+  const their = live ? live.scoreAgainst : Math.max(0, Math.round(22 + (opponentStrength - strength) * 0.55 + gauss(0, 8)));
   const season = s.currentSeason; season.played++;
   if (kind === 'university-league' || kind === 'professional-league') {
     season.leaguePlayed++; if (my > their) season.leagueWins++; else if (my < their) season.leagueLosses++; else season.leagueDraws++;
   }
   season.pointsFor += my; season.pointsAgainst += their;
   if (my > their) season.wins++; else if (my < their) season.losses++; else season.draws++;
-  const tries = appeared && rand() < clamp(0.08 + s.player.stats.spd / 500 + s.player.stats.tec / 700, 0.08, 0.38) ? 1 : 0;
-  const carries = appeared ? int(5, 18) + Math.round(s.player.stats.spd / 20) : 0;
-  const tackles = appeared ? int(4, 15) + Math.round(s.player.stats.sta / 20) : 0;
-  const lineBreaks = appeared && rand() < 0.35 ? int(1, 2) : 0;
-  const kicks = appeared && ['SH','SO','FB'].includes(s.player.pos) ? int(1, 6) : 0;
-  const errors = appeared ? int(0, 3) : 0;
+  const tries = live ? (appeared ? live.tries : 0) : appeared && rand() < clamp(0.08 + s.player.stats.spd / 500 + s.player.stats.tec / 700, 0.08, 0.38) ? 1 : 0;
+  const carries = live ? (appeared ? live.carries : 0) : appeared ? int(5, 18) + Math.round(s.player.stats.spd / 20) : 0;
+  const tackles = live ? (appeared ? live.tackles : 0) : appeared ? int(4, 15) + Math.round(s.player.stats.sta / 20) : 0;
+  const lineBreaks = live ? (appeared ? live.lineBreaks : 0) : appeared && rand() < 0.35 ? int(1, 2) : 0;
+  const kicks = live ? (appeared ? live.kicks : 0) : appeared && ['SH','SO','FB'].includes(s.player.pos) ? int(1, 6) : 0;
+  const errors = live ? (appeared ? live.errors : 0) : appeared ? int(0, 3) : 0;
   const rating = appeared ? Math.round(clamp(5 + tries * 1.4 + lineBreaks * 0.7 + (my > their ? 0.5 : my < their ? -0.25 : 0) + gauss(0, 0.8), 3, 10) * 10) / 10 : 0;
-  const exp = awardMatchExperience(s, my, their, appeared, tries, rating), scenes: string[] = [];
-  if (!appeared) scenes.push('出場機会はなかったが、ベンチからチームを支えた。');
-  else {
+  const exp = awardMatchExperience(s, my, their, appeared, tries, rating), scenes: string[] = live ? [...live.scenes] : [];
+  if (!live && !appeared) scenes.push('出場機会はなかったが、ベンチからチームを支えた。');
+  else if (!live && appeared) {
     if (tries) scenes.push(`${s.player.name}がゴールラインを突破し、トライを決めた！`);
     if (lineBreaks) scenes.push('鋭いランでディフェンスラインを突破。ビッグゲインを生み出した。');
     if (tackles >= 12) scenes.push('粘り強いタックルを連発し、相手の攻撃を止めた。');
