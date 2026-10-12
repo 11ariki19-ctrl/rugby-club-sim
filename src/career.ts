@@ -391,10 +391,36 @@ export function loadCareer(): CareerState | null {
     if (!raw) return null;
     const s = JSON.parse(raw) as CareerState;
     if (s?.v !== 1 || !s.player?.stats || !Array.isArray(s.seasons)) return null;
-    // 旧バージョンのキャリアセーブにも新しい日程・経験点項目を補完する。
+    // 既存のキャリアセーブを新しい大会・個人成績データへ安全に移行する。
     if (typeof s.experiencePoints !== 'number' || !Number.isFinite(s.experiencePoints)) s.experiencePoints = 0;
+    if (typeof s.prefIndex !== 'number') s.prefIndex = 26;
     if (typeof s.qualified !== 'boolean') s.qualified = false;
     if (typeof s.universityTournamentFinalist !== 'boolean') s.universityTournamentFinalist = false;
+    if (!Array.isArray(s.pendingFixtures)) s.pendingFixtures = [];
+    if (!Array.isArray(s.matchHistory)) s.matchHistory = [];
+    if (typeof s.highSchoolAppearances !== 'number') s.highSchoolAppearances = 0;
+    if (typeof s.highSchoolTries !== 'number') s.highSchoolTries = 0;
+    if (typeof s.highSchoolRatingTotal !== 'number') s.highSchoolRatingTotal = 0;
+    if (typeof s.highSchoolRatingCount !== 'number') s.highSchoolRatingCount = 0;
+    if (typeof s.nationalCandidate !== 'boolean') s.nationalCandidate = false;
+    if (typeof s.worldTournamentWins !== 'number') s.worldTournamentWins = 0;
+    if (!s.universityGroup) s.universityGroup = groupForUniversity(s.university || '');
+    if (typeof s.universityQualified !== 'boolean') s.universityQualified = false;
+    if (typeof s.universityTournamentAlive !== 'boolean') s.universityTournamentAlive = false;
+    if (![1,2,3].includes(s.proDivision)) s.proDivision = 3;
+    if (typeof s.proMatchIndex !== 'number') s.proMatchIndex = 0;
+    if (!Array.isArray(s.proSchedule)) s.proSchedule = [];
+    for (const r of [...s.seasons, s.currentSeason]) {
+      if (!r) continue;
+      if (typeof r.leaguePlayed !== 'number') r.leaguePlayed = 0;
+      if (typeof r.leagueWins !== 'number') r.leagueWins = 0;
+      if (typeof r.leagueLosses !== 'number') r.leagueLosses = 0;
+      if (typeof r.leagueDraws !== 'number') r.leagueDraws = 0;
+    }
+    if (s.phase === 'professional') {
+      if (!PRO_TEAMS[s.proDivision].includes(s.professionalTeam)) s.professionalTeam = pick(PRO_TEAMS[s.proDivision]);
+      if (!s.proSchedule.length) s.proSchedule = buildProSchedule(s);
+    }
     return s;
   } catch { return null; }
 }
