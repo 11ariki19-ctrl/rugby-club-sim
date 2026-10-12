@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { seed } from '../src/rng';
 import { PREFS } from '../src/data';
-import { advanceCareerMonth, careerOverall, newCareer } from '../src/career';
+import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer } from '../src/career';
 
 console.log('career mode tests');
 function advanceCalendarMonth(s: ReturnType<typeof newCareer>): void {
@@ -103,4 +103,31 @@ let internationalGuard = 0;
 while (national.japanNationalTeamCaps === 0 && internationalGuard < 30) { advanceCareerMonth(national); internationalGuard++; }
 assert.ok(national.japanNationalTeamCaps > 0, 'university Japan selection should play international tests');
 console.log('  ok - university standouts can be selected for Japan and play test matches');
-console.log('\n7 passed');
+// 学年・高校時代の実績・大学での競争・プロ入り時の契約を出場確率に反映する。
+const appearances = newCareer('出場機会テスト', 'CTB', 26, '大阪学院高校');
+for (const key of Object.keys(appearances.player.stats) as (keyof typeof appearances.player.stats)[]) appearances.player.stats[key] = 60;
+appearances.player.talent = 1;
+appearances.stageYear = 1;
+const hsYear1 = careerAppearanceProbability(appearances);
+appearances.stageYear = 3;
+const hsYear3 = careerAppearanceProbability(appearances);
+assert.ok(hsYear3 > hsYear1, 'high school third-year players should have more opportunities than first-years');
+appearances.phase = 'university'; appearances.stageYear = 1;
+const uniYear1 = careerAppearanceProbability(appearances);
+appearances.stageYear = 4;
+const uniYear4 = careerAppearanceProbability(appearances);
+assert.ok(uniYear4 > uniYear1, 'university fourth-years should have more opportunities than first-years');
+appearances.highSchoolAppearances = 10; appearances.highSchoolTries = 5;
+appearances.highSchoolRatingTotal = 72; appearances.highSchoolRatingCount = 10;
+appearances.stageYear = 1;
+assert.ok(careerAppearanceProbability(appearances) > uniYear1 + 0.2, 'high-school stars can enter university with starter-level opportunities');
+appearances.stageYear = 2;
+appearances.seasons = [{ age: 18, phase: 'university', year: 1, team: '大学', played: 12, leaguePlayed: 7, leagueWins: 3, leagueLosses: 4, leagueDraws: 0, wins: 4, losses: 8, draws: 0, pointsFor: 200, pointsAgainst: 300, appearances: 2, tries: 0, notes: [] }];
+assert.ok(careerAppearanceProbability(appearances) < uniYear1 + 0.15, 'a high-school star can lose opportunities in university year two after limited first-year appearances');
+appearances.phase = 'professional'; appearances.stageYear = 1; appearances.professionalStarterGuaranteed = false;
+const proReserve = careerAppearanceProbability(appearances);
+appearances.professionalStarterGuaranteed = true;
+const proStar = careerAppearanceProbability(appearances);
+assert.ok(proStar > 0.9 && proStar > proReserve + 0.4, 'university stars with a guaranteed starting role should start their pro career with very high selection odds');
+console.log('  ok - appearance opportunities progress by year and reflect reputation, competition, and pro starter contracts');
+console.log('\n8 passed');
