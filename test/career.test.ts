@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { seed } from '../src/rng';
 import { PREFS } from '../src/data';
-import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore } from '../src/career';
+import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, playCareerMatchAction } from '../src/career';
 
 console.log('career mode tests');
 function advanceCalendarMonth(s: ReturnType<typeof newCareer>): void {
@@ -152,4 +152,21 @@ assert.ok(s.seasons.every((r) => (r.starts ?? 0) + (r.substituteApps ?? 0) + (r.
 assert.ok(s.matchHistory.every((m) => ['先発','途中出場','控え','メンバー外'].includes(m.role ?? (m.appeared ? '先発' : 'メンバー外'))), 'match reports include an explicit selection role');
 assert.ok(s.rivals.length >= 3, 'career includes persistent rivals');
 console.log('  ok - selection roles, injury/fatigue, training plans, transfers, rivals, and legacy records');
-console.log('\n9 passed');
+const liveCareer = newCareer('実戦テスト', 'CTB');
+liveCareer.liveMatch = undefined;
+beginCareerLiveMatch(liveCareer, 'fixture', { date: 'テスト日', label: 'キャリア実戦テスト', opponent: 'テスト高校', difficulty: 45, kind: 'university-spring' });
+assert.ok(liveCareer.liveMatch, 'advancing to a fixture can open a playable live match');
+liveCareer.liveMatch!.role = '先発';
+for (let i = 0; i < 16 && liveCareer.liveMatch; i++) {
+  const action = liveCareer.liveMatch.possession === '自チーム'
+    ? (liveCareer.liveMatch.fieldPosition >= 60 ? 'goal' : ['carry','pass','kick','scrum','lineout'][i % 5])
+    : (['rush','drift','jackal'][i % 3]);
+  playCareerMatchAction(liveCareer, action as import('../src/career').CareerMatchAction);
+}
+assert.equal(liveCareer.liveMatch, undefined, 'live match should end after 80 minutes');
+assert.equal(liveCareer.matchHistory.length, 1, 'interactive match is saved in the career match history');
+assert.equal(liveCareer.lastMatch?.competition, 'キャリア実戦テスト');
+assert.ok(liveCareer.lastMatch?.scenes.some((scene) => /ノーサイド/.test(scene)), 'match report includes the final whistle');
+assert.equal(liveCareer.currentSeason.played, 1, 'live match updates the season record exactly once');
+console.log('  ok - interactive match actions, 80-minute clock, result and career records');
+console.log('\n10 passed');
