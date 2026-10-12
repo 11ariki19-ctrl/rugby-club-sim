@@ -129,7 +129,10 @@ t('スカウトした選手は4月に入学し、スカウト結果が残る', (
   const s = newGame(26, 2);
   scout(s, 'local');
   const ids = s.players.filter((p) => p.status === 'committed').map((p) => p.id);
-  for (let i = 0; i < 12; i++) advanceMonth(s);
+  for (let i = 0; i < 12; i++) {
+    advanceMonth(s);
+    while (s.pendingTour) advanceMonth(s);
+  }
   for (const id of ids) {
     const p = s.players.find((x) => x.id === id);
     assert.ok(p && p.status === 'active' && p.grade === 1);
