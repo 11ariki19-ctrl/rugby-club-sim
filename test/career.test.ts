@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { seed } from '../src/rng';
 import { PREFS } from '../src/data';
-import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, playCareerMatchAction } from '../src/career';
+import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, playCareerMatchAction, careerGrowthMultiplier } from '../src/career';
 
 console.log('career mode tests');
 function advanceCalendarMonth(s: ReturnType<typeof newCareer>): void {
@@ -28,6 +28,9 @@ const specialist = newCareer('一芸テスト', 'WTB', 26, '大阪学院高校',
 const specialistValues = Object.values(specialist.player.stats);
 assert.ok(Math.min(...specialistValues) >= 15 && Math.min(...specialistValues) <= 20, 'specialist minimum stat is between 15 and 20');
 assert.ok(specialistValues.some((value) => value === Math.min(...specialistValues) * 3), 'specialist has one stat three times the minimum');
+assert.equal(careerGrowthMultiplier(genius), 2, 'genius talent doubles all stat growth');
+assert.equal(careerGrowthMultiplier(scholar), 1, 'scholar talent keeps the existing growth rate');
+assert.equal(careerGrowthMultiplier(ordinary), 1, 'ordinary talent keeps the existing growth rate');
 console.log('  ok - four selectable talent types apply their specified starting stats');
 assert.equal(s.phase, 'highschool');
 assert.equal(s.age, 15);
