@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { seed } from '../src/rng';
-import { UNIVS } from '../src/data';
+import { PREFS } from '../src/data';
 import { advanceCareerMonth, careerOverall, newCareer } from '../src/career';
 
 console.log('career mode tests');
@@ -21,7 +21,7 @@ assert.equal(s.phase, 'university');
 assert.equal(s.age, 18);
 assert.equal(s.stageYear, 1);
 assert.equal(s.seasons.length, 3);
-assert.ok([...UNIVS.top, ...UNIVS.high, ...UNIVS.mid].includes(s.university));
+assert.ok(['関東大学対抗戦A','関東大学リーグ戦1部','関西大学Aリーグ'].includes(s.universityGroup));
 assert.ok(s.history.some((x) => x.includes('進学')));
 for (let i = 0; i < 48; i++) advanceCalendarMonth(s);
 assert.equal(s.phase, 'professional');
@@ -42,23 +42,32 @@ assert.ok(s.seasons.every((r) => r.played >= 0 && r.appearances >= 0 && r.tries 
 assert.ok(s.experiencePoints > 0, 'match results should award experience points');
 assert.ok(careerOverall(s) >= 0 && careerOverall(s) <= 100);
 console.log('  ok - high school 3 years, university 4 years, professional career through retirement');
-console.log('  ok - university is selected from the existing university data');
+console.log('  ok - university is assigned to a 2025 official league group');
 console.log('  ok - league records and retirement summary are retained');
 seed(902);
-const schedule = newCareer('日程確認', 'CTB');
+const schedule = newCareer('日程確認', 'CTB', 26, '大阪学院高校');
+assert.equal(schedule.prefIndex, 26);
+assert.equal(PREFS[schedule.prefIndex].name, '大阪府');
 while (!(schedule.phase === 'university' && schedule.month === 9)) advanceCalendarMonth(schedule);
-for (let month = 9; month <= 12; month++) {
-  assert.equal(schedule.month, month);
-  const before = schedule.currentSeason.played;
-  advanceCareerMonth(schedule);
-  assert.equal(schedule.currentSeason.played, before + 1, 'university league should play once per month from September to December');
-  advanceCalendarMonth(schedule);
+for (let month = 9; month <= 11; month++) {
+  while (schedule.month === month) advanceCareerMonth(schedule);
+  if (month < 11) assert.equal(schedule.month, month + 1);
 }
-assert.equal(schedule.month, 1);
-const beforeWinter = schedule.currentSeason.played;
-advanceCareerMonth(schedule);
-assert.equal(schedule.currentSeason.played, beforeWinter + 1, 'university winter tournament starts in January');
-assert.ok(schedule.currentSeason.notes.some((x) => x.includes('大学冬季トーナメント準決勝')));
-console.log('  ok - high school uses tournament calendar, university has Sep-Dec league and Jan-Feb tournament');
-console.log('  ok - match results award experience points');
-console.log('\n5 passed');
+assert.equal(schedule.currentSeason.leaguePlayed, 7, 'university league has seven matches for an eight-team round robin');
+assert.ok(schedule.currentSeason.notes.some((x) => x.includes('関西大学Aリーグ') || x.includes('関東大学')));
+console.log('  ok - university league has seven official matches across September-November');
+assert.ok(schedule.matchHistory.length > 0);
+assert.ok(schedule.lastMatch?.scenes.length);
+assert.ok(schedule.lastMatch?.experience > 0);
+console.log('  ok - match report includes scenes, individual performance, and experience points');
+seed(903);
+const candidate = newCareer('代表候補テスト', 'WTB', 26, '大阪学院高校');
+candidate.stageYear = 3; candidate.month = 2;
+candidate.highSchoolAppearances = 6; candidate.highSchoolTries = 3;
+candidate.highSchoolRatingTotal = 42; candidate.highSchoolRatingCount = 6;
+advanceCareerMonth(candidate);
+assert.equal(candidate.nationalCandidate, true);
+assert.equal(candidate.pendingTournament?.kind, 'world');
+assert.ok(candidate.lastMatch?.opponent === 'ニュージーランド');
+console.log('  ok - standout high-school player can be selected for the February world tournament');
+console.log('\n6 passed');
