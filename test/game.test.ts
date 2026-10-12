@@ -171,7 +171,10 @@ t('大会は決まった月に行われる', () => {
   seed(8);
   const s = newGame(26, 2);
   const kinds: string[] = [];
-  for (let i = 0; i < 12; i++) {
+  let advancedMonths = 0;
+  while (advancedMonths < 12) {
+    const beforeMonth = s.month;
+    const beforeYear = s.year;
     let r = advanceMonth(s);
     while (s.pendingTour) r = advanceMonth(s);
     if (r.tour) {
@@ -181,6 +184,8 @@ t('大会は決まった月に行われる', () => {
       assert.equal(r.tour.rounds.every((x, idx, arr) => x.win || idx === arr.length - 1), true);
       assert.equal(r.tour.title, r.tour.rounds.every((x) => x.win));
     }
+    if (s.tourCompletedMonth === s.month) advanceMonth(s);
+    if (s.month !== beforeMonth || s.year !== beforeYear) advancedMonths++;
   }
   assert.ok(kinds.includes('7:summer'));
   assert.ok(kinds.includes('11:pref'));
