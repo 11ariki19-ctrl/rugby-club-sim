@@ -111,3 +111,13 @@ main { padding: 16px; padding-top: calc(16px + env(safe-area-inset-top)); paddin
 .match-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
 .match-actions .btn { min-height:78px; text-align:left; align-items:flex-start; }
 @media (max-width:480px) { .match-actions { grid-template-columns:1fr; } .scoreboard strong { font-size:28px; } }
+
+
+/* Career match lineup sheets */
+.lineup-grid { display:grid; grid-template-columns:1fr; gap:10px; }
+.roster-list { display:grid; grid-template-columns:1fr; gap:4px; }
+.roster-player { min-height:54px; margin:0; }
+.roster-player .nm small { display:block; font-size:11px; color:var(--sub); font-weight:400; }
+.roster-player .pos { width:24px; font-weight:700; }
+.roster-player .ov { font-weight:700; }
+@media (min-width:620px) { .lineup-grid { grid-template-columns:1fr 1fr; align-items:start; } }
