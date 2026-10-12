@@ -275,7 +275,7 @@ export function resolveCareerTransfer(s: CareerState, offerIndex: number): void 
   s.professionalTeam = offer.team; s.proDivision = offer.division; s.proSalary = offer.salary; s.proContractYears = int(2, 3);
   s.transferHistory.unshift(`${s.age}歳：${previous}から${offer.team}へ${offer.overseas ? '海外移籍' : '移籍'}。年俸${offer.salary}万円、契約${s.proContractYears}年。`);
   s.history.unshift(s.transferHistory[0]);
-  s.pendingTransfer = undefined; s.proMatchIndex = 0; s.proSchedule = buildProSchedule(s); s.morale = clamp(s.morale + 8, 0, 100);
+  s.pendingTransfer = undefined; s.proMatchIndex = 0; s.proSchedule = buildProSchedule(s); s.currentSeason.team = s.professionalTeam; s.morale = clamp(s.morale + 8, 0, 100);
   saveCareer(s);
 }
 function awardMatchExperience(s: CareerState, my: number, their: number, appeared: boolean, tries: number, rating: number): number {
