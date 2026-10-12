@@ -66,6 +66,7 @@ export interface CareerState {
   highSchoolAppearances: number; highSchoolTries: number; highSchoolRatingTotal: number; highSchoolRatingCount: number;
   nationalCandidate: boolean; worldTournamentWins: number;
   japanNationalTeamSelected: boolean; japanNationalTeamCaps: number; japanNationalTeamWins: number;
+  professionalStarterGuaranteed: boolean;
   universityGroup: '関東大学対抗戦A' | '関東大学リーグ戦1部' | '関西大学Aリーグ';
   universityQualified: boolean; universityTournamentAlive: boolean;
   proDivision: 1 | 2 | 3; proMatchIndex: number; proSchedule: CareerFixture[];
@@ -155,10 +156,16 @@ function buildProSchedule(s: CareerState): CareerFixture[] {
   })).slice(0, count);
 }
 function assignProfessional(s: CareerState): void {
-  const wins = s.seasons.filter((x) => x.phase === 'university').reduce((n, x) => n + x.wins, 0);
-  const o = careerOverall(s); s.proDivision = o >= 75 || wins >= 20 ? 1 : o >= 60 || wins >= 12 ? 2 : 3;
+  const universitySeasons = s.seasons.filter((x) => x.phase === 'university');
+  const wins = universitySeasons.reduce((n, x) => n + x.wins, 0);
+  const universityAppearances = universitySeasons.reduce((n, x) => n + x.appearances, 0);
+  const universityTries = universitySeasons.reduce((n, x) => n + x.tries, 0);
+  const o = careerOverall(s);
+  s.professionalStarterGuaranteed = o >= 70 && universityAppearances >= 22 && universityTries >= 6;
+  s.proDivision = o >= 75 || wins >= 20 ? 1 : o >= 60 || wins >= 12 ? 2 : 3;
   s.professionalTeam = pick(PRO_TEAMS[s.proDivision]); s.retirementAge = int(35, 38); s.proMatchIndex = 0;
-  s.history.unshift(`大学卒業。大学リーグでの勝利${wins}勝・総合値${o}を評価され、リーグワン ディビジョン${s.proDivision}の${s.professionalTeam}に加入。`);
+  const role = s.professionalStarterGuaranteed ? '大学時代のスター選手として、加入時から先発起用を約束された。' : 'まずは控えからプロキャリアをスタートする。';
+  s.history.unshift(`大学卒業。大学リーグでの勝利${wins}勝・総合値${o}を評価され、リーグワン ディビジョン${s.proDivision}の${s.professionalTeam}に加入。${role}`);
   s.phase = 'professional'; s.stageYear = 1; s.age = 22; s.month = 7; s.currentSeason = newSeason(s); s.proSchedule = buildProSchedule(s);
 }
 export function newCareer(name: string, pos: Pos, prefIndex = 26, schoolName?: string, talentType: CareerTalentType = '凡人'): CareerState {
@@ -193,7 +200,7 @@ export function newCareer(name: string, pos: Pos, prefIndex = 26, schoolName?: s
     elapsedMonths: 0, prefIndex: clamp(Math.round(prefIndex), 0, PREFS.length - 1), experiencePoints: 0, qualified: false, universityTournamentFinalist: false, training: 'tec' as StatKey, player, highSchool: schoolName || schoolsOf(clamp(Math.round(prefIndex), 0, PREFS.length - 1))[1].name,
     university: '', universityTier: '', professionalTeam: '', retirementAge: 36,
     seasons: [] as CareerSeason[], currentSeason: {} as CareerSeason,
-    matchHistory: [] as CareerMatch[], highSchoolAppearances: 0, highSchoolTries: 0, highSchoolRatingTotal: 0, highSchoolRatingCount: 0, nationalCandidate: false, worldTournamentWins: 0, japanNationalTeamSelected: false, japanNationalTeamCaps: 0, japanNationalTeamWins: 0,
+    matchHistory: [] as CareerMatch[], highSchoolAppearances: 0, highSchoolTries: 0, highSchoolRatingTotal: 0, highSchoolRatingCount: 0, nationalCandidate: false, worldTournamentWins: 0, japanNationalTeamSelected: false, japanNationalTeamCaps: 0, japanNationalTeamWins: 0, professionalStarterGuaranteed: false,
     universityGroup: '関東大学対抗戦A' as CareerState['universityGroup'], universityQualified: false, universityTournamentAlive: false, proDivision: 3 as 1 | 2 | 3, proMatchIndex: 0, proSchedule: [],
     history: ['15歳で高校ラグビー生活がスタート。3年間の成長と活躍を目指す。'],
   };
@@ -219,9 +226,47 @@ function opponentFor(s: CareerState, kind: CareerFixture['kind'] | 'highschool' 
   }
   return pick(PRO_TEAMS[s.proDivision].filter((x) => x !== s.professionalTeam));
 }
+/**
+ * 出場機会は能力だけでなく、学年・過去の実績・チーム内競争で決まる。
+ * 確率は「その試合に出場する確率」であり、先発/途中出場の区別は今後の拡張対象。
+ */
+export function careerAppearanceProbability(s: CareerState): number {
+  const year = Math.max(1, Math.min(4, s.stageYear));
+  let chance: number;
+  if (s.phase === 'highschool') {
+    chance = [0, 0.22, 0.39, 0.58][Math.min(3, year)] ?? 0.58;
+  } else if (s.phase === 'university') {
+    chance = [0, 0.25, 0.36, 0.49, 0.61][year] ?? 0.61;
+    const hsAverage = s.highSchoolRatingCount ? s.highSchoolRatingTotal / s.highSchoolRatingCount : 0;
+    const highSchoolStar = s.player.stats && careerOverall(s) >= 55 &&
+      s.highSchoolAppearances >= 7 && (s.highSchoolTries >= 3 || hsAverage >= 6.8);
+    if (year === 1 && highSchoolStar) chance += 0.32;
+    if (year === 2 && highSchoolStar) {
+      const firstUniversitySeason = s.seasons.find((x) => x.phase === 'university' && x.year === 1);
+      if (firstUniversitySeason && (firstUniversitySeason.appearances < 5 ||
+          firstUniversitySeason.appearances / Math.max(1, firstUniversitySeason.played) < 0.35)) {
+        chance -= 0.20;
+      }
+    }
+    const previousUniversitySeason = [...s.seasons].reverse().find((x) => x.phase === 'university');
+    if (year >= 2 && previousUniversitySeason && previousUniversitySeason.year === year - 1 &&
+        previousUniversitySeason.appearances >= 8) chance += 0.06;
+  } else if (s.phase === 'professional') {
+    chance = s.stageYear === 1
+      ? (s.professionalStarterGuaranteed ? 0.97 : 0.34)
+      : s.stageYear === 2 ? 0.47
+      : s.stageYear === 3 ? 0.59
+      : 0.68;
+  } else {
+    return 0;
+  }
+  const expected = s.phase === 'highschool' ? 43 : s.phase === 'university' ? 59 : 66;
+  const abilityAdjustment = clamp((careerOverall(s) - expected) / 100, -0.16, 0.18);
+  const talentAdjustment = clamp((s.player.talent - 1) * 0.12, -0.06, 0.07);
+  return clamp(chance + abilityAdjustment + talentAdjustment, 0.08, s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed ? 0.99 : 0.92);
+}
 function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, opponent?: string, date?: string, kind: CareerFixture['kind'] | 'highschool' | 'world' = 'university-league', difficulty?: number): { my: number; their: number; win: boolean; exp: number; match: CareerMatch } {
-  const o = careerOverall(s), expected = s.phase === 'highschool' ? 43 : s.phase === 'university' ? 59 : 66;
-  const appeared = rand() < clamp(0.5 + (o - expected) / 65 + (s.player.talent - 1) * 0.2, 0.12, 0.98);
+  const appeared = rand() < careerAppearanceProbability(s);
   const teamBonus = s.phase === 'university' ? (s.universityTier === '最上位' ? 5 : s.universityTier === '上位' ? 3 : 0) : s.phase === 'professional' ? 4 : 0;
   const strength = o + teamBonus + gauss(0, 8), opponentStrength = difficulty ?? expected + gauss(0, 10);
   const my = Math.max(0, Math.round(22 + (strength - opponentStrength) * 0.55 + gauss(0, 8)));
@@ -457,6 +502,7 @@ export function loadCareer(): CareerState | null {
     if (typeof s.japanNationalTeamSelected !== 'boolean') s.japanNationalTeamSelected = false;
     if (typeof s.japanNationalTeamCaps !== 'number') s.japanNationalTeamCaps = 0;
     if (typeof s.japanNationalTeamWins !== 'number') s.japanNationalTeamWins = 0;
+    if (typeof s.professionalStarterGuaranteed !== 'boolean') s.professionalStarterGuaranteed = false;
     if (!s.universityGroup) s.universityGroup = groupForUniversity(s.university || '');
     if (s.university && !(UNIVERSITY_GROUPS[s.universityGroup] as readonly string[]).includes(s.university)) {
       s.university = pick(UNIVERSITY_GROUPS[s.universityGroup] as unknown as string[]);
