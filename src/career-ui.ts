@@ -5,37 +5,54 @@ import {
 import type { CareerState, CareerPhase } from './career';
 import { STAT_LABEL } from './game';
 import type { Pos, StatKey } from './game';
+import { PREFS, schoolsOf } from './data';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 let root: HTMLElement | null = null;
 let state: CareerState | null = null;
 let creating = false;
 let bound = false;
+let createPrefIndex = 26;
+let createSchoolIndex = 1;
 const labels: Record<CareerPhase, string> = { highschool: '高校編', university: '大学編', professional: '社会人編', retired: '引退後' };
 const monthLabel = (m: number) => `${m}月`;
 
 function createScreen(): string {
+  const schools = schoolsOf(createPrefIndex);
   return `<main class="page"><button class="link" data-career="title">← タイトルへ</button>
     <h2>ラグビー人生キャリア</h2>
     <p>高校入学から社会人引退まで、一人の選手を育てます。高校3年間、大学4年間、そして社会人リーグを同じ選手で進みます。</p>
     <div class="card"><label>選手名<input id="career-name" class="search" maxlength="24" placeholder="例：佐藤 蓮"></label>
     <label>ポジション<select id="career-pos" class="search">${CAREER_POSITIONS.map((p) => `<option value="${p.id}" ${p.id === 'CTB' ? 'selected' : ''}>${p.label}（${p.id}）</option>`).join('')}</select></label>
-    <p class="note">初期能力と才能は選手ごとにランダム。進学先の大学は高校卒業時の総合値と大学ランクに応じて自動決定されます。</p>
+    <label>出身・所属都道府県<select id="career-pref" class="search">${PREFS.map((p, i) => `<option value="${i}" ${i === createPrefIndex ? 'selected' : ''}>${p.name}</option>`).join('')}</select></label>
+    <label>高校（県予選に参加）<select id="career-school" class="search">${schools.map((s, i) => `<option value="${i}" ${i === createSchoolIndex ? 'selected' : ''}>${s.name}（戦力★${s.power}）</option>`).join('')}</select></label>
+    <p class="note">高校は選択した都道府県の予選に参加します。高校大会の試合は1試合ずつ進み、活躍シーン・個人成績・評価を確認できます。</p>
     <button class="btn primary big" data-career="start">この選手でキャリア開始</button></div>
     <p class="note">監督モードのセーブデータとは別に保存されます。</p></main>`;
 }
 function seasonCard(s: CareerState): string {
   const r = s.currentSeason;
   return `<div class="card"><h3>今シーズンの成績</h3><p>${r.team} ／ ${r.year}年目</p>
-    <div class="cards"><div class="card stat"><span class="k">リーグ戦</span><b>${r.played}</b></div><div class="card stat"><span class="k">チーム成績</span><b>${r.wins}-${r.losses}-${r.draws}</b></div>
+    <div class="cards"><div class="card stat"><span class="k">公式リーグ戦</span><b>${r.leaguePlayed ?? 0}</b></div><div class="card stat"><span class="k">リーグ成績</span><b>${r.leagueWins ?? 0}-${r.leagueLosses ?? 0}-${r.leagueDraws ?? 0}</b></div>
     <div class="card stat"><span class="k">出場</span><b>${r.appearances}</b></div><div class="card stat"><span class="k">トライ</span><b>${r.tries}</b></div></div>
-    ${r.notes.length ? `<ul class="news">${r.notes.slice().reverse().map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : '<p class="note">7月・11月・2月にリーグ戦が行われます。</p>'}</div>`;
+    ${r.notes.length ? `<ul class="news">${r.notes.slice().reverse().map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : '<p class="note">大会・リーグ戦の日程に合わせて試合を行います。</p>'}</div>`;
 }
 function phaseDescription(s: CareerState): string {
-  if (s.phase === 'highschool') return `高校${s.stageYear}年生。監督モードと同じ大会カレンダーで試合を進め、3月の年度終了後に総合値に応じた大学へ進学します。`;
-  if (s.phase === 'university') return `大学${s.stageYear}年生。4年間のリーグ戦で活躍し、卒業後の社会人チーム入りを目指します。`;
-  if (s.phase === 'professional') return `社会人${s.stageYear}年目。現役引退予定年齢は${s.retirementAge}歳。年齢と能力のピークを意識してキャリアを重ねます。`;
+  if (s.phase === 'highschool') return `高校${s.stageYear}年生。${PREFS[s.prefIndex]?.name ?? ''}の県予選から進みます。大会での成績が優秀なら2月に高校日本代表候補へ選出され、世界大会に出場します。`;
+  if (s.phase === 'university') return `大学${s.stageYear}年生。${s.universityGroup}に所属。9〜11月に公式リーグ戦7試合、11月〜1月に全国大学選手権（条件を満たした場合）を戦います。`;
+  if (s.phase === 'professional') return `社会人${s.stageYear}年目・リーグワン ディビジョン${s.proDivision}。2025-26方式を参考に公式リーグ戦${s.proDivision === 1 ? 18 : s.proDivision === 2 ? 14 : 15}試合を戦い、現役引退予定年齢${s.retirementAge}歳までキャリアを重ねます。`;
   return s.finalSummary ?? '現役生活を終えました。';
+}
+function lastMatchCard(s: CareerState): string {
+  const m = s.lastMatch;
+  if (!m) return '<div class="card"><h3>直近の試合</h3><p class="note">試合を進めると、活躍シーン・個人成績・評価がここに表示されます。</p></div>';
+  return `<div class="card"><h3>直近の試合レポート</h3><p><b>${esc(m.competition)}</b> ／ ${esc(m.date)}</p>
+    <p>${esc(currentTeam(s))} vs ${esc(m.opponent)}<br><strong class="big2">${m.my} - ${m.their}</strong>　${m.result}</p>
+    <p>${m.appeared ? `選手評価：<b>${m.rating.toFixed(1)} / 10</b>` : '選手評価：出場機会なし'} ／ 経験点 <b>+${m.experience}</b></p>
+    <div class="cards"><div class="card stat"><span class="k">トライ</span><b>${m.tries}</b></div><div class="card stat"><span class="k">キャリー</span><b>${m.carries}</b></div>
+    <div class="card stat"><span class="k">タックル</span><b>${m.tackles}</b></div><div class="card stat"><span class="k">ラインブレイク</span><b>${m.lineBreaks}</b></div>
+    <div class="card stat"><span class="k">キック</span><b>${m.kicks}</b></div><div class="card stat"><span class="k">ミス</span><b>${m.errors}</b></div></div>
+    <h4>活躍シーン</h4><ul class="news">${m.scenes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>`;
 }
 function homeScreen(s: CareerState): string {
   const o = careerOverall(s);
@@ -48,10 +65,12 @@ function homeScreen(s: CareerState): string {
     <div class="panel"><b>${esc(s.player.name)}</b> ／ ${s.player.pos} ／ 総合値 ${o}（${o >= 75 ? 'S' : o >= 65 ? 'A' : o >= 55 ? 'B' : o >= 45 ? 'C' : o >= 35 ? 'D' : 'E'}ランク）<br>
     <span class="small">${esc(team)} ・ ${s.player.height}cm / ${s.player.weight}kg</span><br><span>${phaseDescription(s)}</span></div>
     ${s.university ? `<div class="card"><b>進学先</b><p>${esc(s.university)}（${esc(s.universityTier)}）</p></div>` : ''}
-    ${s.professionalTeam ? `<div class="card"><b>所属社会人チーム</b><p>${esc(s.professionalTeam)}</p></div>` : ''}
+    ${s.professionalTeam ? `<div class="card"><b>所属社会人チーム</b><p>${esc(s.professionalTeam)}（リーグワンD${s.proDivision}）</p></div>` : ''}
+    ${s.nationalCandidate ? `<div class="card"><b>高校日本代表候補</b><p>選出済み ／ 世界大会勝利数：${s.worldTournamentWins}</p></div>` : ''}
     <div class="card"><h3>選手能力</h3>${bars}<p class="small">最高総合値：${Math.round(s.player.peak)} ／ 才能：${s.player.talent >= 1.25 ? '大器' : s.player.talent >= 0.95 ? '標準' : '努力型'}</p></div>
-    ${s.phase !== 'retired' ? `<h3>今月の育成方針</h3><p class="note">選んだ能力が最も伸びます。高校編は監督モードと同じ大会日程、大学編は9〜12月リーグ戦・1〜2月トーナメント。試合は1試合ずつ進み、試合結果に応じて経験点を獲得します。</p>${training}
-    <button class="btn primary big" data-career="advance">1か月進める（${monthLabel(s.month)}）</button>` : `<div class="panel"><h3>現役引退</h3><p>${esc(s.finalSummary ?? '')}</p><p>通算リーグ出場：${s.seasons.reduce((n, r) => n + r.appearances, 0)}試合 ／ 通算トライ：${s.seasons.reduce((n, r) => n + r.tries, 0)}</p></div>`}
+    ${lastMatchCard(s)}
+    ${s.phase !== 'retired' ? `<h3>今月の育成方針</h3><p class="note">選んだ能力が最も伸びます。高校編は選択県の大会を1試合ずつ進行。大学編は公式リーグ戦7試合（9〜11月）と全国大学選手権（11月〜1月）、社会人編はディビジョン別の公式戦数で進行します。</p>${training}
+    <button class="btn primary big" data-career="advance">${s.pendingTournament ? `次の試合へ（${s.pendingTournament.name} ${s.pendingTournament.rounds + 1}試合目）` : s.pendingFixtures?.length ? `次の試合へ（${s.pendingFixtures[0].label}）` : s.tournamentCompletedMonth === s.month ? `試合終了：${monthLabel(s.month)}を終えて次の月へ` : `${monthLabel(s.month)}を進める`}</button>` : `<div class="panel"><h3>現役引退</h3><p>${esc(s.finalSummary ?? '')}</p><p>通算リーグ出場：${s.seasons.reduce((n, r) => n + r.appearances, 0)}試合 ／ 通算トライ：${s.seasons.reduce((n, r) => n + r.tries, 0)}</p></div>`}
     ${seasonCard(s)}<h3>キャリア年表</h3><ul class="news">${history}</ul>
     <h3>シーズン記録</h3>${seasons || '<p class="note">シーズン終了後に記録が追加されます。</p>'}
     <button class="btn" data-career="title">タイトルへ戻る</button><p class="note">このモードのセーブは監督モードとは独立しています。</p></main>`;
@@ -67,7 +86,8 @@ function act(action: string, value = ''): void {
     const name = root.querySelector<HTMLInputElement>('#career-name')?.value ?? '';
     const pos = (root.querySelector<HTMLSelectElement>('#career-pos')?.value ?? 'CTB') as Pos;
     if (hasCareerSave() && !confirm('保存済みの選手キャリアを上書きしますか？')) return;
-    state = newCareer(name, pos);
+    const school = schoolsOf(createPrefIndex)[createSchoolIndex] ?? schoolsOf(createPrefIndex)[1];
+    state = newCareer(name, pos, createPrefIndex, school.name);
     creating = false;
   } else if (action === 'train' && state) {
     setCareerTraining(state, value as StatKey);
@@ -81,10 +101,21 @@ export function openCareerMode(el: HTMLElement, resume: boolean): void {
   root = el;
   state = resume ? loadCareer() : null;
   creating = !resume || !state;
+  if (creating) { createPrefIndex = 26; createSchoolIndex = 1; }
   if (!bound) {
     root.addEventListener('click', (e) => {
       const t = (e.target as HTMLElement).closest<HTMLElement>('[data-career]');
       if (t) act(t.dataset.career ?? '', t.dataset.v ?? '');
+    });
+    root.addEventListener('change', (e) => {
+      const t = e.target as HTMLSelectElement;
+      if (t.id === 'career-pref') {
+        const name = root?.querySelector<HTMLInputElement>('#career-name')?.value ?? '';
+        const pos = root?.querySelector<HTMLSelectElement>('#career-pos')?.value ?? 'CTB';
+        createPrefIndex = Number(t.value); createSchoolIndex = 1; render();
+        const nameInput = root?.querySelector<HTMLInputElement>('#career-name'); if (nameInput) nameInput.value = name;
+        const posInput = root?.querySelector<HTMLSelectElement>('#career-pos'); if (posInput) posInput.value = pos;
+      } else if (t.id === 'career-school') createSchoolIndex = Number(t.value);
     });
     bound = true;
   }
