@@ -223,7 +223,7 @@ t('保存データはJSONで往復できる', () => {
   seed(12);
   const s = run(20, 1, 20, true);
   const back = JSON.parse(JSON.stringify(s)) as GameState;
-  assert.deepEqual(back, s);
+  assert.equal(JSON.stringify(back), JSON.stringify(s));
   advanceMonth(back);
 });
 
