@@ -99,7 +99,7 @@ function homeScreen(s: GameState): string {
       <div class="card stat"><span class="k">入学内定</span><b>${committedCount(s)}名</b></div>
     </section>
     <div class="panel">次の大会：<b>${ev.label}</b>（${when}）<br><span class="small">県大会優勝 ${prefTitles}回 ／ 全国制覇 ${natTitles}回</span></div>
-    <button class="btn primary big" data-act="advance">${s.pendingTour ? '次の試合へ（大会進行中）' : `${s.month}月を終えて、次の月へ`}</button>
+    <button class="btn primary big" data-act="advance">${s.pendingTour ? '次の試合へ（大会進行中）' : s.tourCompletedMonth === s.month ? '大会終了：次の月へ' : `${s.month}月を終えて、次の月へ`}</button>
     <button class="btn" data-act="nav" data-v="match">戦術・スタメンを変更</button>
     <button class="btn" data-act="nav" data-v="scout">${s.scoutedThisMonth ? '今月のスカウト：実施済み' : '今月のスカウトがまだです'}</button>
     <h3>最近のできごと</h3><ul class="news">${news}</ul>
@@ -137,7 +137,7 @@ function matchScreen(s: GameState): string {
   const tactics = TACTICS.map((t) => `<button class="btn mode ${(s.tactic ?? 'balanced') === t.id ? 'primary' : ''}" data-act="tactic" data-v="${t.id}"><b>${t.label}</b><span>${t.desc}</span></button>`).join('');
   return shell(`<h2>試合準備</h2>
     <p class="note">大会は1試合ずつ進みます。次の試合の前に戦術と先発15人を変更できます。先発は同じ選手を重複登録できません。</p>
-    ${s.pendingTour ? `<div class="panel">大会進行中：<b>${s.pendingTour.name}</b><br>次は第${s.pendingTour.rounds.length + 1}試合目（全${s.pendingTour.totalRounds}試合の予定）</div>` : '<div class="panel">次の大会に向けて準備しよう。</div>'}
+    ${s.pendingTour ? `<div class="panel">大会進行中：<b>${s.pendingTour.name}</b><br>次は第${s.pendingTour.rounds.length + 1}試合目（全${s.pendingTour.totalRounds}試合の予定）</div>` : s.tourCompletedMonth === s.month ? '<div class="panel">今月の大会は終了しました。結果を確認して、次の月へ進めます。</div>' : '<div class="panel">次の大会に向けて準備しよう。</div>'}
     <h3>戦術</h3>${tactics}<h3>先発メンバー</h3>${slots}
     <button class="btn primary big" data-act="nav" data-v="home">設定完了</button>`, 'match');
 }
