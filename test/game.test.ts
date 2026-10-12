@@ -21,6 +21,7 @@ function run(prefIdx: number, type: number, months: number, doScout: boolean): G
     advanceMonth(s);
     // Tournament rounds are separate advances but do not consume calendar months.
     while (s.pendingTour) advanceMonth(s);
+    if (s.tourCompletedMonth === s.month) advanceMonth(s);
   }
   return s;
 }
@@ -52,6 +53,31 @@ t('新規ゲームは27人で、先発15枠がすべて埋まる', () => {
   assert.equal(new Set(st.map((x) => x.player?.id)).size, 15);
   const ts = teamStrength(s);
   assert.ok(ts > 20 && ts < 90, `strength ${ts}`);
+});
+
+t('大会の最終試合後も、月送りは別操作になる', () => {
+  seed(81);
+  const s = newGame(0, 0);
+  s.month = 7;
+  s.pendingTour = {
+    year: s.year, kind: 'summer', name: '夏季県大会', totalRounds: 4,
+    rounds: [
+      { label: '1回戦', opp: 'A高校', my: 20, their: 10, win: true },
+      { label: '準々決勝', opp: 'B高校', my: 20, their: 10, win: true },
+      { label: '準決勝', opp: 'C高校', my: 20, their: 10, win: true },
+    ],
+  };
+  const month = s.month;
+  const result = advanceMonth(s);
+  assert.ok(result.match);
+  assert.ok(result.tour);
+  assert.equal(s.month, month);
+  assert.equal(s.pendingTour, undefined);
+  assert.equal(s.tourCompletedMonth, month);
+  const monthAdvance = advanceMonth(s);
+  assert.equal(monthAdvance.match, undefined);
+  assert.equal(s.month, 8);
+  assert.equal(s.tourCompletedMonth, undefined);
 });
 
 t('先発は重複せず、試合準備で任意に変更できる', () => {
@@ -132,6 +158,7 @@ t('スカウトした選手は4月に入学し、スカウト結果が残る', (
   for (let i = 0; i < 12; i++) {
     advanceMonth(s);
     while (s.pendingTour) advanceMonth(s);
+    if (s.tourCompletedMonth === s.month) advanceMonth(s);
   }
   for (const id of ids) {
     const p = s.players.find((x) => x.id === id);
