@@ -160,8 +160,10 @@ function assignProfessional(s: CareerState): void {
   const wins = universitySeasons.reduce((n, x) => n + x.wins, 0);
   const universityAppearances = universitySeasons.reduce((n, x) => n + x.appearances, 0);
   const universityTries = universitySeasons.reduce((n, x) => n + x.tries, 0);
+  const universityMatchRatings = s.matchHistory.filter((m) => m.appeared && /大学|リーグ戦|春季/.test(m.competition)).map((m) => m.rating);
+  const universityAverageRating = universityMatchRatings.length ? universityMatchRatings.reduce((sum, rating) => sum + rating, 0) / universityMatchRatings.length : 0;
   const o = careerOverall(s);
-  s.professionalStarterGuaranteed = o >= 70 && universityAppearances >= 22 && universityTries >= 6;
+  s.professionalStarterGuaranteed = o >= 70 && universityAppearances >= 22 && (universityTries >= 6 || universityAverageRating >= 7.0);
   s.proDivision = o >= 75 || wins >= 20 ? 1 : o >= 60 || wins >= 12 ? 2 : 3;
   s.professionalTeam = pick(PRO_TEAMS[s.proDivision]); s.retirementAge = int(35, 38); s.proMatchIndex = 0;
   const role = s.professionalStarterGuaranteed ? '大学時代のスター選手として、加入時から先発起用を約束された。' : 'まずは控えからプロキャリアをスタートする。';
@@ -266,6 +268,7 @@ export function careerAppearanceProbability(s: CareerState): number {
   return clamp(chance + abilityAdjustment + talentAdjustment, 0.08, s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed ? 0.99 : 0.92);
 }
 function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, opponent?: string, date?: string, kind: CareerFixture['kind'] | 'highschool' | 'world' = 'university-league', difficulty?: number): { my: number; their: number; win: boolean; exp: number; match: CareerMatch } {
+  const o = careerOverall(s), expected = s.phase === 'highschool' ? 43 : s.phase === 'university' ? 59 : 66;
   const appeared = rand() < careerAppearanceProbability(s);
   const teamBonus = s.phase === 'university' ? (s.universityTier === '最上位' ? 5 : s.universityTier === '上位' ? 3 : 0) : s.phase === 'professional' ? 4 : 0;
   const strength = o + teamBonus + gauss(0, 8), opponentStrength = difficulty ?? expected + gauss(0, 10);
