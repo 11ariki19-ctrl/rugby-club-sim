@@ -4,6 +4,13 @@ import { POS_LABEL, STAT_KEYS, STAT_LABEL, overallAt, rankOf } from './game';
 import type { Pos, StatKey, Stats } from './game';
 
 export type CareerPhase = 'highschool' | 'university' | 'professional' | 'retired';
+export type CareerTalentType = '凡人' | '秀才' | '天才' | '一芸';
+export const CAREER_TALENTS: { id: CareerTalentType; label: string; description: string }[] = [
+  { id: '凡人', label: '凡人', description: '現行仕様のランダム能力・成長' },
+  { id: '秀才', label: '秀才', description: '凡人の初期能力に全ステータス+10' },
+  { id: '天才', label: '天才', description: '凡人の初期能力に全ステータス+15' },
+  { id: '一芸', label: '一芸', description: '1能力が最低能力の3倍。最低能力は15〜20' },
+];
 export interface CareerSeason {
   age: number;
   phase: Exclude<CareerPhase, 'retired'>;
@@ -31,13 +38,14 @@ export interface CareerMatch {
 }
 export interface CareerFixture {
   date: string; label: string; opponent: string; difficulty: number;
-  kind: 'university-league' | 'university-spring' | 'university-championship' | 'professional-league' | 'professional-playoff';
+  kind: 'university-league' | 'university-spring' | 'university-championship' | 'professional-league' | 'professional-playoff' | 'japan-test';
 }
 export interface CareerPlayer {
   name: string;
   pos: Pos;
   stats: Stats;
   talent: number;
+  talentType: CareerTalentType;
   height: number;
   weight: number;
   peak: number;
@@ -57,6 +65,7 @@ export interface CareerState {
   pendingFixtures?: CareerFixture[]; lastMatch?: CareerMatch; matchHistory: CareerMatch[];
   highSchoolAppearances: number; highSchoolTries: number; highSchoolRatingTotal: number; highSchoolRatingCount: number;
   nationalCandidate: boolean; worldTournamentWins: number;
+  japanNationalTeamSelected: boolean; japanNationalTeamCaps: number; japanNationalTeamWins: number;
   universityGroup: '関東大学対抗戦A' | '関東大学リーグ戦1部' | '関西大学Aリーグ';
   universityQualified: boolean; universityTournamentAlive: boolean;
   proDivision: 1 | 2 | 3; proMatchIndex: number; proSchedule: CareerFixture[];
@@ -85,6 +94,7 @@ const PRO_TEAMS: Record<1 | 2 | 3, string[]> = {
   3: ['ヤクルトレビンズ戸田','栗田工業ウォーターガッシュ昭島','中国電力レッドレグリオンズ','ルリーロ福岡','狭山セコムラガッツ','マツダスカイアクティブズ広島'],
 };
 const WORLD_OPPONENTS = ['オーストラリア','ウェールズ','フィジー'];
+const JAPAN_TEST_OPPONENTS = ['ニュージーランド','オーストラリア','イングランド'];
 const PHASE_LABEL: Record<CareerPhase, string> = {
   highschool: '高校生', university: '大学生', professional: '社会人', retired: '引退',
 };
@@ -151,15 +161,30 @@ function assignProfessional(s: CareerState): void {
   s.history.unshift(`大学卒業。大学リーグでの勝利${wins}勝・総合値${o}を評価され、リーグワン ディビジョン${s.proDivision}の${s.professionalTeam}に加入。`);
   s.phase = 'professional'; s.stageYear = 1; s.age = 22; s.month = 7; s.currentSeason = newSeason(s); s.proSchedule = buildProSchedule(s);
 }
-export function newCareer(name: string, pos: Pos, prefIndex = 26, schoolName?: string): CareerState {
+export function newCareer(name: string, pos: Pos, prefIndex = 26, schoolName?: string, talentType: CareerTalentType = '凡人'): CareerState {
   const p = POSITIONS.includes(pos) ? pos : 'CTB';
   const base: Record<Pos, number> = { PR: 39, HO: 40, LO: 40, FL: 41, N8: 42, SH: 40, SO: 41, CTB: 42, WTB: 42, FB: 41 };
   const stats = {} as Stats;
   for (const k of STAT_KEYS) stats[k] = clamp(base[p] + gauss(0, 5), 22, 58);
+  const selectedTalent: CareerTalentType = CAREER_TALENTS.some((x) => x.id === talentType) ? talentType : '凡人';
+  if (selectedTalent === '秀才' || selectedTalent === '天才') {
+    const bonus = selectedTalent === '秀才' ? 10 : 15;
+    for (const k of STAT_KEYS) stats[k] = clamp(stats[k] + bonus, 0, 99);
+  } else if (selectedTalent === '一芸') {
+    const lowKey = pick([...STAT_KEYS]);
+    const highKey = pick(STAT_KEYS.filter((k) => k !== lowKey));
+    const low = int(15, 20);
+    stats[lowKey] = low;
+    stats[highKey] = low * 3;
+  }
   const [h, w] = BODY[p];
+  const growthTalent = selectedTalent === '天才' ? clamp(gauss(1.3, 0.15), 1.1, 1.6)
+    : selectedTalent === '秀才' ? clamp(gauss(1.15, 0.15), 1.0, 1.45)
+    : selectedTalent === '一芸' ? clamp(gauss(1.08, 0.18), 0.8, 1.45)
+    : clamp(gauss(1, 0.22), 0.65, 1.5);
   const player: CareerPlayer = {
     name: name.trim().slice(0, 24) || 'ラグビー選手',
-    pos: p, stats, talent: clamp(gauss(1, 0.22), 0.65, 1.5),
+    pos: p, stats, talent: growthTalent, talentType: selectedTalent,
     height: Math.round(h + gauss(0, 3)), weight: Math.round(w + gauss(0, 4)),
     peak: 0,
   };
@@ -168,7 +193,7 @@ export function newCareer(name: string, pos: Pos, prefIndex = 26, schoolName?: s
     elapsedMonths: 0, prefIndex: clamp(Math.round(prefIndex), 0, PREFS.length - 1), experiencePoints: 0, qualified: false, universityTournamentFinalist: false, training: 'tec' as StatKey, player, highSchool: schoolName || schoolsOf(clamp(Math.round(prefIndex), 0, PREFS.length - 1))[1].name,
     university: '', universityTier: '', professionalTeam: '', retirementAge: 36,
     seasons: [] as CareerSeason[], currentSeason: {} as CareerSeason,
-    matchHistory: [] as CareerMatch[], highSchoolAppearances: 0, highSchoolTries: 0, highSchoolRatingTotal: 0, highSchoolRatingCount: 0, nationalCandidate: false, worldTournamentWins: 0,
+    matchHistory: [] as CareerMatch[], highSchoolAppearances: 0, highSchoolTries: 0, highSchoolRatingTotal: 0, highSchoolRatingCount: 0, nationalCandidate: false, worldTournamentWins: 0, japanNationalTeamSelected: false, japanNationalTeamCaps: 0, japanNationalTeamWins: 0,
     universityGroup: '関東大学対抗戦A' as CareerState['universityGroup'], universityQualified: false, universityTournamentAlive: false, proDivision: 3 as 1 | 2 | 3, proMatchIndex: 0, proSchedule: [],
     history: ['15歳で高校ラグビー生活がスタート。3年間の成長と活躍を目指す。'],
   };
@@ -187,6 +212,7 @@ function awardMatchExperience(s: CareerState, my: number, their: number, appeare
 }
 function opponentFor(s: CareerState, kind: CareerFixture['kind'] | 'highschool' | 'world', round = 0): string {
   if (kind === 'world') return WORLD_OPPONENTS[round % WORLD_OPPONENTS.length];
+  if (kind === 'japan-test') return JAPAN_TEST_OPPONENTS[round % JAPAN_TEST_OPPONENTS.length];
   if (kind === 'highschool') return `${PREFS[s.prefIndex].short}${pick(SUFFIX)}高校`;
   if (kind === 'university-league' || kind === 'university-spring' || kind === 'university-championship') {
     const list = UNIVERSITY_GROUPS[s.universityGroup] as readonly string[]; return pick(list.filter((x) => x !== s.university));
@@ -225,6 +251,11 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   const result = my > their ? '勝利' : my === their ? '引分' : '敗戦';
   scenes.push(my > their ? 'チームは勝利。試合後の評価が上がった。' : my === their ? '接戦の末に引き分け。最後まで集中を切らさなかった。' : '悔しい敗戦。課題を持ち帰り、次戦に向けて修正する。');
   const match: CareerMatch = { date: date || `2025年${s.month}月`, competition: label, opponent: opponent || opponentFor(s, kind), my, their, result, appeared, tries, carries, tackles, lineBreaks, kicks, errors, rating, experience: exp, scenes };
+  if (kind === 'japan-test') {
+    s.japanNationalTeamCaps++;
+    if (my > their) s.japanNationalTeamWins++;
+    match.scenes.unshift(`日本代表として${match.opponent}戦に出場。国際試合出場${s.japanNationalTeamCaps}試合目。`);
+  }
   s.lastMatch = match; s.matchHistory.unshift(match); s.matchHistory = s.matchHistory.slice(0, 80);
   if (appeared) season.appearances++; season.tries += tries;
   if (s.phase === 'highschool' && appeared) { s.highSchoolAppearances++; s.highSchoolTries += tries; s.highSchoolRatingTotal += rating; s.highSchoolRatingCount++; }
@@ -269,7 +300,10 @@ function playCareerTournamentMatch(s: CareerState): void {
 function monthlyFixtures(s: CareerState): CareerFixture[] {
   if (s.phase === 'university') {
     if (s.month === 5) return [{ date: '5月・春季交流戦', label: '大学春季交流戦', opponent: opponentFor(s, 'university-spring'), difficulty: 57, kind: 'university-spring' }];
-    if (s.month === 6) return [1,2].map((n) => ({ date: `6月・春季交流戦${n}`, label: `大学春季交流戦${n}`, opponent: opponentFor(s, 'university-spring'), difficulty: 58 + n, kind: 'university-spring' }));
+    if (s.month === 6) return [
+      ...[1,2].map((n) => ({ date: `6月・春季交流戦${n}`, label: `大学春季交流戦${n}`, opponent: opponentFor(s, 'university-spring'), difficulty: 58 + n, kind: 'university-spring' as const })),
+      ...(s.japanNationalTeamSelected ? JAPAN_TEST_OPPONENTS.map((opponent, i) => ({ date: `6月・日本代表戦${i + 1}`, label: `日本代表テストマッチ 第${i + 1}戦`, opponent, difficulty: 70 + i * 2, kind: 'japan-test' as const })) : []),
+    ];
     if (s.month === 9 || s.month === 10 || s.month === 11) {
       const count = s.month === 9 ? 2 : s.month === 10 ? 3 : 2, start = s.currentSeason.leaguePlayed;
       return Array.from({ length: Math.min(count, 7 - start) }, (_, i) => {
@@ -287,6 +321,7 @@ function monthlyFixtures(s: CareerState): CareerFixture[] {
     ];
   }
   if (s.phase === 'professional') {
+    if (s.month === 8 && s.japanNationalTeamSelected) return JAPAN_TEST_OPPONENTS.map((opponent, i) => ({ date: `8月・日本代表戦${i + 1}`, label: `日本代表テストマッチ 第${i + 1}戦`, opponent, difficulty: 72 + i * 2, kind: 'japan-test' as const }));
     if ([12,1,2,3,4,5].includes(s.month)) return s.proSchedule.filter((f, i) => i >= s.proMatchIndex && f.date.startsWith(`${s.month}月`));
     if (s.month === 6 && s.proDivision === 1 && s.currentSeason.leagueWins >= 11) return [
       { date: '5/23・プレーオフ', label: 'リーグワンD1 プレーオフ準々決勝', opponent: pick(PRO_TEAMS[1].filter((x) => x !== s.professionalTeam)), difficulty: 70, kind: 'professional-playoff' },
@@ -352,6 +387,14 @@ function advanceCalendar(s: CareerState): void {
 }
 export function advanceCareerMonth(s: CareerState): CareerState {
   if (s.phase === 'retired') return s;
+  if (s.phase === 'university' && s.month === 5 && !s.japanNationalTeamSelected && careerOverall(s) >= 62 && (s.stageYear >= 2 || careerOverall(s) >= 68)) {
+    s.japanNationalTeamSelected = true;
+    s.history.unshift(`大学での能力が評価され、${s.stageYear}年生で日本代表に選出！6月のテストマッチに出場する。`);
+  }
+  if (s.phase === 'professional' && s.month === 7 && !s.japanNationalTeamSelected && careerOverall(s) >= 67 && s.seasons.some((r) => r.phase === 'university' && r.appearances >= 8)) {
+    s.japanNationalTeamSelected = true;
+    s.history.unshift('大学での実績と社会人での高い能力が評価され、日本代表に選出！8月のテストマッチに出場する。');
+  }
   if (s.pendingTournament) { playCareerTournamentMatch(s); saveCareer(s); return s; }
   if (s.pendingFixtures?.length) { playNextFixture(s); saveCareer(s); return s; }
   if (s.tournamentCompletedMonth === s.month) {
@@ -410,6 +453,10 @@ export function loadCareer(): CareerState | null {
     if (typeof s.highSchoolRatingCount !== 'number') s.highSchoolRatingCount = 0;
     if (typeof s.nationalCandidate !== 'boolean') s.nationalCandidate = false;
     if (typeof s.worldTournamentWins !== 'number') s.worldTournamentWins = 0;
+    if (!s.player.talentType || !CAREER_TALENTS.some((x) => x.id === s.player.talentType)) s.player.talentType = '凡人';
+    if (typeof s.japanNationalTeamSelected !== 'boolean') s.japanNationalTeamSelected = false;
+    if (typeof s.japanNationalTeamCaps !== 'number') s.japanNationalTeamCaps = 0;
+    if (typeof s.japanNationalTeamWins !== 'number') s.japanNationalTeamWins = 0;
     if (!s.universityGroup) s.universityGroup = groupForUniversity(s.university || '');
     if (s.university && !(UNIVERSITY_GROUPS[s.universityGroup] as readonly string[]).includes(s.university)) {
       s.university = pick(UNIVERSITY_GROUPS[s.universityGroup] as unknown as string[]);

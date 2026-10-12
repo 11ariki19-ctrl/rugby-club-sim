@@ -12,6 +12,23 @@ function advanceCalendarMonth(s: ReturnType<typeof newCareer>): void {
 }
 seed(901);
 const s = newCareer('佐藤 蓮', 'SO');
+assert.equal(s.player.talentType, '凡人');
+seed(904);
+const ordinary = newCareer('凡人テスト', 'CTB', 26, '大阪学院高校', '凡人');
+seed(904);
+const scholar = newCareer('秀才テスト', 'CTB', 26, '大阪学院高校', '秀才');
+seed(904);
+const genius = newCareer('天才テスト', 'CTB', 26, '大阪学院高校', '天才');
+for (const key of Object.keys(ordinary.player.stats) as (keyof typeof ordinary.player.stats)[]) {
+  assert.equal(scholar.player.stats[key], ordinary.player.stats[key] + 10, 'scholar starts at ordinary +10');
+  assert.equal(genius.player.stats[key], ordinary.player.stats[key] + 15, 'genius starts at ordinary +15');
+}
+seed(905);
+const specialist = newCareer('一芸テスト', 'WTB', 26, '大阪学院高校', '一芸');
+const specialistValues = Object.values(specialist.player.stats);
+assert.ok(Math.min(...specialistValues) >= 15 && Math.min(...specialistValues) <= 20, 'specialist minimum stat is between 15 and 20');
+assert.ok(specialistValues.some((value) => value === Math.min(...specialistValues) * 3), 'specialist has one stat three times the minimum');
+console.log('  ok - four selectable talent types apply their specified starting stats');
 assert.equal(s.phase, 'highschool');
 assert.equal(s.age, 15);
 assert.equal(s.month, 4);
@@ -76,4 +93,14 @@ assert.equal(candidate.pendingTournament?.kind, 'world');
 assert.ok(candidate.lastMatch?.opponent === 'オーストラリア');
 console.log('  ok - standout high-school player can be selected for the February world tournament');
 console.log('  ok - pro career plays the official regular-season match count for its division');
+seed(906);
+const national = newCareer('日本代表テスト', 'SO', 26, '大阪学院高校', '天才');
+national.phase = 'university'; national.age = 19; national.stageYear = 2; national.month = 5;
+for (const key of Object.keys(national.player.stats) as (keyof typeof national.player.stats)[]) national.player.stats[key] = 70;
+advanceCareerMonth(national);
+assert.equal(national.japanNationalTeamSelected, true, 'university standout should be selected for Japan');
+let internationalGuard = 0;
+while (national.japanNationalTeamCaps === 0 && internationalGuard < 30) { advanceCareerMonth(national); internationalGuard++; }
+assert.ok(national.japanNationalTeamCaps > 0, 'university Japan selection should play international tests');
+console.log('  ok - university standouts can be selected for Japan and play test matches');
 console.log('\n7 passed');
