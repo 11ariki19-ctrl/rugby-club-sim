@@ -133,7 +133,7 @@ function homeScreen(s: GameState): string {
   const prefTitles = s.tours.filter((t) => t.kind === 'pref' && t.title).length;
   const news = s.news.slice(0, 6).map((n) => `<li>${esc(n)}</li>`).join('');
   return shell(
-    `<header class="hd"><div class="school">${esc(s.schoolName)}</div><div class="date">${s.year}年目 ${s.month}月</div></header>
+    `<header class="hd"><div class="school">${esc(s.schoolName)}</div><nav style="display:flex;gap:8px;flex-wrap:wrap"><a href="./soccer/" style="color:#d9ffe5;border:1px solid #4c8766;border-radius:9px;padding:7px 10px;text-decoration:none">⚽ サッカー版</a><a href="./baseball/" style="color:#e0ecff;border:1px solid #5a76a8;border-radius:9px;padding:7px 10px;text-decoration:none">⚾ 野球版</a></nav><div class="date">${s.year}年目 ${s.month}月</div></header>
     <section class="club-hero"><div><span class="profile-kicker">SEASON ${s.year} · MONTH ${s.month}</span><h2>クラブ・ダッシュボード</h2><p>${esc(s.schoolName)} ／ 高校ラグビー部</p></div>${uniformCard(s.schoolName)}</section>
     <section class="cards">
       <div class="card stat"><span class="k">チーム力</span><b>${teamStrength(s).toFixed(1)}</b></div>
