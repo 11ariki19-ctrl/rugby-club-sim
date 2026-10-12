@@ -46,7 +46,7 @@ console.log('  ok - university is selected from the existing university data');
 console.log('  ok - league records and retirement summary are retained');
 seed(902);
 const schedule = newCareer('日程確認', 'CTB');
-while (schedule.month !== 9) advanceCalendarMonth(schedule);
+while (!(schedule.phase === 'university' && schedule.month === 9)) advanceCalendarMonth(schedule);
 for (let month = 9; month <= 12; month++) {
   assert.equal(schedule.month, month);
   const before = schedule.currentSeason.played;
