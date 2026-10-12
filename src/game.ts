@@ -57,6 +57,23 @@ export interface Player {
 
 export type TourKind = 'summer' | 'pref' | 'nat' | 'newbie';
 
+export type Tactic = 'balanced' | 'power' | 'wide' | 'kicking' | 'defense';
+export const TACTICS: { id: Tactic; label: string; desc: string }[] = [
+  { id: 'balanced', label: 'バランス重視', desc: '安定した基本戦術。相手を選ばない' },
+  { id: 'power', label: 'FW・接点勝負', desc: 'パワーを活かす。パワー型のチーム向け' },
+  { id: 'wide', label: '展開ラグビー', desc: 'スピードを活かす。走力のあるチーム向け' },
+  { id: 'kicking', label: 'キック・判断重視', desc: 'テクニックを活かす。技術型のチーム向け' },
+  { id: 'defense', label: '堅守・カウンター', desc: '失点を抑える。格上相手にも有効' },
+];
+
+export interface PendingTour {
+  year: number;
+  kind: TourKind;
+  name: string;
+  totalRounds: number;
+  rounds: Round[];
+}
+
 export interface Round {
   label: string;
   opp: string;
@@ -114,6 +131,11 @@ export interface GameState {
   grads: GradRecord[];
   scoutLog: ScoutEntry[];
   news: string[];
+  /** SLOTSの順番で指定する先発15人。旧セーブでは未設定でも自動選出する */
+  lineup?: number[];
+  tactic?: Tactic;
+  /** 大会を1試合ずつ進めるための途中状態 */
+  pendingTour?: PendingTour;
 }
 
 export const MAX_COMMIT = 14;
@@ -243,6 +265,8 @@ export function newGame(prefIdx: number, type: number): GameState {
       );
     }
   }
+  s.lineup = pickStarters(s.players).map((x) => x.player?.id ?? 0);
+  s.tactic = 'balanced';
   return s;
 }
 
@@ -254,14 +278,16 @@ export interface StarterSlot {
   value: number;
 }
 
-export function pickStarters(players: Player[], maxGrade = 3): StarterSlot[] {
+export function pickStarters(players: Player[], maxGrade = 3, preferredIds?: number[]): StarterSlot[] {
   const pool = players.filter((p) => p.status === 'active' && p.grade <= maxGrade);
   const used = new Set<number>();
   const out: StarterSlot[] = [];
-  for (const slot of SLOTS) {
-    let best: Player | null = null;
-    let bv = -1;
-    for (const p of pool) {
+  for (let idx = 0; idx < SLOTS.length; idx++) {
+    const slot = SLOTS[idx];
+    const preferred = preferredIds?.[idx];
+    let best: Player | null = preferred == null ? null : pool.find((p) => p.id === preferred && !used.has(p.id)) ?? null;
+    let bv = best ? overallAt(best, slot) * (best.pos === slot ? 1 : 0.85) : -1;
+    if (!best) for (const p of pool) {
       if (used.has(p.id)) continue;
       const v = overallAt(p, slot) * (p.pos === slot ? 1 : 0.85);
       if (v > bv) {
@@ -276,8 +302,27 @@ export function pickStarters(players: Player[], maxGrade = 3): StarterSlot[] {
 }
 
 export function teamStrength(s: GameState, maxGrade = 3): number {
-  const st = pickStarters(s.players, maxGrade);
+  const st = pickStarters(s.players, maxGrade, s.lineup);
   return st.reduce((a, x) => a + x.value, 0) / st.length;
+}
+
+export function ensureMatchSetup(s: GameState): void {
+  if (!s.tactic || !TACTICS.some((t) => t.id === s.tactic)) s.tactic = 'balanced';
+  const active = s.players.filter((p) => p.status === 'active').map((p) => p.id);
+  const valid = Array.isArray(s.lineup) && s.lineup.length === SLOTS.length &&
+    s.lineup.every((id) => active.includes(id)) && new Set(s.lineup).size === SLOTS.length;
+  if (!valid) s.lineup = pickStarters(s.players).map((x) => x.player?.id ?? 0);
+}
+
+export function setLineupSlot(s: GameState, slotIndex: number, playerId: number): boolean {
+  ensureMatchSetup(s);
+  if (slotIndex < 0 || slotIndex >= SLOTS.length) return false;
+  const p = s.players.find((x) => x.id === playerId && x.status === 'active');
+  if (!p || (s.lineup as number[]).some((id, i) => i !== slotIndex && id === playerId)) return false;
+  const next = [...(s.lineup as number[])];
+  next[slotIndex] = playerId;
+  s.lineup = next;
+  return true;
 }
 
 /* ---------- スカウト ---------- */
@@ -378,8 +423,8 @@ function roundName(idx: number, n: number): string {
 
 export function playMatch(S: number, O: number): { my: number; their: number; win: boolean } {
   const d = S - O;
-  let a = Math.max(0, Math.round(20 + d * 0.45 + gauss(0, 8)));
-  let b = Math.max(0, Math.round(20 - d * 0.45 + gauss(0, 8)));
+  let a = Math.max(0, Math.round(20 + d * 0.5 + gauss(0, 7)));
+  let b = Math.max(0, Math.round(20 - d * 0.5 + gauss(0, 7)));
   if (a === b) {
     if (rand() < 0.5 + d / 100) a += 3;
     else b += 3;
@@ -387,41 +432,70 @@ export function playMatch(S: number, O: number): { my: number; their: number; wi
   return { my: a, their: b, win: a > b };
 }
 
-function runTour(s: GameState, kind: TourKind): TourRecord {
+function startTour(s: GameState, kind: TourKind): void {
   const cfg = TOURS[kind];
-  const S = teamStrength(s, kind === 'newbie' ? 2 : 3);
-  const pf = PREFS[s.prefIdx];
-  const rounds: Round[] = [];
-  let wins = 0;
-  for (let r = 0; r < cfg.rounds; r++) {
-    const O = kind === 'nat' ? 42 + r * 5 + gauss(0, 4) : 24 + pf.p * 4 + r * (kind === 'newbie' ? 5 : 4) + gauss(0, 4);
-    let opp = '';
-    for (let t = 0; t < 8; t++) {
-      const area = kind === 'nat' ? pick(PREFS).short : pf.short;
-      opp = `${area}${pick(SUFFIX)}高校`;
-      if (opp !== s.schoolName) break;
-    }
-    const m = playMatch(S, O);
-    rounds.push({ label: roundName(r, cfg.rounds), opp, my: m.my, their: m.their, win: m.win });
-    if (!m.win) break;
-    wins++;
-  }
-  const title = wins === cfg.rounds;
-  const result = title ? '優勝' : wins === cfg.rounds - 1 ? '準優勝' : `${roundName(wins, cfg.rounds)}敗退`;
+  s.pendingTour = { year: s.year, kind, name: cfg.name, totalRounds: cfg.rounds, rounds: [] };
+}
+
+function tacticBonus(s: GameState, maxGrade: number): { attack: number; defense: number } {
+  const starters = pickStarters(s.players, maxGrade, s.lineup).filter((x) => x.player);
+  if (!starters.length) return { attack: 0, defense: 0 };
+  const avg = (k: StatKey) => starters.reduce((sum, x) => sum + (x.player?.stats[k] ?? 0), 0) / starters.length;
+  const tactic = s.tactic ?? 'balanced';
+  if (tactic === 'power') return { attack: avg('pow') >= avg('spd') ? 3 : 0.5, defense: 0 };
+  if (tactic === 'wide') return { attack: avg('spd') >= avg('pow') ? 3 : 0.5, defense: 0 };
+  if (tactic === 'kicking') return { attack: avg('tec') >= avg('pow') ? 2.5 : 0.5, defense: 0 };
+  if (tactic === 'defense') return { attack: -0.5, defense: 3 };
+  return { attack: 0, defense: 0 };
+}
+
+function finishTour(s: GameState): TourRecord {
+  const p = s.pendingTour as PendingTour;
+  const wins = p.rounds.filter((x) => x.win).length;
+  const title = wins === p.totalRounds;
+  const result = title ? '優勝' : wins === p.totalRounds - 1 ? '準優勝' : `${roundName(wins, p.totalRounds)}敗退`;
   let d = 0;
-  if (kind === 'nat') d = 3 + wins * 4 + (title ? 15 : 0);
-  else if (kind === 'pref') d = wins * 3 + (title ? 10 : 0) - (wins === 0 ? 3 : 0);
+  if (p.kind === 'nat') d = 3 + wins * 4 + (title ? 15 : 0);
+  else if (p.kind === 'pref') d = wins * 3 + (title ? 10 : 0) - (wins === 0 ? 3 : 0);
   else d = (wins * 3 + (title ? 10 : 0) - (wins === 0 ? 3 : 0)) * 0.6;
   s.reputation = clamp(s.reputation + d, 0, 100);
-  const rec: TourRecord = { year: s.year, name: cfg.name, kind, rounds, result, title };
+  const rec: TourRecord = { year: p.year, name: p.name, kind: p.kind, rounds: p.rounds, result, title };
   s.tours.push(rec);
   if (s.tours.length > 80) s.tours.shift();
+  s.pendingTour = undefined;
+  if (p.kind === 'pref') s.qualified = result === '優勝' || result === '準優勝';
+  if (p.kind === 'nat') s.qualified = false;
   return rec;
+}
+
+function playPendingMatch(s: GameState): { match: Round; matchNumber: number; matchTotal: number; tour?: TourRecord } {
+  const p = s.pendingTour as PendingTour;
+  const idx = p.rounds.length;
+  const maxGrade = p.kind === 'newbie' ? 2 : 3;
+  const S = teamStrength(s, maxGrade);
+  const pf = PREFS[s.prefIdx];
+  const O = p.kind === 'nat'
+    ? 42 + idx * 5 + gauss(0, 3.5)
+    : 24 + pf.p * 4 + idx * (p.kind === 'newbie' ? 5 : 4) + gauss(0, 3.5);
+  let opp = '';
+  for (let t = 0; t < 8; t++) {
+    const area = p.kind === 'nat' ? pick(PREFS).short : pf.short;
+    opp = `${area}${pick(SUFFIX)}高校`;
+    if (opp !== s.schoolName) break;
+  }
+  const bonus = tacticBonus(s, maxGrade);
+  const m = playMatch(S + bonus.attack, O - bonus.defense);
+  const match: Round = { label: roundName(idx, p.totalRounds), opp, my: m.my, their: m.their, win: m.win };
+  p.rounds.push(match);
+  const done = !m.win || p.rounds.length >= p.totalRounds;
+  let tour: TourRecord | undefined;
+  if (done) tour = finishTour(s);
+  return { match, matchNumber: idx + 1, matchTotal: p.totalRounds, tour };
 }
 
 /* ---------- 月の進行 ---------- */
 
-const GROW = [0.5, 0.7, 0.55, 0.4];
+const GROW = [0.55, 0.8, 0.65, 0.45];
 
 function growPlayers(s: GameState): void {
   const season = s.month >= 6 && s.month <= 8 ? 1.25 : s.month <= 3 ? 0.8 : 1;
@@ -499,6 +573,10 @@ export interface AdvanceResult {
   tour?: TourRecord;
   grad?: GradRecord;
   scouted: Player[];
+  match?: Round;
+  matchNumber?: number;
+  matchTotal?: number;
+  pending?: boolean;
 }
 
 function pushNews(s: GameState, line: string): void {
@@ -507,22 +585,46 @@ function pushNews(s: GameState, line: string): void {
 }
 
 export function advanceMonth(s: GameState): AdvanceResult {
+  ensureMatchSetup(s);
   const r: AdvanceResult = { monthBefore: s.month, yearBefore: s.year, lines: [], scouted: [] };
-  if (s.month === 7) r.tour = runTour(s, 'summer');
-  else if (s.month === 11) {
-    r.tour = runTour(s, 'pref');
-    s.qualified = r.tour.result === '優勝' || r.tour.result === '準優勝';
-    r.lines.push(s.qualified ? '花園への出場権を獲得した！' : '花園への出場はならなかった。');
-  } else if (s.month === 12) {
-    if (s.qualified) r.tour = runTour(s, 'nat');
-    else r.lines.push('今年は全国大会に出場できなかった。');
-    s.qualified = false;
-  } else if (s.month === 2) r.tour = runTour(s, 'newbie');
+
+  // 大会は1試合ずつ進行。試合の間に戦術・先発を変更できる。
+  if (s.pendingTour) {
+    const played = playPendingMatch(s);
+    r.match = played.match;
+    r.matchNumber = played.matchNumber;
+    r.matchTotal = played.matchTotal;
+    r.tour = played.tour;
+    r.pending = !!s.pendingTour;
+    r.lines.push(`${played.match.label}：${played.match.my}-${played.match.their}（${played.match.win ? '勝利' : '敗戦'}）`);
+    if (played.tour) r.lines.push(`${played.tour.name}：${played.tour.result}`);
+    if (s.pendingTour) return r;
+  } else {
+    let kind: TourKind | null = null;
+    if (s.month === 7) kind = 'summer';
+    else if (s.month === 11) kind = 'pref';
+    else if (s.month === 12 && s.qualified) kind = 'nat';
+    else if (s.month === 2) kind = 'newbie';
+
+    if (kind) {
+      startTour(s, kind);
+      const played = playPendingMatch(s);
+      r.match = played.match;
+      r.matchNumber = played.matchNumber;
+      r.matchTotal = played.matchTotal;
+      r.tour = played.tour;
+      r.pending = !!s.pendingTour;
+      r.lines.push(`${played.match.label}：${played.match.my}-${played.match.their}（${played.match.win ? '勝利' : '敗戦'}）`);
+      if (played.tour) r.lines.push(`${played.tour.name}：${played.tour.result}`);
+      if (s.pendingTour) return r;
+    } else if (s.month === 12) {
+      r.lines.push('今年は全国大会に出場できなかった。');
+    }
+  }
 
   if (r.tour) {
-    const line = `${r.tour.name}：${r.tour.result}`;
-    r.lines.unshift(line);
-    pushNews(s, `${s.year}年目 ${line}`);
+    pushNews(s, `${s.year}年目 ${r.tour.name}：${r.tour.result}`);
+    if (r.tour.kind === 'pref') r.lines.push(s.qualified ? '花園への出場権を獲得した！' : '花園への出場はならなかった。');
   }
 
   growPlayers(s);
