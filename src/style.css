@@ -92,3 +92,22 @@ main { padding: 16px; padding-top: calc(16px + env(safe-area-inset-top)); paddin
 .sheet { background: #fff; width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); border-radius: 18px 18px 0 0; }
 .tbl { width: 100%; border-collapse: collapse; font-size: 14px; margin: 8px 0; }
 .tbl td { border-bottom: 1px solid var(--line); padding: 6px 4px; }
+
+
+/* Playable career match */
+.scoreboard { display:flex; align-items:center; justify-content:space-around; gap:12px; padding:16px 8px; background:#123f2a; color:#fff; border-radius:12px; margin:12px 0; }
+.scoreboard > div { display:flex; flex:1; flex-direction:column; align-items:center; gap:4px; min-width:0; }
+.scoreboard span { font-size:13px; text-align:center; overflow-wrap:anywhere; }
+.scoreboard strong { font-size:34px; line-height:1.1; }
+.scoreboard .score-dash { flex:0 0 auto; font-size:22px; opacity:.7; }
+.rugby-pitch { position:relative; height:94px; margin:14px 0 18px; border-radius:8px; overflow:hidden; background:repeating-linear-gradient(90deg,#267b49 0,#267b49 9.5%,#2f8953 9.5%,#2f8953 19%); border:2px solid #fff; outline:1px solid #c8d5cc; }
+.pitch-lines { position:absolute; inset:0; background:repeating-linear-gradient(90deg,transparent 0,transparent 19%,rgba(255,255,255,.8) 19%,rgba(255,255,255,.8) 19.5%); }
+.pitch-half { position:absolute; left:50%; top:0; bottom:0; border-left:2px solid rgba(255,255,255,.85); }
+.pitch-ball { position:absolute; top:28px; transform:translateX(-50%); font-size:25px; filter:drop-shadow(0 1px 2px #123); transition:left .2s ease; }
+.pitch-own,.pitch-opponent { position:absolute; bottom:5px; color:#fff; font-size:11px; font-weight:700; text-shadow:0 1px 2px #123; }
+.pitch-own { left:8px; } .pitch-opponent { right:8px; }
+.match-event { margin-top:12px; padding:12px; border-radius:10px; background:#f0f7f2; border-left:4px solid var(--green); }
+.match-event p { margin:6px 0 0; }
+.match-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.match-actions .btn { min-height:78px; text-align:left; align-items:flex-start; }
+@media (max-width:480px) { .match-actions { grid-template-columns:1fr; } .scoreboard strong { font-size:28px; } }
