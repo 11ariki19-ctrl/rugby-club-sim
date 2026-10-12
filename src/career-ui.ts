@@ -1,6 +1,6 @@
 import {
   advanceCareerMonth, careerOverall, currentTeam, newCareer, setCareerTraining,
-  CAREER_POSITIONS, CAREER_STAT_KEYS, CAREER_STAT_LABEL, hasCareerSave, loadCareer, saveCareer,
+  CAREER_POSITIONS, CAREER_STAT_KEYS, CAREER_STAT_LABEL, CAREER_TALENTS, hasCareerSave, loadCareer, saveCareer,
 } from './career';
 import type { CareerState, CareerPhase } from './career';
 import { STAT_LABEL } from './game';
@@ -14,6 +14,7 @@ let creating = false;
 let bound = false;
 let createPrefIndex = 26;
 let createSchoolIndex = 1;
+let createTalentType: '凡人' | '秀才' | '天才' | '一芸' = '凡人';
 const labels: Record<CareerPhase, string> = { highschool: '高校編', university: '大学編', professional: '社会人編', retired: '引退後' };
 const monthLabel = (m: number) => `${m}月`;
 
@@ -26,6 +27,8 @@ function createScreen(): string {
     <label>ポジション<select id="career-pos" class="search">${CAREER_POSITIONS.map((p) => `<option value="${p.id}" ${p.id === 'CTB' ? 'selected' : ''}>${p.label}（${p.id}）</option>`).join('')}</select></label>
     <label>出身・所属都道府県<select id="career-pref" class="search">${PREFS.map((p, i) => `<option value="${i}" ${i === createPrefIndex ? 'selected' : ''}>${p.name}</option>`).join('')}</select></label>
     <label>高校（県予選に参加）<select id="career-school" class="search">${schools.map((s, i) => `<option value="${i}" ${i === createSchoolIndex ? 'selected' : ''}>${s.name}（戦力★${s.power}）</option>`).join('')}</select></label>
+    <label>成長の才能<select id="career-talent" class="search">${CAREER_TALENTS.map((x) => `<option value="${x.id}" ${x.id === createTalentType ? 'selected' : ''}>${x.label} — ${x.description}</option>`).join('')}</select></label>
+    <p class="note">凡人は現行のランダム能力。秀才は全能力+10、天才は全能力+15。一芸は1能力が最低能力の3倍（最低能力15〜20）です。</p>
     <p class="note">高校は選択した都道府県の予選に参加します。高校大会の試合は1試合ずつ進み、活躍シーン・個人成績・評価を確認できます。</p>
     <button class="btn primary big" data-career="start">この選手でキャリア開始</button></div>
     <p class="note">監督モードのセーブデータとは別に保存されます。</p></main>`;
@@ -67,7 +70,8 @@ function homeScreen(s: CareerState): string {
     ${s.university ? `<div class="card"><b>進学先</b><p>${esc(s.university)}（${esc(s.universityTier)}）</p></div>` : ''}
     ${s.professionalTeam ? `<div class="card"><b>所属社会人チーム</b><p>${esc(s.professionalTeam)}（リーグワンD${s.proDivision}）</p></div>` : ''}
     ${s.nationalCandidate ? `<div class="card"><b>高校日本代表候補</b><p>選出済み ／ 世界大会勝利数：${s.worldTournamentWins}</p></div>` : ''}
-    <div class="card"><h3>選手能力</h3>${bars}<p class="small">最高総合値：${Math.round(s.player.peak)} ／ 才能：${s.player.talent >= 1.25 ? '大器' : s.player.talent >= 0.95 ? '標準' : '努力型'}</p></div>
+    ${s.japanNationalTeamSelected ? `<div class="card"><b>日本代表</b><p>選出済み ／ 国際試合 ${s.japanNationalTeamCaps}キャップ・${s.japanNationalTeamWins}勝</p><p class="small">大学編は6月、社会人編は8月に国際テストマッチを行います。</p></div>` : ''}
+    <div class="card"><h3>選手能力</h3>${bars}<p class="small">最高総合値：${Math.round(s.player.peak)} ／ 成長タイプ：${s.player.talentType}（成長係数 ${s.player.talent.toFixed(2)}）</p></div>
     ${lastMatchCard(s)}
     ${s.phase !== 'retired' ? `<h3>今月の育成方針</h3><p class="note">選んだ能力が最も伸びます。高校編は選択県の大会を1試合ずつ進行。大学編は公式リーグ戦7試合（9〜11月）と全国大学選手権（11月〜1月）、社会人編はディビジョン別の公式戦数で進行します。</p>${training}
     <button class="btn primary big" data-career="advance">${s.pendingTournament ? `次の試合へ（${s.pendingTournament.name} ${s.pendingTournament.rounds + 1}試合目）` : s.pendingFixtures?.length ? `次の試合へ（${s.pendingFixtures[0].label}）` : s.tournamentCompletedMonth === s.month ? `試合終了：${monthLabel(s.month)}を終えて次の月へ` : `${monthLabel(s.month)}を進める`}</button>` : `<div class="panel"><h3>現役引退</h3><p>${esc(s.finalSummary ?? '')}</p><p>通算リーグ出場：${s.seasons.reduce((n, r) => n + r.appearances, 0)}試合 ／ 通算トライ：${s.seasons.reduce((n, r) => n + r.tries, 0)}</p></div>`}
@@ -87,7 +91,8 @@ function act(action: string, value = ''): void {
     const pos = (root.querySelector<HTMLSelectElement>('#career-pos')?.value ?? 'CTB') as Pos;
     if (hasCareerSave() && !confirm('保存済みの選手キャリアを上書きしますか？')) return;
     const school = schoolsOf(createPrefIndex)[createSchoolIndex] ?? schoolsOf(createPrefIndex)[1];
-    state = newCareer(name, pos, createPrefIndex, school.name);
+    createTalentType = (root.querySelector<HTMLSelectElement>('#career-talent')?.value ?? '凡人') as '凡人' | '秀才' | '天才' | '一芸';
+    state = newCareer(name, pos, createPrefIndex, school.name, createTalentType);
     creating = false;
   } else if (action === 'train' && state) {
     setCareerTraining(state, value as StatKey);
@@ -101,7 +106,7 @@ export function openCareerMode(el: HTMLElement, resume: boolean): void {
   root = el;
   state = resume ? loadCareer() : null;
   creating = !resume || !state;
-  if (creating) { createPrefIndex = 26; createSchoolIndex = 1; }
+  if (creating) { createPrefIndex = 26; createSchoolIndex = 1; createTalentType = '凡人'; }
   if (!bound) {
     root.addEventListener('click', (e) => {
       const t = (e.target as HTMLElement).closest<HTMLElement>('[data-career]');
@@ -116,6 +121,7 @@ export function openCareerMode(el: HTMLElement, resume: boolean): void {
         const nameInput = root?.querySelector<HTMLInputElement>('#career-name'); if (nameInput) nameInput.value = name;
         const posInput = root?.querySelector<HTMLSelectElement>('#career-pos'); if (posInput) posInput.value = pos;
       } else if (t.id === 'career-school') createSchoolIndex = Number(t.value);
+      else if (t.id === 'career-talent') createTalentType = t.value as '凡人' | '秀才' | '天才' | '一芸';
     });
     bound = true;
   }
