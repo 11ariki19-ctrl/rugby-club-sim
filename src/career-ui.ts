@@ -39,7 +39,7 @@ function seasonCard(s: CareerState): string {
 }
 function phaseDescription(s: CareerState): string {
   if (s.phase === 'highschool') return `高校${s.stageYear}年生。${PREFS[s.prefIndex]?.name ?? ''}の県予選から進みます。大会での成績が優秀なら2月に高校日本代表候補へ選出され、世界大会に出場します。`;
-  if (s.phase === 'university') return `大学${s.stageYear}年生。${s.universityGroup}に所属。9〜11月に公式リーグ戦7試合、12〜1月に全国大学選手権（条件を満たした場合）を戦います。`;
+  if (s.phase === 'university') return `大学${s.stageYear}年生。${s.universityGroup}に所属。9〜11月に公式リーグ戦7試合、11月〜1月に全国大学選手権（条件を満たした場合）を戦います。`;
   if (s.phase === 'professional') return `社会人${s.stageYear}年目・リーグワン ディビジョン${s.proDivision}。2025-26方式を参考に公式リーグ戦${s.proDivision === 1 ? 18 : s.proDivision === 2 ? 14 : 15}試合を戦い、現役引退予定年齢${s.retirementAge}歳までキャリアを重ねます。`;
   return s.finalSummary ?? '現役生活を終えました。';
 }
@@ -69,7 +69,7 @@ function homeScreen(s: CareerState): string {
     ${s.nationalCandidate ? `<div class="card"><b>高校日本代表候補</b><p>選出済み ／ 世界大会勝利数：${s.worldTournamentWins}</p></div>` : ''}
     <div class="card"><h3>選手能力</h3>${bars}<p class="small">最高総合値：${Math.round(s.player.peak)} ／ 才能：${s.player.talent >= 1.25 ? '大器' : s.player.talent >= 0.95 ? '標準' : '努力型'}</p></div>
     ${lastMatchCard(s)}
-    ${s.phase !== 'retired' ? `<h3>今月の育成方針</h3><p class="note">選んだ能力が最も伸びます。高校編は監督モードと同じ大会日程、大学編は9〜12月リーグ戦・1〜2月トーナメント。試合は1試合ずつ進み、試合結果に応じて経験点を獲得します。</p>${training}
+    ${s.phase !== 'retired' ? `<h3>今月の育成方針</h3><p class="note">選んだ能力が最も伸びます。高校編は選択県の大会を1試合ずつ進行。大学編は公式リーグ戦7試合（9〜11月）と全国大学選手権（11月〜1月）、社会人編はディビジョン別の公式戦数で進行します。</p>${training}
     <button class="btn primary big" data-career="advance">${s.pendingTournament ? `次の試合へ（${s.pendingTournament.name} ${s.pendingTournament.rounds + 1}試合目）` : s.pendingFixtures?.length ? `次の試合へ（${s.pendingFixtures[0].label}）` : s.tournamentCompletedMonth === s.month ? `試合終了：${monthLabel(s.month)}を終えて次の月へ` : `${monthLabel(s.month)}を進める`}</button>` : `<div class="panel"><h3>現役引退</h3><p>${esc(s.finalSummary ?? '')}</p><p>通算リーグ出場：${s.seasons.reduce((n, r) => n + r.appearances, 0)}試合 ／ 通算トライ：${s.seasons.reduce((n, r) => n + r.tries, 0)}</p></div>`}
     ${seasonCard(s)}<h3>キャリア年表</h3><ul class="news">${history}</ul>
     <h3>シーズン記録</h3>${seasons || '<p class="note">シーズン終了後に記録が追加されます。</p>'}
