@@ -233,6 +233,7 @@ function opponentFor(s: CareerState, kind: CareerFixture['kind'] | 'highschool' 
  * 確率は「その試合に出場する確率」であり、先発/途中出場の区別は今後の拡張対象。
  */
 export function careerAppearanceProbability(s: CareerState): number {
+  if (s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed) return 1;
   const year = Math.max(1, Math.min(4, s.stageYear));
   let chance: number;
   if (s.phase === 'highschool') {
