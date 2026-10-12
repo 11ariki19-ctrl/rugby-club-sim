@@ -1,4 +1,4 @@
-import { PREFS, SUFFIX, UNIVS, schoolsOf } from './data';
+import { PREFS, SUFFIX, schoolsOf } from './data';
 import { rand, int, pick, gauss, clamp } from './rng';
 import { POS_LABEL, STAT_KEYS, STAT_LABEL, overallAt, rankOf } from './game';
 import type { Pos, StatKey, Stats } from './game';
@@ -84,7 +84,7 @@ const PRO_TEAMS: Record<1 | 2 | 3, string[]> = {
   2: ['花園近鉄ライナーズ','豊田自動織機シャトルズ愛知','NECグリーンロケッツ東葛','レッドハリケーンズ大阪','清水建設江東ブルーシャークス','日本製鉄釜石シーウェイブス','九州電力キューデンヴォルテクス','日野レッドドルフィンズ'],
   3: ['ヤクルトレビンズ戸田','栗田工業ウォーターガッシュ昭島','中国電力レッドレグリオンズ','ルリーロ福岡','狭山セコムラガッツ','マツダスカイアクティブズ広島'],
 };
-const WORLD_OPPONENTS = ['ニュージーランド','オーストラリア','フランス'];
+const WORLD_OPPONENTS = ['オーストラリア','ウェールズ','フィジー'];
 const PHASE_LABEL: Record<CareerPhase, string> = {
   highschool: '高校生', university: '大学生', professional: '社会人', retired: '引退',
 };
@@ -264,7 +264,7 @@ function playCareerTournamentMatch(s: CareerState): void {
   const m = simulateMatch(s, label, opponent, `${s.month}月・${round}試合目`, t.kind === 'world' ? 'world' : 'highschool');
   t.rounds++;
   if (m.win) { t.wins++; s.experiencePoints += 5; s.currentSeason.notes.push(`${t.name}・勝利ボーナス経験点+5`); }
-  if (!m.win || t.rounds >= t.totalRounds) finishCareerTournament(s);
+  if ((t.kind !== 'world' && !m.win) || t.rounds >= t.totalRounds) finishCareerTournament(s);
 }
 function monthlyFixtures(s: CareerState): CareerFixture[] {
   if (s.phase === 'university') {
@@ -309,7 +309,13 @@ function playNextFixture(s: CareerState): void {
   if (fixture.kind === 'university-league' && s.currentSeason.leaguePlayed >= 7) {
     s.universityQualified = s.currentSeason.leagueWins >= 4 || s.universityTier === '最上位';
     s.universityTournamentAlive = s.universityQualified;
-    if (s.universityQualified) s.history.unshift(`${s.universityGroup} ${s.currentSeason.leagueWins}勝で全国大学選手権への出場権を獲得。`);
+    if (s.universityQualified) {
+      s.history.unshift(`${s.universityGroup} ${s.currentSeason.leagueWins}勝で全国大学選手権への出場権を獲得。`);
+      s.pendingFixtures?.push(
+        { date: '11/22・1回戦', label: '全国大学選手権 1回戦', opponent: opponentFor(s, 'university-championship'), difficulty: 60, kind: 'university-championship' },
+        { date: '11/29・2回戦', label: '全国大学選手権 2回戦', opponent: opponentFor(s, 'university-championship'), difficulty: 61, kind: 'university-championship' },
+      );
+    }
   }
   if (fixture.kind === 'university-championship' && !m.win) { s.universityTournamentAlive = false; s.pendingFixtures = []; }
   if (fixture.kind === 'professional-playoff' && !m.win) s.pendingFixtures = [];
@@ -405,6 +411,9 @@ export function loadCareer(): CareerState | null {
     if (typeof s.nationalCandidate !== 'boolean') s.nationalCandidate = false;
     if (typeof s.worldTournamentWins !== 'number') s.worldTournamentWins = 0;
     if (!s.universityGroup) s.universityGroup = groupForUniversity(s.university || '');
+    if (s.university && !(UNIVERSITY_GROUPS[s.universityGroup] as readonly string[]).includes(s.university)) {
+      s.university = pick(UNIVERSITY_GROUPS[s.universityGroup] as unknown as string[]);
+    }
     if (typeof s.universityQualified !== 'boolean') s.universityQualified = false;
     if (typeof s.universityTournamentAlive !== 'boolean') s.universityTournamentAlive = false;
     if (![1,2,3].includes(s.proDivision)) s.proDivision = 3;
