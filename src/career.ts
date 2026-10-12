@@ -439,11 +439,121 @@ function roundName(round: number, total: number): string {
   if (round === total - 2) return '準々決勝';
   return `${round}回戦`;
 }
-function playCareerTournamentMatch(s: CareerState): void {
+export function beginCareerLiveMatch(s: CareerState, source: 'tournament' | 'fixture', fixture: CareerFixture): void {
+  if (s.liveMatch) return;
+  let role: CareerRole = 'メンバー外';
+  if (s.injuryMonths > 0) role = 'メンバー外';
+  else if (s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed) role = '先発';
+  else if (rand() < careerAppearanceProbability(s)) role = rand() < clamp(0.32 + (careerOverall(s) - (s.phase === 'highschool' ? 43 : s.phase === 'university' ? 59 : 66)) / 100 + (s.morale - 60) / 300 - s.fatigue / 350, 0.12, 0.95) ? '先発' : '途中出場';
+  else role = rand() < 0.58 ? '控え' : 'メンバー外';
+  s.liveMatch = {
+    source, fixture, elapsed: 0, possession: '自チーム', fieldPosition: 50, scoreFor: 0, scoreAgainst: 0, role,
+    tries: 0, carries: 0, tackles: 0, lineBreaks: 0, kicks: 0, errors: 0, scenes: [],
+    lastEvent: `キックオフ！${s.player.name}のチームが試合を始める。`, actions: 0,
+  };
+  saveCareer(s);
+}
+function finishCareerLiveMatch(s: CareerState): void {
+  const live = s.liveMatch; if (!live) return;
+  const f = live.fixture;
+  const kind = f.kind;
+  const m = simulateMatch(s, f.label, f.opponent, f.date, kind, f.difficulty, live);
+  s.liveMatch = undefined;
+  if (live.source === 'tournament') {
+    const t = s.pendingTournament;
+    if (t) {
+      t.rounds++;
+      if (m.win) { t.wins++; s.experiencePoints += 5; s.currentSeason.notes.push(`${t.name}・勝利ボーナス経験点+5`); }
+      if ((t.kind !== 'world' && !m.win) || t.rounds >= t.totalRounds) finishCareerTournament(s);
+    }
+  } else {
+    if (kind === 'professional-league') s.proMatchIndex++;
+    if (kind === 'university-league' && s.currentSeason.leaguePlayed >= 7) {
+      s.universityQualified = s.currentSeason.leagueWins >= 4 || s.universityTier === '最上位';
+      s.universityTournamentAlive = s.universityQualified;
+      if (s.universityQualified) {
+        s.history.unshift(`${s.universityGroup} ${s.currentSeason.leagueWins}勝で全国大学選手権への出場権を獲得。`);
+        s.pendingFixtures?.push(
+          { date: '11/22・1回戦', label: '全国大学選手権 1回戦', opponent: opponentFor(s, 'university-championship'), difficulty: 60, kind: 'university-championship' },
+          { date: '11/29・2回戦', label: '全国大学選手権 2回戦', opponent: opponentFor(s, 'university-championship'), difficulty: 61, kind: 'university-championship' },
+        );
+      }
+    }
+    if (kind === 'university-championship' && !m.win) { s.universityTournamentAlive = false; s.pendingFixtures = []; }
+    if (kind === 'professional-playoff' && !m.win) s.pendingFixtures = [];
+    if (!s.pendingFixtures?.length) s.tournamentCompletedMonth = s.month;
+  }
+  saveCareer(s);
+}
+export function playCareerMatchAction(s: CareerState, action: CareerMatchAction): CareerState {
+  const g = s.liveMatch; if (!g) return s;
+  const st = s.player.stats;
+  const appeared = g.role === '先発' || g.role === '途中出場';
+  const skill = (pow: number, spd: number, tec: number, men: number) => (st.pow * pow + st.spd * spd + st.tec * tec + st.men * men) / (pow + spd + tec + men);
+  const chance = (base: number, ability: number) => clamp(base + (ability - 50) / 180 - g.actions * 0.004 - s.fatigue / 650, 0.18, 0.9);
+  let event = '';
+  if (g.possession === '自チーム') {
+    if (action === 'goal' && g.fieldPosition >= 55) {
+      g.kicks++;
+      if (rand() < chance(0.56, skill(0.1, 0.1, 0.5, 0.3))) {
+        g.scoreFor += 3; event = 'PG成功！キックで3点を追加。'; g.scenes.push(event); g.fieldPosition = 50; g.possession = '相手';
+      } else { event = 'PG失敗。相手ボールで再開。'; g.errors++; g.scenes.push(event); g.possession = '相手'; }
+    } else {
+      let success = false, gain = 0;
+      if (action === 'carry') {
+        success = rand() < chance(0.58, skill(0.35, 0.4, 0.1, 0.15)); gain = int(4, 12);
+        g.carries++; if (success && appeared) { if (rand() < 0.2) g.lineBreaks++; }
+        event = success ? `ボールキャリー成功！${gain}m前進。` : 'タックルを受けて前進できない。';
+      } else if (action === 'pass') {
+        success = rand() < chance(0.72, skill(0.05, 0.2, 0.5, 0.25)); gain = int(3, 10);
+        event = success ? `パスがつながり、攻撃継続。+${gain}m。` : 'パスミス！相手にボールを奪われた。'; if (!success) g.errors++;
+      } else if (action === 'kick') {
+        success = rand() < chance(0.68, skill(0.05, 0.05, 0.65, 0.25)); gain = int(12, 25); g.kicks++;
+        event = success ? `タッチキックで陣地を獲得。+${gain}m。` : 'キックが乱れ、相手ボールに。'; if (!success) g.errors++;
+      } else if (action === 'scrum') {
+        success = rand() < chance(0.7, skill(0.6, 0.05, 0.2, 0.15)); gain = int(2, 8);
+        event = success ? `スクラムで押し込み、安定した球出し。+${gain}m。` : 'スクラムで反則。相手ボール。';
+      } else if (action === 'lineout') {
+        success = rand() < chance(0.73, skill(0.2, 0.05, 0.45, 0.3)); gain = int(3, 9);
+        event = success ? `ラインアウトを確保してモールを形成。+${gain}m。` : 'ラインアウトでノックオン。相手ボール。'; if (!success) g.errors++;
+      } else {
+        event = '攻撃の選択が合わず、相手にボールが渡った。'; g.errors++;
+      }
+      if (success) {
+        g.fieldPosition = Math.min(100, g.fieldPosition + gain);
+        if (appeared && (action === 'carry' || action === 'pass') && g.fieldPosition >= 88 && rand() < chance(0.28, skill(0.15, 0.5, 0.2, 0.15))) {
+          g.scoreFor += 7; g.tries++; event = 'トライ！ディフェンスを突破してインゴールへ！コンバージョンも成功し7点！'; g.scenes.push(event); g.fieldPosition = 50; g.possession = '相手';
+        }
+      } else g.possession = '相手';
+    }
+  } else {
+    const ability = action === 'drift' ? skill(0.05, 0.4, 0.15, 0.4) : action === 'jackal' ? skill(0.35, 0.05, 0.35, 0.25) : skill(0.35, 0.25, 0.1, 0.3);
+    const base = action === 'jackal' ? 0.38 : action === 'rush' ? 0.64 : 0.7;
+    const stopped = rand() < chance(base, ability);
+    if (appeared) g.tackles++;
+    if (stopped) {
+      event = action === 'jackal' ? 'ジャッカル成功！ターンオーバー！' : action === 'drift' ? '外側へ追い込み、相手の攻撃を止めた。' : '前に出るディフェンスで相手を後退させた！';
+      g.fieldPosition = Math.min(95, g.fieldPosition + int(3, 10));
+      if (action === 'jackal' || rand() < 0.35) g.possession = '自チーム';
+    } else {
+      const gain = int(5, 14); g.fieldPosition = Math.max(0, g.fieldPosition - gain);
+      event = `相手の攻撃を止めきれず、${gain}m前進を許した。`;
+      if (g.fieldPosition <= 10 && rand() < 0.38) {
+        g.scoreAgainst += 7; event = '相手にトライを許した。コンバージョンも決まり7失点。'; g.scenes.push(event); g.fieldPosition = 50; g.possession = '自チーム';
+      } else if (rand() < 0.42) g.possession = '自チーム';
+    }
+  }
+  g.elapsed = Math.min(80, g.elapsed + 5); g.actions++; g.lastEvent = event;
+  if (g.elapsed >= 80) { g.scenes.push(`ノーサイド！最終スコア ${g.scoreFor}-${g.scoreAgainst}。`); finishCareerLiveMatch(s); }
+  saveCareer(s); return s;
+}
+
+function playCareerTournamentMatch(s: CareerState, interactive = false): void {
   const t = s.pendingTournament; if (!t) return;
   const round = t.rounds + 1;
   const label = t.kind === 'world' ? `高校日本代表候補・世界大会 第${round}戦` : `${t.name}・${roundName(round, t.totalRounds)}`;
   const opponent = t.kind === 'world' ? WORLD_OPPONENTS[t.rounds] : t.kind === 'nat' ? `${pick(PREFS.filter((_, i) => i !== s.prefIndex)).short}${pick(SUFFIX)}高校` : `${PREFS[s.prefIndex].short}${pick(SUFFIX)}高校`;
+  if (interactive) { beginCareerLiveMatch(s, 'tournament', { date: `${s.month}月・${round}試合目`, label, opponent, difficulty: t.kind === 'world' ? 70 : 48 + round * 2, kind: t.kind === 'world' ? 'world' : 'highschool' }); return; }
   const m = simulateMatch(s, label, opponent, `${s.month}月・${round}試合目`, t.kind === 'world' ? 'world' : 'highschool');
   t.rounds++;
   if (m.win) { t.wins++; s.experiencePoints += 5; s.currentSeason.notes.push(`${t.name}・勝利ボーナス経験点+5`); }
@@ -489,8 +599,9 @@ function monthlyFixtures(s: CareerState): CareerFixture[] {
   }
   return [];
 }
-function playNextFixture(s: CareerState): void {
+function playNextFixture(s: CareerState, interactive = false): void {
   const fixture = s.pendingFixtures?.shift(); if (!fixture) return;
+  if (interactive) { beginCareerLiveMatch(s, 'fixture', fixture); return; }
   const m = simulateMatch(s, fixture.label, fixture.opponent, fixture.date, fixture.kind, fixture.difficulty);
   if (fixture.kind === 'professional-league') s.proMatchIndex++;
   if (fixture.kind === 'university-league' && s.currentSeason.leaguePlayed >= 7) {
@@ -590,8 +701,8 @@ function applyCareerDevelopment(s: CareerState): void {
   else if (s.fatigue < 35) s.morale = clamp(s.morale + 1, 0, 100);
   s.player.peak = Math.max(s.player.peak, careerOverall(s)); s.elapsedMonths++;
 }
-export function advanceCareerMonth(s: CareerState): CareerState {
-  if (s.phase === 'retired') return s;
+export function advanceCareerMonth(s: CareerState, interactive = false): CareerState {
+  if (s.phase === 'retired' || s.liveMatch) return s;
   // UIから次へ進めた場合、提示中の契約オファーは現所属で更新してから進行する。
   if (s.pendingTransfer) { s.pendingTransfer = undefined; s.proContractYears = Math.max(2, s.proContractYears); s.history.unshift(`${s.age}歳：契約オファーを見送り、現所属で契約を更新。年俸${s.proSalary}万円でプレーを続ける。`); }
   if (s.phase === 'university' && s.month === 5) {
@@ -606,8 +717,8 @@ export function advanceCareerMonth(s: CareerState): CareerState {
     if (s.japanNationalTeamSelected && (careerOverall(s) < 60 || (form && form.appearances < 3))) { s.japanNationalTeamSelected = false; s.history.unshift('代表選考で落選。クラブでの活躍を積み重ねて再招集を目指す。'); }
     else if (!s.japanNationalTeamSelected && eligible) { s.japanNationalTeamSelected = true; s.history.unshift(`クラブでの実績が評価され、日本代表に${s.japanNationalTeamCaps ? '再選出' : '選出'}！8月のテストマッチに出場する。`); }
   }
-  if (s.pendingTournament) { playCareerTournamentMatch(s); saveCareer(s); return s; }
-  if (s.pendingFixtures?.length) { playNextFixture(s); saveCareer(s); return s; }
+  if (s.pendingTournament) { playCareerTournamentMatch(s, interactive); saveCareer(s); return s; }
+  if (s.pendingFixtures?.length) { playNextFixture(s, interactive); saveCareer(s); return s; }
   if (s.tournamentCompletedMonth === s.month) {
     applyCareerDevelopment(s);
     advanceCalendar(s); saveCareer(s); return s;
@@ -621,11 +732,11 @@ export function advanceCareerMonth(s: CareerState): CareerState {
       s.nationalCandidate = true; event = { kind: 'world', name: '高校日本代表候補・世界大会', rounds: 3 };
       s.history.unshift('高校大会での活躍が評価され、2月に高校日本代表候補へ選出された！');
     } else if (s.month === 2) event = { kind: 'newbie', name: `${PREFS[s.prefIndex].name}新人大会`, rounds: 3 };
-    if (event) { s.pendingTournament = { name: event.name, kind: event.kind, totalRounds: event.rounds, rounds: 0, wins: 0 }; playCareerTournamentMatch(s); saveCareer(s); return s; }
+    if (event) { s.pendingTournament = { name: event.name, kind: event.kind, totalRounds: event.rounds, rounds: 0, wins: 0 }; playCareerTournamentMatch(s, interactive); saveCareer(s); return s; }
   }
   if (s.phase === 'university' || s.phase === 'professional') {
     const fixtures = monthlyFixtures(s);
-    if (fixtures.length) { s.pendingFixtures = fixtures; playNextFixture(s); saveCareer(s); return s; }
+    if (fixtures.length) { s.pendingFixtures = fixtures; playNextFixture(s, interactive); saveCareer(s); return s; }
   }
   applyCareerDevelopment(s);
   advanceCalendar(s); saveCareer(s); return s;
@@ -645,6 +756,7 @@ export function loadCareer(): CareerState | null {
     if (typeof s.qualified !== 'boolean') s.qualified = false;
     if (typeof s.universityTournamentFinalist !== 'boolean') s.universityTournamentFinalist = false;
     if (!Array.isArray(s.pendingFixtures)) s.pendingFixtures = [];
+    if (s.liveMatch && (!s.liveMatch.fixture || typeof s.liveMatch.elapsed !== 'number')) s.liveMatch = undefined;
     if (!Array.isArray(s.matchHistory)) s.matchHistory = [];
     if (typeof s.highSchoolAppearances !== 'number') s.highSchoolAppearances = 0;
     if (typeof s.highSchoolTries !== 'number') s.highSchoolTries = 0;
