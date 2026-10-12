@@ -17,7 +17,32 @@ let createPrefIndex = 26;
 let createSchoolIndex = 1;
 let createTalentType: '凡人' | '秀才' | '天才' | '一芸' = '凡人';
 const labels: Record<CareerPhase, string> = { highschool: '高校編', university: '大学編', professional: '社会人編', retired: '引退後' };
+
 const monthLabel = (m: number) => `${m}月`;
+
+function careerPortrait(name: string, pos: Pos): string {
+  const colors = ['#8bd83f','#58a6d4','#d85b54','#d4b84d','#a7b4c0'];
+  const seed = [...name].reduce((n,c)=>n+c.charCodeAt(0),0);
+  const jersey = colors[seed % colors.length];
+  const hair = ['#24352c','#30251f','#352a28','#1e252a'][seed % 4];
+  return `<svg class="player-avatar career-avatar" viewBox="0 0 100 100" role="img" aria-label="${esc(name)}の選手イラスト"><rect width="100" height="100" rx="24" fill="#182832"/><circle cx="50" cy="39" r="22" fill="#e7bd9b"/><path d="M28 38Q24 12 49 13Q75 11 73 39L67 31Q54 26 44 30L32 42Z" fill="${hair}"/><path d="M21 100Q21 64 42 61L50 72L59 61Q80 65 81 100Z" fill="${jersey}"/><path d="M43 63L50 73L57 63" fill="none" stroke="#fff" stroke-width="4"/><circle cx="42" cy="41" r="2" fill="#27313a"/><circle cx="58" cy="41" r="2" fill="#27313a"/><path d="M43 51Q50 56 57 51" stroke="#8d5548" stroke-width="2" fill="none"/><text x="50" y="91" text-anchor="middle" font-size="10" font-weight="800" fill="#fff">${pos}</text></svg>`;
+}
+
+function careerRadar(stats: Record<string, number>): string {
+  const keys: StatKey[] = ['pow','spd','sta','tec','men'];
+  const names = ['パワー','スピード','スタミナ','技術','精神'];
+  const points = keys.map((k,i)=>{const a=-Math.PI/2+i*Math.PI*2/5,r=34*Math.max(0,Math.min(100,stats[k]??0))/100;return `${50+Math.cos(a)*r},${47+Math.sin(a)*r}`;}).join(' ');
+  const grid=[25,50,75,100].map(n=>`<polygon points="${keys.map((_,i)=>{const a=-Math.PI/2+i*Math.PI*2/5,r=34*n/100;return `${50+Math.cos(a)*r},${47+Math.sin(a)*r}`;}).join(' ')}" fill="none" stroke="#78909c" stroke-opacity=".35"/>`).join('');
+  const axes=names.map((n,i)=>{const a=-Math.PI/2+i*Math.PI*2/5;return `<line x1="50" y1="47" x2="${50+Math.cos(a)*34}" y2="${47+Math.sin(a)*34}" stroke="#78909c" stroke-opacity=".45"/><text x="${50+Math.cos(a)*43}" y="${47+Math.sin(a)*43}" text-anchor="middle" dominant-baseline="middle" font-size="6.5" fill="currentColor">${n}</text>`;}).join('');
+  return `<svg class="radar-chart" viewBox="0 0 100 100" role="img" aria-label="能力レーダーチャート">${grid}${axes}<polygon points="${points}" fill="#8bd83f" fill-opacity=".28" stroke="#8bd83f" stroke-width="1.8"/></svg>`;
+}
+
+function careerUniform(team: string): string {
+  const colors=['#8bd83f','#58a6d4','#d85b54','#d4b84d','#a7b4c0'];
+  const seed=[...team].reduce((n,c)=>n+c.charCodeAt(0),0), color=colors[seed%colors.length];
+  return `<div class="uniform-preview"><span class="uniform-caption">HOME KIT</span><svg viewBox="0 0 120 110" role="img" aria-label="所属チームのユニフォーム"><path d="M35 14L48 8Q60 18 72 8L85 14L108 34L94 49L82 40L82 96L38 96L38 40L26 49L12 34Z" fill="${color}" stroke="#e9f1f5" stroke-width="2"/><path d="M48 9Q60 24 72 9" fill="none" stroke="#fff" stroke-width="4"/><path d="M39 54H81M39 67H81M39 80H81" stroke="#fff" stroke-opacity=".42" stroke-width="3"/><text x="60" y="48" text-anchor="middle" font-size="19" font-weight="900" fill="#fff">15</text></svg><b>${esc(team)}</b><span>PLAYER KIT</span></div>`;
+}
+
 
 function createScreen(): string {
   const schools = schoolsOf(createPrefIndex);
@@ -70,8 +95,7 @@ function homeScreen(s: CareerState): string {
   const rivals = s.rivals.filter((r) => !r.retired).slice().sort((a,b) => b.overall-a.overall).slice(0,5).map((r) => `<li>${esc(r.name)}（${r.pos}・総合値${Math.round(r.overall)}）／${esc(r.team)} ${r.pos === s.player.pos ? '・同ポジションのライバル' : ''}</li>`).join('');
   const hall = careerHallOfFame().slice(0,5).map((r,i) => `<li>${i+1}位 ${esc(r.name)}：スコア${r.score}／出場${r.appearances}・${r.tries}トライ</li>`).join('');
   return `<main class="page"><header class="hd"><div class="school">🏉 ラグビー人生キャリア</div><div class="date">${s.age}歳・${monthLabel(s.month)} ／ ${labels[s.phase]} ${s.phase === 'retired' ? '' : s.stageYear + '年目'}</div></header>
-    <div class="panel"><b>${esc(s.player.name)}</b> ／ ${s.player.pos} ／ 総合値 ${o}（${o >= 75 ? 'S' : o >= 65 ? 'A' : o >= 55 ? 'B' : o >= 45 ? 'C' : o >= 35 ? 'D' : 'E'}ランク）<br>
-    <span class="small">${esc(team)} ・ ${s.player.height}cm / ${s.player.weight}kg</span><br><span>${phaseDescription(s)}</span></div>
+    <div class="panel career-player-hero"><div class="profile-hero">${careerPortrait(s.player.name,s.player.pos)}<div><span class="profile-kicker">PLAYER CAREER</span><b class="career-player-name">${esc(s.player.name)}</b><p>${s.player.pos} ／ 総合値 ${o}（${o >= 75 ? 'S' : o >= 65 ? 'A' : o >= 55 ? 'B' : o >= 45 ? 'C' : o >= 35 ? 'D' : 'E'}ランク）</p><span class="small">${esc(team)} ・ ${s.player.height}cm / ${s.player.weight}kg</span></div></div><p>${phaseDescription(s)}</p><div class="career-kit-radar">${careerUniform(team)}<div class="radar-wrap"><h3>能力バランス</h3>${careerRadar(s.player.stats as unknown as Record<string,number>)}</div></div></div>
     ${s.university ? `<div class="card"><b>進学先</b><p>${esc(s.university)}（${esc(s.universityTier)}）</p></div>` : ''}
     ${s.professionalTeam ? `<div class="card"><b>所属社会人チーム</b><p>${esc(s.professionalTeam)}（リーグワンD${s.proDivision}）</p></div>` : ''}
     ${s.nationalCandidate ? `<div class="card"><b>高校日本代表候補</b><p>選出済み ／ 世界大会勝利数：${s.worldTournamentWins}</p></div>` : ''}
