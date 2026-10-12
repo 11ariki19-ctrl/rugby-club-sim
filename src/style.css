@@ -304,3 +304,191 @@ label { display: block; font-weight: 600; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+
+/* Sports game interface makeover: broadcast HUD + club management dashboard */
+:root {
+  --green: #8bd83f;
+  --green-d: #4f9d24;
+  --bg: #0a1119;
+  --card: #151f2a;
+  --text: #f2f6f9;
+  --sub: #a7b6c4;
+  --line: #2a3947;
+  --gold: #ffc857;
+  --focus: #80c8ff;
+  color-scheme: dark;
+}
+html, body { min-height: 100%; background: #0a1119; color: var(--text); }
+body {
+  background:
+    radial-gradient(ellipse at 85% -10%, rgba(75,139,48,.19), transparent 38rem),
+    radial-gradient(ellipse at 0% 30%, rgba(27,91,115,.13), transparent 34rem),
+    #0a1119;
+  color: var(--text);
+}
+h1, h2, h3 { color: #f5f8fa; }
+h1 { letter-spacing: -.045em; }
+h2 { padding-bottom: 10px; border-bottom: 1px solid #2b3946; }
+h3 { color: #a9e96f; letter-spacing: .015em; }
+.app { color: var(--text); }
+main { min-height: 100vh; }
+.hd {
+  position: relative;
+  padding: 16px 16px 18px;
+  margin: 0 0 16px;
+  overflow: hidden;
+  border: 1px solid #304334;
+  border-radius: 18px;
+  background: linear-gradient(115deg, #1c3828, #14251f 62%, #172631);
+  box-shadow: 0 12px 30px rgba(0,0,0,.2);
+}
+.hd:after {
+  content: "CLUB MANAGEMENT";
+  display: block;
+  margin-top: 8px;
+  color: #b8d6b0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .19em;
+}
+.school { color: #fff; font-size: clamp(1.2rem, 4vw, 1.55rem); font-weight: 800; }
+.date { color: #c4d4c9; font-size: .84rem; }
+.card {
+  background: linear-gradient(145deg, #192633, #121b25);
+  border: 1px solid #2b3a47;
+  border-radius: 16px;
+  box-shadow: 0 8px 20px rgba(0,0,0,.15);
+}
+.card h3 { color: #eaf2f7; }
+.cards .stat { position: relative; overflow: hidden; border-top: 2px solid #496a43; }
+.stat .k { color: #9eafbd; text-transform: uppercase; letter-spacing: .08em; }
+.stat b { color: #f4f8fb; font-weight: 800; }
+.stat b:has(+ *) { color: var(--green); }
+.panel {
+  color: #e7f3e6;
+  background: linear-gradient(120deg, #1b3828, #182b2c);
+  border: 1px solid #365641;
+  border-radius: 14px;
+}
+.panel b { color: #c5f48e; }
+.small, .note, .sub, .date { color: #a7b6c4; }
+.news { color: #dbe5ec; }
+.news li { padding: 8px 0; border-bottom: 1px solid rgba(130,154,171,.13); }
+.btn {
+  color: #eaf1f6;
+  background: #1b2936;
+  border: 1px solid #344756;
+  border-radius: 13px;
+  box-shadow: 0 3px 0 rgba(0,0,0,.18);
+}
+.btn:hover:not(:disabled) { background: #243746; border-color: #587180; box-shadow: 0 5px 18px rgba(0,0,0,.2); }
+.btn.primary {
+  color: #14200f;
+  background: linear-gradient(180deg, #a5eb62, #7dcc3d);
+  border-color: #a5eb62;
+  font-weight: 850;
+  box-shadow: 0 4px 0 #477b2b, 0 8px 20px rgba(109,192,51,.12);
+}
+.btn.primary:hover:not(:disabled) { background: #b4f27a; }
+.btn.big { letter-spacing: .01em; }
+.link { color: #b1e97d; }
+.pref, .tab, .search, select.search, input.search {
+  color: #f0f5f8;
+  background: #121d27;
+  border-color: #344654;
+}
+.pref:hover { color: #fff; background: #203329; border-color: #8bd83f; }
+.pref span { color: #ffd166; }
+.row {
+  color: #eaf1f5;
+  background: #141f29;
+  border-color: #293946;
+  box-shadow: none;
+}
+.row:hover { color: #fff; background: #1c2c37; border-color: #658c68; }
+.row .nm { color: #f0f5f8; }
+.row .pos, .row .nm small { color: #a7b6c4; }
+.rk-S { background: #e7b83f; color: #201907; }
+.rk-A { background: #d95b5b; }
+.rk-B { background: #d98236; }
+.rk-C { background: #3d9d69; }
+.rk-D { background: #477fb6; }
+.rk-E { background: #637583; }
+.st { color: #14200f; background: #a5eb62; }
+.bar { color: #dce6ec; }
+.track { background: #2a3945; }
+.track i { background: linear-gradient(90deg, #4caa38, #b0ec64); }
+.career { color: #ffe8a3; background: #342d1b; border-color: #6d592b; }
+.res.ok { background: #183426; border-color: #4b8f5a; }
+.res.ng { background: #1b252d; }
+.tabs .tab { color: #dce6ec; }
+.tabs .tab.on { color: #15200f; background: #8bd83f; border-color: #8bd83f; }
+.modal { background: rgba(2,7,11,.78); backdrop-filter: blur(8px); }
+.sheet {
+  color: #eef4f7;
+  background: #111b25;
+  border-color: #344552;
+  box-shadow: 0 24px 80px rgba(0,0,0,.5);
+}
+.tbl td { border-color: #2b3946; }
+.nav {
+  background: rgba(13,21,29,.96);
+  border-color: #2a3947;
+  box-shadow: 0 -8px 30px rgba(0,0,0,.25);
+}
+.nav button { color: #8e9eac; }
+.nav button.on { color: #a9ec6b; }
+.nav button.on i { filter: drop-shadow(0 0 7px rgba(139,216,63,.24)); }
+.scoreboard {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #42684b;
+  border-radius: 18px;
+  background:
+    linear-gradient(110deg, rgba(7,19,14,.88), rgba(13,43,28,.92)),
+    repeating-linear-gradient(90deg, #1c6036 0, #1c6036 10%, #236b3e 10%, #236b3e 20%);
+  box-shadow: inset 0 1px rgba(255,255,255,.06), 0 12px 28px rgba(0,0,0,.25);
+}
+.scoreboard span { color: #c1d4c8; font-weight: 700; letter-spacing: .025em; }
+.scoreboard strong { color: #f7fbf8; text-shadow: 0 2px 14px rgba(0,0,0,.4); }
+.scoreboard .score-dash { color: #7e9788; }
+.rugby-pitch {
+  border: 2px solid #b9d5b9;
+  outline: 1px solid #2e5940;
+  background: repeating-linear-gradient(90deg,#246c3e 0,#246c3e 9.5%,#2d7947 9.5%,#2d7947 19%);
+}
+.match-event {
+  color: #e7f2ea;
+  background: linear-gradient(110deg,#1b3227,#182631);
+  border: 1px solid #344c3b;
+  border-left: 4px solid #8bd83f;
+}
+.match-actions .btn { min-height: 82px; }
+.lineup-grid .card { background: linear-gradient(145deg,#172430,#111a24); }
+.roster-player { background: #141f29; }
+.center {
+  background:
+    radial-gradient(ellipse at 50% 35%, rgba(93,159,63,.17) 0, transparent 55%),
+    linear-gradient(180deg, rgba(17,36,28,.2), transparent);
+}
+.logo {
+  color: #fff;
+  background: linear-gradient(145deg,#263e30,#15231d);
+  border: 1px solid #496b4e;
+  box-shadow: 0 16px 36px rgba(0,0,0,.3), inset 0 1px rgba(255,255,255,.08);
+}
+.center .sub { color: #bac9d2; }
+@media (min-width: 760px) {
+  .nav { background: rgba(13,21,29,.97); border-right-color: #2a3947; }
+  .nav button:hover { color: #dce9df; background: #1a2b25; }
+  .nav button.on { background: #1b3225; }
+  main { max-width: 1280px; }
+}
+@media (max-width: 480px) {
+  .hd { padding: 14px; }
+  .scoreboard { padding: 16px 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn, .row, .pref { transition: none; }
+}
