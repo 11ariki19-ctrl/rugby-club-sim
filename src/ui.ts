@@ -25,7 +25,49 @@ let shown: Screen | null = null;
 const ESC: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ESC[c]);
 const stars = (n: number): string => '★'.repeat(n) + '☆'.repeat(5 - n);
+
 const badge = (o: number): string => `<span class="rk rk-${rankOf(o)}">${rankOf(o)}</span>`;
+
+/** 架空選手用のオリジナル似顔絵アバター。IDで配色が固定され、一覧でも識別しやすい。 */
+function playerAvatar(p: Player, size = 76): string {
+  const palettes = [['#7dbb56','#f2c7a5','#24352c'],['#4e91b8','#e5b38f','#30251f'],['#c76c58','#f0c9a8','#352a28'],['#b6a14c','#d8a77e','#1e252a'],['#7c78b8','#edc3a2','#392c2a']];
+  const [jersey, skin, hair] = palettes[Math.abs(p.id * 7 + p.name.length) % palettes.length];
+  const uid = `rugby-player-${p.id}-${size}`;
+  return `<svg class="player-avatar" width="${size}" height="${size}" viewBox="0 0 100 100" role="img" aria-label="${esc(p.name)}の選手イラスト">
+    <defs><linearGradient id="${uid}" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#263d4a"/><stop offset="1" stop-color="#14222d"/></linearGradient></defs>
+    <rect width="100" height="100" rx="24" fill="url(#${uid})"/>
+    <circle cx="50" cy="39" r="22" fill="${skin}"/>
+    <path d="M28 38 Q24 12 49 13 Q75 11 73 39 L67 31 Q54 26 44 30 L32 42Z" fill="${hair}"/>
+    <path d="M21 100 Q21 64 42 61 L50 72 L59 61 Q80 65 81 100Z" fill="${jersey}"/>
+    <path d="M43 63 L50 73 L57 63" fill="#f7f8f2"/>
+    <circle cx="42" cy="41" r="2" fill="#27313a"/><circle cx="58" cy="41" r="2" fill="#27313a"/>
+    <path d="M43 51 Q50 56 57 51" stroke="#8d5548" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M36 36 Q42 32 46 35 M54 35 Q60 32 64 36" stroke="${hair}" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <text x="50" y="91" text-anchor="middle" font-size="10" font-weight="800" fill="#fff" opacity=".9">${p.pos}</text>
+  </svg>`;
+}
+
+function playerRadar(p: Player): string {
+  const vals = [p.stats.pow, p.stats.spd, p.stats.sta, p.stats.tec, p.stats.men];
+  const labels = ['パワー','スピード','スタミナ','技術','精神'];
+  const pts = vals.map((v,i) => {
+    const a = -Math.PI/2 + i * Math.PI*2/5, r = 34 * Math.max(0,Math.min(100,v))/100;
+    return `${50 + Math.cos(a)*r},${47 + Math.sin(a)*r}`;
+  }).join(' ');
+  const rings = [25,50,75,100].map(level => {
+    const pts = labels.map((_,i) => { const a=-Math.PI/2+i*Math.PI*2/5,r=34*level/100;return `${50+Math.cos(a)*r},${47+Math.sin(a)*r}`;}).join(' ');
+    return `<polygon points="${pts}" fill="none" stroke="#78909c" stroke-opacity=".35" stroke-width=".7"/>`;
+  }).join('');
+  const axes = labels.map((label,i) => {const a=-Math.PI/2+i*Math.PI*2/5;return `<line x1="50" y1="47" x2="${50+Math.cos(a)*34}" y2="${47+Math.sin(a)*34}" stroke="#78909c" stroke-opacity=".45"/><text x="${50+Math.cos(a)*43}" y="${47+Math.sin(a)*43}" text-anchor="middle" dominant-baseline="middle" font-size="6.5" fill="currentColor">${label}</text>`;}).join('');
+  return `<svg class="radar-chart" viewBox="0 0 100 100" role="img" aria-label="能力レーダーチャート">${rings}${axes}<polygon points="${pts}" fill="#8bd83f" fill-opacity=".28" stroke="#8bd83f" stroke-width="1.8"/>${vals.map((v,i)=>{const a=-Math.PI/2+i*Math.PI*2/5,r=34*Math.max(0,Math.min(100,v))/100;return `<circle cx="${50+Math.cos(a)*r}" cy="${47+Math.sin(a)*r}" r="1.8" fill="#c5f48e"/>`;}).join('')}</svg>`;
+}
+
+function uniformCard(school: string): string {
+  const colors = ['#8bd83f','#58a6d4','#d85b54','#d4b84d','#a7b4c0'];
+  const color = colors[Math.abs(school.split('').reduce((n,c)=>n+c.charCodeAt(0),0)) % colors.length];
+  return `<div class="uniform-preview"><span class="uniform-caption">HOME KIT</span><svg viewBox="0 0 120 110" role="img" aria-label="チームのホームユニフォーム"><path d="M35 14 L48 8 Q60 18 72 8 L85 14 L108 34 L94 49 L82 40 L82 96 L38 96 L38 40 L26 49 L12 34Z" fill="${color}" stroke="#e9f1f5" stroke-width="2"/><path d="M48 9 Q60 24 72 9" fill="none" stroke="#e9f1f5" stroke-width="4"/><path d="M39 54 H81 M39 67 H81 M39 80 H81" stroke="#fff" stroke-opacity=".42" stroke-width="3"/><text x="60" y="48" text-anchor="middle" font-size="19" font-weight="900" fill="#fff">15</text></svg><b>${esc(school)}</b><span>HOME / FIRST XV</span></div>`;
+}
+
 
 function nav(active: Screen): string {
   const items: [Screen, string, string][] = [
@@ -47,8 +89,8 @@ function shell(inner: string, active: Screen): string {
 
 function playerRow(p: Player): string {
   const o = overall(p);
-  return `<button class="row" data-act="player" data-id="${p.id}">
-    <span class="nm">${esc(p.name)}</span><span class="pos">${p.pos}</span>
+  return `<button class="row roster-player" data-act="player" data-id="${p.id}">
+    ${playerAvatar(p,48)}<span class="nm">${esc(p.name)}<small>${p.grade ? p.grade+'年生' : '卒業生'} ・ ${POS_LABEL[p.pos]}</small></span><span class="pos">${p.pos}</span>
     <span class="stars">${stars(shownStars(p))}</span>${badge(o)}<b class="ov">${o}</b></button>`;
 }
 
@@ -92,6 +134,7 @@ function homeScreen(s: GameState): string {
   const news = s.news.slice(0, 6).map((n) => `<li>${esc(n)}</li>`).join('');
   return shell(
     `<header class="hd"><div class="school">${esc(s.schoolName)}</div><div class="date">${s.year}年目 ${s.month}月</div></header>
+    <section class="club-hero"><div><span class="profile-kicker">SEASON ${s.year} · MONTH ${s.month}</span><h2>クラブ・ダッシュボード</h2><p>${esc(s.schoolName)} ／ 高校ラグビー部</p></div>${uniformCard(s.schoolName)}</section>
     <section class="cards">
       <div class="card stat"><span class="k">チーム力</span><b>${teamStrength(s).toFixed(1)}</b></div>
       <div class="card stat"><span class="k">評判</span><b>${Math.round(s.reputation)}</b></div>
@@ -153,11 +196,10 @@ function playerScreen(s: GameState): string {
   ).join('');
   return shell(
     `<button class="link" data-act="back">← もどる</button>
-    <div class="card"><h2>${esc(p.name)}</h2>
-    <p>${POS_LABEL[p.pos]}（${p.pos}）／ ${status}</p>
-    <p class="small">${esc(p.origin)}出身 ／ ${p.height}cm ${p.weight}kg</p>
-    <p class="big2">${badge(o)} 総合 ${o}　<span class="stars">${stars(shownStars(p))}</span></p>${bars}
-    <p class="small">最高到達 ${Math.round(p.peak)}</p>
+    <div class="player-profile card">
+    <div class="profile-hero">${playerAvatar(p,112)}<div><span class="profile-kicker">PLAYER PROFILE</span><h2>${esc(p.name)}</h2><p>${POS_LABEL[p.pos]}（${p.pos}）／ ${status}</p><p class="small">${esc(p.origin)}出身<br>${p.height}cm ・ ${p.weight}kg</p><p class="big2">${badge(o)} 総合 ${o}</p><span class="stars">${stars(shownStars(p))}</span></div></div>
+    <div class="profile-kit">${uniformCard(st?.schoolName ?? 'RUGBY CLUB')}<div class="radar-wrap"><h3>能力バランス</h3>${playerRadar(p)}</div></div>
+    <h3>能力詳細</h3>${bars}<p class="small">最高到達 ${Math.round(p.peak)}</p>
     ${p.career ? `<p class="career">進路：${esc(p.career)}</p>` : ''}</div>`,
     backTo === 'dir' ? 'dir' : backTo === 'scout' ? 'scout' : 'roster',
   );
@@ -215,10 +257,10 @@ function recordsScreen(s: GameState): string {
     body =
       [...s.tours]
         .reverse()
-        .map(
-          (t) => `<div class="card"><b>${t.year}年目 ${t.name}</b> <span class="res-t ${t.title ? 'gold' : ''}">${t.result}</span>
-      <div class="small">${t.rounds.map((r) => `${r.label} ${r.win ? '○' : '×'} ${r.my}-${r.their}`).join(' ／ ')}</div></div>`,
-        )
+        .map((t) => {
+          const steps = t.rounds.map((r, i) => `<div class="bracket-round"><span class="bracket-label">${esc(r.label || ('第'+(i+1)+'試合'))}</span><div class="bracket-team ${r.win?'won':'lost'}"><span>${esc(s.schoolName)}</span><b>${r.my}</b></div><div class="bracket-team opponent"><span>${esc(r.opp)}</span><b>${r.their}</b></div><span class="bracket-result">${r.win?'WIN':'LOSE'}</span></div>`).join('');
+          return `<div class="card tournament-card"><div class="tournament-heading"><div><span class="profile-kicker">TOURNAMENT / ${t.year}年目</span><h3>${esc(t.name)}</h3></div><span class="res-t ${t.title?'gold':''}">${esc(t.result)}</span></div><div class="bracket-scroll"><div class="tournament-bracket">${steps || '<p class="note">試合記録はありません。</p>'}</div></div>${t.title?'<div class="champion-banner">🏆 CHAMPIONS — 大会制覇</div>':''}</div>`;
+        })
         .join('') || '<p class="note">まだ大会に出ていません。</p>';
   } else {
     body =
@@ -236,7 +278,7 @@ function recordsScreen(s: GameState): string {
 function resultHtml(r: AdvanceResult): string {
   let h = `<h2>${r.yearBefore}年目 ${r.monthBefore}月の結果</h2>`;
   if (r.match) {
-    h += `<p><b>${r.match.label}</b>：${esc(r.match.opp)}　<strong>${r.match.my}-${r.match.their}</strong>　${r.match.win ? '勝利！' : '敗戦'}</p>`;
+    h += `<section class="match-result-animation ${r.match.win?'victory':'defeat'}"><span class="profile-kicker">FULL TIME</span><b>${esc(r.match.label)}</b><div class="result-score"><span>${esc(st?.schoolName ?? '自チーム')}</span><strong>${r.match.my} <i>—</i> ${r.match.their}</strong><span>${esc(r.match.opp)}</span></div><div class="result-verdict">${r.match.win ? '🏆 WIN — 勝利！' : 'NEXT TIME — 敗戦'}</div></section>`;
     if (r.pending) h += `<p class="note">大会はまだ続きます。閉じて「試合準備」で戦術・スタメンを変更できます。</p>`;
   }
   if (r.tour) {
