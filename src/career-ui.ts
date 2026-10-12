@@ -208,7 +208,9 @@ export function openCareerMode(el: HTMLElement, resume: boolean): void {
   if (creating) { createPrefIndex = 26; createSchoolIndex = 1; createTalentType = '凡人'; }
   if (!bound) {
     root.addEventListener('click', (e) => {
-      const t = (e.target as HTMLElement).closest<HTMLElement>('[data-career]');
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-roster-sheet]') && !target.closest('[data-roster-sheet]')?.contains(target.closest('[data-career="roster-close"]'))) return;
+      const t = target.closest<HTMLElement>('[data-career]');
       if (t) act(t.dataset.career ?? '', t.dataset.v ?? '');
     });
     root.addEventListener('change', (e) => {
