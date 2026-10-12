@@ -133,7 +133,7 @@ function matchScreen(s: GameState): string {
       `<option value="${p.id}" ${p.id === current ? 'selected' : ''}>${p.grade}年 ${esc(p.name)}（${p.pos}・${overall(p)}）</option>`
     ).join('');
   };
-  const slots = SLOTS.map((pos, idx) => `<label class="bar"><span>${idx + 1}. ${pos}</span><select class="search" data-act="lineup" data-slot="${idx}">${optsFor(idx)}</select></label>`).join('');
+  const slots = SLOTS.map((pos, idx) => `<label class="bar"><span>${idx + 1}. ${pos}</span><select class="search" data-slot="${idx}">${optsFor(idx)}</select></label>`).join('');
   const tactics = TACTICS.map((t) => `<button class="btn mode ${(s.tactic ?? 'balanced') === t.id ? 'primary' : ''}" data-act="tactic" data-v="${t.id}"><b>${t.label}</b><span>${t.desc}</span></button>`).join('');
   return shell(`<h2>試合準備</h2>
     <p class="note">大会は1試合ずつ進みます。次の試合の前に戦術と先発15人を変更できます。先発は同じ選手を重複登録できません。</p>
@@ -335,7 +335,7 @@ export function mount(el: HTMLElement): void {
     if (t) act(t.dataset.act ?? '', t.dataset);
   });
   root.addEventListener('change', (e) => {
-    const t = (e.target as HTMLElement).closest<HTMLElement>('[data-act="lineup"]');
+    const t = (e.target as HTMLElement).closest<HTMLElement>('[data-slot]');
     if (t) act('lineup', t.dataset);
   });
   root.addEventListener('input', (e) => {
