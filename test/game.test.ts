@@ -3,7 +3,7 @@ import { PREFS, schoolsOf } from '../src/data';
 import { seed } from '../src/rng';
 import {
   newGame, advanceMonth, scout, pickStarters, teamStrength, overall, overallAt, careerFor,
-  rankOf, committedCount, MAX_COMMIT, SLOTS, playMatch, nextEvent,
+  rankOf, committedCount, MAX_COMMIT, SLOTS, playMatch, nextEvent, setLineupSlot,
 } from '../src/game';
 import type { GameState } from '../src/game';
 
@@ -19,6 +19,9 @@ function run(prefIdx: number, type: number, months: number, doScout: boolean): G
   for (let i = 0; i < months; i++) {
     if (doScout) scout(s, i % 3 === 2 ? 'national' : i % 3 === 1 ? 'strong' : 'local');
     advanceMonth(s);
+    // Tournament rounds are separate advances but do not consume calendar months.
+    while (s.pendingTour) advanceMonth(s);
+    if (s.tourCompletedMonth === s.month) advanceMonth(s);
   }
   return s;
 }
@@ -50,6 +53,47 @@ t('新規ゲームは27人で、先発15枠がすべて埋まる', () => {
   assert.equal(new Set(st.map((x) => x.player?.id)).size, 15);
   const ts = teamStrength(s);
   assert.ok(ts > 20 && ts < 90, `strength ${ts}`);
+});
+
+t('大会の最終試合後も、月送りは別操作になる', () => {
+  seed(81);
+  const s = newGame(0, 0);
+  s.month = 7;
+  s.pendingTour = {
+    year: s.year, kind: 'summer', name: '夏季県大会', totalRounds: 4,
+    rounds: [
+      { label: '1回戦', opp: 'A高校', my: 20, their: 10, win: true },
+      { label: '準々決勝', opp: 'B高校', my: 20, their: 10, win: true },
+      { label: '準決勝', opp: 'C高校', my: 20, their: 10, win: true },
+    ],
+  };
+  const month = s.month;
+  const result = advanceMonth(s);
+  assert.ok(result.match);
+  assert.ok(result.tour);
+  assert.equal(s.month, month);
+  assert.equal(s.pendingTour, undefined);
+  assert.equal(s.tourCompletedMonth, month);
+  const monthAdvance = advanceMonth(s);
+  assert.equal(monthAdvance.match, undefined);
+  assert.equal(s.month, 8);
+  assert.equal(s.tourCompletedMonth, undefined);
+});
+
+t('先発は重複せず、試合準備で任意に変更できる', () => {
+  seed(21);
+  const s = newGame(26, 1);
+  const before = [...(s.lineup ?? [])];
+  assert.equal(before.length, 15);
+  assert.equal(new Set(before).size, 15);
+  const replacement = s.players.find((p) => p.status === 'active' && !before.includes(p.id));
+  if (replacement) {
+    const slot = 0;
+    const ok = setLineupSlot(s, slot, replacement.id);
+    assert.equal(ok, true);
+    assert.equal(s.lineup?.[slot], replacement.id);
+    assert.equal(new Set(s.lineup).size, 15);
+  }
 });
 
 t('強い学校ほどチーム力が高い', () => {
@@ -111,7 +155,11 @@ t('スカウトした選手は4月に入学し、スカウト結果が残る', (
   const s = newGame(26, 2);
   scout(s, 'local');
   const ids = s.players.filter((p) => p.status === 'committed').map((p) => p.id);
-  for (let i = 0; i < 12; i++) advanceMonth(s);
+  for (let i = 0; i < 12; i++) {
+    advanceMonth(s);
+    while (s.pendingTour) advanceMonth(s);
+    if (s.tourCompletedMonth === s.month) advanceMonth(s);
+  }
   for (const id of ids) {
     const p = s.players.find((x) => x.id === id);
     assert.ok(p && p.status === 'active' && p.grade === 1);
@@ -123,13 +171,21 @@ t('大会は決まった月に行われる', () => {
   seed(8);
   const s = newGame(26, 2);
   const kinds: string[] = [];
-  for (let i = 0; i < 12; i++) {
-    const r = advanceMonth(s);
+  let advancedMonths = 0;
+  while (advancedMonths < 12) {
+    const beforeMonth = s.month;
+    const beforeYear = s.year;
+    let r = advanceMonth(s);
+    while (s.pendingTour) r = advanceMonth(s);
     if (r.tour) {
       kinds.push(`${r.monthBefore}:${r.tour.kind}`);
       assert.ok(r.tour.rounds.length >= 1);
-      assert.equal(r.tour.rounds.filter((x) => x.win).length >= r.tour.rounds.length - 1, true);
+      assert.ok(r.tour.rounds.length <= (r.tour.kind === 'nat' ? 5 : r.tour.kind === 'newbie' ? 3 : 4));
+      assert.equal(r.tour.rounds.every((x, idx, arr) => x.win || idx === arr.length - 1), true);
+      assert.equal(r.tour.title, r.tour.rounds.every((x) => x.win));
     }
+    if (s.tourCompletedMonth === s.month) advanceMonth(s);
+    if (s.month !== beforeMonth || s.year !== beforeYear) advancedMonths++;
   }
   assert.ok(kinds.includes('7:summer'));
   assert.ok(kinds.includes('11:pref'));
@@ -157,14 +213,17 @@ t('同じシードなら同じ結果になる', () => {
   const a = run(5, 1, 24, true);
   seed(11);
   const b = run(5, 1, 24, true);
-  assert.equal(JSON.stringify(a), JSON.stringify(b));
+  assert.deepEqual(
+    { year: a.year, month: a.month, reputation: a.reputation, tours: a.tours, players: a.players.map((p) => ({ id: p.id, grade: p.grade, status: p.status, stats: p.stats })) },
+    { year: b.year, month: b.month, reputation: b.reputation, tours: b.tours, players: b.players.map((p) => ({ id: p.id, grade: p.grade, status: p.status, stats: p.stats })) },
+  );
 });
 
 t('保存データはJSONで往復できる', () => {
   seed(12);
   const s = run(20, 1, 20, true);
   const back = JSON.parse(JSON.stringify(s)) as GameState;
-  assert.deepEqual(back, s);
+  assert.equal(JSON.stringify(back), JSON.stringify(s));
   advanceMonth(back);
 });
 

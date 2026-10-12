@@ -2,12 +2,12 @@ import { PREFS, schoolsOf } from './data';
 import {
   POS_LABEL, STAT_KEYS, STAT_LABEL, MAX_COMMIT, SCOUT_MODES,
   newGame, advanceMonth, scout, overall, rankOf, shownStars, pickStarters, teamStrength,
-  nextEvent, committedCount, acceptChance,
+  nextEvent, committedCount, acceptChance, SLOTS, TACTICS, ensureMatchSetup, setLineupSlot,
 } from './game';
-import type { GameState, Player, ScoutResult, AdvanceResult } from './game';
+import type { GameState, Player, ScoutResult, AdvanceResult, Tactic } from './game';
 import { saveGame, loadGame, clearGame, hasSave } from './store';
 
-type Screen = 'title' | 'pref' | 'school' | 'home' | 'roster' | 'player' | 'scout' | 'dir' | 'records';
+type Screen = 'title' | 'pref' | 'school' | 'home' | 'roster' | 'player' | 'scout' | 'dir' | 'records' | 'match';
 
 let root: HTMLElement;
 let st: GameState | null = null;
@@ -31,6 +31,7 @@ function nav(active: Screen): string {
   const items: [Screen, string, string][] = [
     ['home', '🏠', 'ホーム'],
     ['roster', '👥', '部員'],
+    ['match', '🏉', '試合準備'],
     ['scout', '🔍', 'スカウト'],
     ['dir', '📖', '名鑑'],
     ['records', '🏆', '記録'],
@@ -58,7 +59,7 @@ function titleScreen(): string {
     <p class="sub">スカウトで選手を集め、3年で巣立つ部員を見届ける。<br>試合は自動で進む、育成シミュレーション。</p>
     <button class="btn primary big" data-act="new">はじめから</button>
     ${hasSave() ? '<button class="btn big" data-act="continue">続きから</button>' : ''}
-    <p class="note">データはこのiPhoneのブラウザ内に自動で保存されます。</p></div>`;
+    <p class="note">データはこのブラウザ内に自動で保存されます。</p></div>`;
 }
 
 function prefScreen(): string {
@@ -82,6 +83,7 @@ function schoolScreen(): string {
 }
 
 function homeScreen(s: GameState): string {
+  ensureMatchSetup(s);
   const ev = nextEvent(s.month);
   const when = ev.inMonths === 0 ? '今月' : `あと${ev.inMonths}か月`;
   const active = s.players.filter((p) => p.status === 'active').length;
@@ -97,7 +99,8 @@ function homeScreen(s: GameState): string {
       <div class="card stat"><span class="k">入学内定</span><b>${committedCount(s)}名</b></div>
     </section>
     <div class="panel">次の大会：<b>${ev.label}</b>（${when}）<br><span class="small">県大会優勝 ${prefTitles}回 ／ 全国制覇 ${natTitles}回</span></div>
-    <button class="btn primary big" data-act="advance">${s.month}月を終えて、次の月へ</button>
+    <button class="btn primary big" data-act="advance">${s.pendingTour ? '次の試合へ（大会進行中）' : s.tourCompletedMonth === s.month ? '大会終了：次の月へ' : `${s.month}月を終えて、次の月へ`}</button>
+    <button class="btn" data-act="nav" data-v="match">戦術・スタメンを変更</button>
     <button class="btn" data-act="nav" data-v="scout">${s.scoutedThisMonth ? '今月のスカウト：実施済み' : '今月のスカウトがまだです'}</button>
     <h3>最近のできごと</h3><ul class="news">${news}</ul>
     <div class="foot"><button class="link" data-act="toTitle">タイトルへ</button></div>`,
@@ -117,6 +120,26 @@ function rosterScreen(s: GameState): string {
     <h3>入学内定（${inc.length}名）</h3>${inc.map(playerRow).join('') || '<p class="note">まだいません。スカウトで探しましょう。</p>'}`,
     'roster',
   );
+}
+
+function matchScreen(s: GameState): string {
+  ensureMatchSetup(s);
+  const active = s.players.filter((p) => p.status === 'active').sort((a, b) => a.grade - b.grade || overall(b) - overall(a));
+  const selected = s.lineup ?? [];
+  const optsFor = (idx: number) => {
+    const current = selected[idx];
+    const used = new Set(selected.filter((id, i) => i !== idx));
+    return active.filter((p) => !used.has(p.id) || p.id === current).map((p) =>
+      `<option value="${p.id}" ${p.id === current ? 'selected' : ''}>${p.grade}年 ${esc(p.name)}（${p.pos}・${overall(p)}）</option>`
+    ).join('');
+  };
+  const slots = SLOTS.map((pos, idx) => `<label class="bar"><span>${idx + 1}. ${pos}</span><select class="search" data-slot="${idx}">${optsFor(idx)}</select></label>`).join('');
+  const tactics = TACTICS.map((t) => `<button class="btn mode ${(s.tactic ?? 'balanced') === t.id ? 'primary' : ''}" data-act="tactic" data-v="${t.id}"><b>${t.label}</b><span>${t.desc}</span></button>`).join('');
+  return shell(`<h2>試合準備</h2>
+    <p class="note">大会は1試合ずつ進みます。次の試合の前に戦術と先発15人を変更できます。先発は同じ選手を重複登録できません。</p>
+    ${s.pendingTour ? `<div class="panel">大会進行中：<b>${s.pendingTour.name}</b><br>次は第${s.pendingTour.rounds.length + 1}試合目（全${s.pendingTour.totalRounds}試合の予定）</div>` : s.tourCompletedMonth === s.month ? '<div class="panel">今月の大会は終了しました。結果を確認して、次の月へ進めます。</div>' : '<div class="panel">次の大会に向けて準備しよう。</div>'}
+    <h3>戦術</h3>${tactics}<h3>先発メンバー</h3>${slots}
+    <button class="btn primary big" data-act="nav" data-v="home">設定完了</button>`, 'match');
 }
 
 function playerScreen(s: GameState): string {
@@ -212,6 +235,10 @@ function recordsScreen(s: GameState): string {
 
 function resultHtml(r: AdvanceResult): string {
   let h = `<h2>${r.yearBefore}年目 ${r.monthBefore}月の結果</h2>`;
+  if (r.match) {
+    h += `<p><b>${r.match.label}</b>：${esc(r.match.opp)}　<strong>${r.match.my}-${r.match.their}</strong>　${r.match.win ? '勝利！' : '敗戦'}</p>`;
+    if (r.pending) h += `<p class="note">大会はまだ続きます。閉じて「試合準備」で戦術・スタメンを変更できます。</p>`;
+  }
   if (r.tour) {
     h += `<p><b>${r.tour.name}</b>：<span class="res-t ${r.tour.title ? 'gold' : ''}">${r.tour.result}</span></p><table class="tbl">${r.tour.rounds
       .map((x) => `<tr><td>${x.label}</td><td>${esc(x.opp)}</td><td>${x.my}-${x.their}</td><td>${x.win ? '○' : '×'}</td></tr>`)
@@ -221,7 +248,7 @@ function resultHtml(r: AdvanceResult): string {
   if (r.grad && r.grad.list.length) {
     h += `<h3>卒業生の進路</h3><ul class="news">${r.grad.list.map((x) => `<li>${esc(x.name)}（${x.pos}・${x.ov}）→ ${esc(x.career)}</li>`).join('')}</ul>`;
   }
-  if (!r.tour && !r.lines.length) h += '<p class="note">特に大きなできごとはなかった。選手たちは練習を重ねている。</p>';
+  if (!r.match && !r.tour && !r.lines.length) h += '<p class="note">特に大きなできごとはなかった。選手たちは練習を重ねている。</p>';
   return h;
 }
 
@@ -241,6 +268,7 @@ function render(): void {
     case 'scout': body = scoutScreen(st as GameState); break;
     case 'dir': body = dirScreen(); break;
     case 'records': body = recordsScreen(st as GameState); break;
+    case 'match': body = matchScreen(st as GameState); break;
   }
   const m = modal ? `<div class="modal"><div class="sheet">${modal}<button class="btn primary big" data-act="closeModal">閉じる</button></div></div>` : '';
   root.innerHTML = body + m;
@@ -261,13 +289,14 @@ function act(a: string, d: DOMStringMap): void {
     case 'pref': screen = 'pref'; break;
     case 'continue': {
       const s = loadGame();
-      if (s) { st = s; screen = 'home'; }
+      if (s) { st = s; ensureMatchSetup(st); screen = 'home'; }
       break;
     }
     case 'pickPref': selPref = Number(v); screen = 'school'; break;
     case 'start':
       if (hasSave() && !confirm('保存されているデータは消えます。はじめからにしますか？')) break;
       st = newGame(selPref, Number(v));
+      ensureMatchSetup(st);
       lastScout = [];
       save();
       screen = 'home';
@@ -275,6 +304,15 @@ function act(a: string, d: DOMStringMap): void {
     case 'nav': screen = v as Screen; break;
     case 'advance':
       if (st) { modal = resultHtml(advanceMonth(st)); lastScout = []; save(); }
+      break;
+    case 'tactic':
+      if (st && TACTICS.some((t) => t.id === v)) { st.tactic = v as Tactic; save(); }
+      break;
+    case 'lineup':
+      if (st) {
+        const el = root.querySelector<HTMLSelectElement>(`select[data-slot="${d.slot}"]`);
+        if (el && setLineupSlot(st, Number(d.slot), Number(el.value))) save();
+      }
       break;
     case 'scoutDo':
       if (st) { const r = scout(st, v); if (r) { lastScout = r; save(); } }
@@ -295,6 +333,10 @@ export function mount(el: HTMLElement): void {
   root.addEventListener('click', (e) => {
     const t = (e.target as HTMLElement).closest<HTMLElement>('[data-act]');
     if (t) act(t.dataset.act ?? '', t.dataset);
+  });
+  root.addEventListener('change', (e) => {
+    const t = (e.target as HTMLElement).closest<HTMLElement>('[data-slot]');
+    if (t) act('lineup', t.dataset);
   });
   root.addEventListener('input', (e) => {
     const t = e.target as HTMLInputElement;
