@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import { seed } from '../src/rng';
+import { UNIVS } from '../src/data';
+import { advanceCareerMonth, careerOverall, newCareer } from '../src/career';
+
+console.log('career mode tests');
+seed(901);
+const s = newCareer('佐藤 蓮', 'SO');
+assert.equal(s.phase, 'highschool');
+assert.equal(s.age, 15);
+assert.equal(s.month, 4);
+assert.equal(s.seasons.length, 0);
+for (let i = 0; i < 36; i++) advanceCareerMonth(s);
+assert.equal(s.phase, 'university');
+assert.equal(s.age, 18);
+assert.equal(s.stageYear, 1);
+assert.equal(s.seasons.length, 3);
+assert.ok([...UNIVS.top, ...UNIVS.high, ...UNIVS.mid].includes(s.university));
+assert.ok(s.history.some((x) => x.includes('進学')));
+for (let i = 0; i < 48; i++) advanceCareerMonth(s);
+assert.equal(s.phase, 'professional');
+assert.equal(s.age, 22);
+assert.equal(s.stageYear, 1);
+assert.equal(s.seasons.length, 7);
+assert.ok(s.professionalTeam.length > 0);
+assert.ok(s.history.some((x) => x.includes('加入')));
+let guard = 0;
+while (s.phase !== 'retired' && guard < 240) {
+  advanceCareerMonth(s);
+  guard++;
+}
+assert.equal(s.phase, 'retired');
+assert.ok(s.finalSummary?.includes('現役を引退'));
+assert.ok(s.seasons.length >= 20);
+assert.ok(s.seasons.every((r) => r.played >= 0 && r.appearances >= 0 && r.tries >= 0));
+assert.ok(careerOverall(s) >= 0 && careerOverall(s) <= 100);
+console.log('  ok - high school 3 years, university 4 years, professional career through retirement');
+console.log('  ok - university is selected from the existing university data');
+console.log('  ok - league records and retirement summary are retained');
+console.log('\n3 passed');

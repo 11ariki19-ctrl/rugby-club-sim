@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "tsx test/game.test.ts"
+    "test": "tsx test/game.test.ts && tsx test/career.test.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -1,4 +1,7 @@
 import './style.css';
 import { mount } from './ui';
+import { installCareerEntry } from './career-entry';
 
-mount(document.getElementById('app') as HTMLElement);
+const app = document.getElementById('app') as HTMLElement;
+mount(app);
+installCareerEntry(app);
