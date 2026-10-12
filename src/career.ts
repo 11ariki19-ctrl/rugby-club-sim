@@ -159,7 +159,10 @@ function assignUniversity(s: CareerState): void {
 function buildProSchedule(s: CareerState): CareerFixture[] {
   const teams = PRO_TEAMS[s.proDivision]; const ownIndex = teams.indexOf(s.professionalTeam);
   let opponents: string[] = [];
-  if (s.proDivision === 2) { const once = teams.filter((x) => x !== s.professionalTeam); opponents = [...once, ...once]; }
+  if (s.professionalTeam.startsWith('海外クラブ')) {
+    const overseas = ['Leicester Tigers','Saracens','Toulouse','La Rochelle','Munster','Leinster','Bordeaux Bègles','Bath Rugby','Harlequins'];
+    opponents = [...overseas, ...overseas].slice(0, 18);
+  } else if (s.proDivision === 2) { const once = teams.filter((x) => x !== s.professionalTeam); opponents = [...once, ...once]; }
   else if (s.proDivision === 3) { const once = teams.filter((x) => x !== s.professionalTeam); opponents = [...once, ...once, ...once]; }
   else {
     const conference = ownIndex < 6 ? teams.slice(0, 6) : teams.slice(6);
@@ -186,6 +189,8 @@ function assignProfessional(s: CareerState): void {
   s.professionalStarterGuaranteed = o >= 70 && universityAppearances >= 22 && (universityTries >= 6 || universityAverageRating >= 7.0);
   s.proDivision = o >= 75 || wins >= 20 ? 1 : o >= 60 || wins >= 12 ? 2 : 3;
   s.professionalTeam = pick(PRO_TEAMS[s.proDivision]); s.retirementAge = int(35, 38); s.proMatchIndex = 0;
+  s.proContractYears = 3;
+  s.proSalary = Math.round((s.proDivision === 1 ? 1800 : s.proDivision === 2 ? 900 : 500) + o * 18);
   const role = s.professionalStarterGuaranteed ? '大学時代のスター選手として、加入時から先発起用を約束された。' : 'まずは控えからプロキャリアをスタートする。';
   s.history.unshift(`大学卒業。大学リーグでの勝利${wins}勝・総合値${o}を評価され、リーグワン ディビジョン${s.proDivision}の${s.professionalTeam}に加入。${role}`);
   s.phase = 'professional'; s.stageYear = 1; s.age = 22; s.month = 7; s.currentSeason = newSeason(s); s.proSchedule = buildProSchedule(s);
@@ -240,9 +245,10 @@ export function setCareerTrainingPlan(s: CareerState, plan: CareerTrainingPlan):
   if (['バランス','筋力','技術','持久力','回復'].includes(plan)) s.trainingPlan = plan;
 }
 export function careerLegacyScore(s: CareerState): number {
-  const played = s.seasons.reduce((n, r) => n + r.appearances, 0) + s.currentSeason.appearances;
-  const tries = s.seasons.reduce((n, r) => n + r.tries, 0) + s.currentSeason.tries;
-  const wins = s.seasons.reduce((n, r) => n + r.wins, 0) + s.currentSeason.wins;
+  const includeCurrent = s.phase !== 'retired';
+  const played = s.seasons.reduce((n, r) => n + r.appearances, 0) + (includeCurrent ? s.currentSeason.appearances : 0);
+  const tries = s.seasons.reduce((n, r) => n + r.tries, 0) + (includeCurrent ? s.currentSeason.tries : 0);
+  const wins = s.seasons.reduce((n, r) => n + r.wins, 0) + (includeCurrent ? s.currentSeason.wins : 0);
   const international = s.japanNationalTeamCaps * 8 + s.japanNationalTeamWins * 4;
   const trophies = s.awards.length * 25 + s.worldTournamentWins * 12;
   return Math.round(played * 1.5 + tries * 5 + wins * 1.2 + international + trophies + careerOverall(s) * 2 + Math.round(s.player.peak));
@@ -500,9 +506,12 @@ function updateRivals(s: CareerState): void {
   for (const r of s.rivals) {
     if (r.retired) continue;
     r.age++;
+    const previousPhase = r.phase;
     const growth = r.age < 23 ? 1.2 : r.age < 28 ? 0.55 : r.age < 32 ? 0.1 : -0.7;
     r.overall = clamp(r.overall + gauss(growth, 1.8), 20, 99);
     r.phase = r.age < 18 ? 'highschool' : r.age < 22 ? 'university' : r.age <= 37 ? 'professional' : 'retired';
+    if (r.phase !== previousPhase && r.phase === 'university') r.team = pick(Object.values(UNIVERSITY_GROUPS).flatMap((x) => [...x]));
+    else if (r.phase !== previousPhase && r.phase === 'professional') r.team = pick(PRO_TEAMS[careerOverall(s) >= 75 ? 1 : careerOverall(s) >= 60 ? 2 : 3]);
     if (r.phase === 'retired') r.retired = true;
     if (r.pos === s.player.pos && !r.retired && r.overall > careerOverall(s)) s.currentSeason.notes.push(`ポジション争い：${r.name}（総合値${Math.round(r.overall)}）が競争相手として台頭。`);
   }
@@ -578,7 +587,7 @@ function applyCareerDevelopment(s: CareerState): void {
 export function advanceCareerMonth(s: CareerState): CareerState {
   if (s.phase === 'retired') return s;
   // UIから次へ進めた場合、提示中の契約オファーは現所属で更新してから進行する。
-  if (s.pendingTransfer) { s.pendingTransfer = undefined; s.proContractYears = Math.max(1, s.proContractYears); s.history.unshift(`${s.age}歳：契約オファーを見送り、現所属でプレーを続ける。`); }
+  if (s.pendingTransfer) { s.pendingTransfer = undefined; s.proContractYears = Math.max(2, s.proContractYears); s.history.unshift(`${s.age}歳：契約オファーを見送り、現所属で契約を更新。年俸${s.proSalary}万円でプレーを続ける。`); }
   if (s.phase === 'university' && s.month === 5) {
     const form = [...s.seasons].reverse().find((r) => r.phase === 'university');
     const eligible = careerOverall(s) >= 62 && (s.stageYear >= 2 || careerOverall(s) >= 68) && (!form || form.appearances >= 4);
