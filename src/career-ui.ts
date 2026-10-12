@@ -111,7 +111,7 @@ function teamRoster(team: string, s: CareerState, own: boolean): RosterMember[] 
   });
 }
 function playerDetail(member: RosterMember): string {
-  const bars = CAREER_STAT_KEYS.map((key) => `<div class="bar"><span>${STAT_LABEL[key]}</span><div class="track"><i style="width:${member.stats[key]}%"></i></div><b>${member.stats[key]}</b></div>`).join('');
+  const bars = CAREER_STAT_KEYS.map((key) => `<div class="bar"><span>${CAREER_STAT_LABEL[key]}</span><div class="track"><i style="width:${member.stats[key]}%"></i></div><b>${member.stats[key]}</b></div>`).join('');
   const height = member.isUser && state ? state.player.height : (member.pos === 'LO' ? 188 : member.pos === 'PR' ? 178 : 174);
   const weight = member.isUser && state ? state.player.weight : (['PR','HO','LO','N8'].includes(member.pos) ? 94 : 78);
   return `<div class="modal" data-career="roster-close"><section class="sheet" role="dialog" aria-modal="true" aria-label="選手詳細" data-roster-sheet><button class="link" data-career="roster-close">← メンバー表へ戻る</button><h2>${esc(member.name)}</h2><div class="panel">背番号 ${member.number} ／ ${member.pos} ／ ${member.role}<br>総合値 <b>${member.overall}</b>${member.isUser ? '<br>あなたが操作する選手' : ''}</div><div class="card"><h3>能力ステータス</h3>${bars}</div><div class="cards"><div class="card stat"><span class="k">身長</span><b>${height}cm</b></div><div class="card stat"><span class="k">体重</span><b>${weight}kg</b></div></div><button class="btn primary" data-career="roster-close">閉じる</button></section></div>`;
