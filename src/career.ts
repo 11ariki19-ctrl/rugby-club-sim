@@ -222,7 +222,7 @@ export function newCareer(name: string, pos: Pos, prefIndex = 26, schoolName?: s
     height: Math.round(h + gauss(0, 3)), weight: Math.round(w + gauss(0, 4)),
     peak: 0,
   };
-  const s = {
+  const s: CareerState = {
     v: 1 as const, phase: 'highschool' as CareerPhase, age: 15, month: 4, stageYear: 1,
     elapsedMonths: 0, prefIndex: clamp(Math.round(prefIndex), 0, PREFS.length - 1), experiencePoints: 0, qualified: false, universityTournamentFinalist: false, training: 'tec' as StatKey, player, highSchool: schoolName || schoolsOf(clamp(Math.round(prefIndex), 0, PREFS.length - 1))[1].name,
     university: '', universityTier: '', professionalTeam: '', retirementAge: 36,
