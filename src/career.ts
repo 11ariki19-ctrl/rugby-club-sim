@@ -30,10 +30,10 @@ export interface CareerSeason {
   pointsFor: number;
   pointsAgainst: number;
   appearances: number;
-  starts: number;
-  substituteApps: number;
-  bench: number;
-  notSelected: number;
+  starts?: number;
+  substituteApps?: number;
+  bench?: number;
+  notSelected?: number;
   tries: number;
   awards?: string[];
   notes: string[];
@@ -370,10 +370,10 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   const result = my > their ? '勝利' : my === their ? '引分' : '敗戦';
   scenes.push(my > their ? 'チームは勝利。試合後の評価が上がった。' : my === their ? '接戦の末に引き分け。最後まで集中を切らさなかった。' : '悔しい敗戦。課題を持ち帰り、次戦に向けて修正する。');
   const match: CareerMatch = { date: date || `2025年${s.month}月`, competition: label, opponent: opponent || opponentFor(s, kind), my, their, result, appeared, role, tries, carries, tackles, lineBreaks, kicks, errors, rating, experience: exp, scenes };
-  if (role === '先発') season.starts++;
-  else if (role === '途中出場') season.substituteApps++;
-  else if (role === '控え') season.bench++;
-  else season.notSelected++;
+  if (role === '先発') season.starts = (season.starts ?? 0) + 1;
+  else if (role === '途中出場') season.substituteApps = (season.substituteApps ?? 0) + 1;
+  else if (role === '控え') season.bench = (season.bench ?? 0) + 1;
+  else season.notSelected = (season.notSelected ?? 0) + 1;
   if (appeared) {
     const fatigueGain = (role === '先発' ? 24 : 13) + (s.trainingPlan === '持久力' ? -4 : 0);
     s.fatigue = clamp(s.fatigue + fatigueGain, 0, 100);
@@ -560,7 +560,7 @@ function applyCareerDevelopment(s: CareerState): void {
   const ageFactor = s.age < 22 ? 1 : s.age < 27 ? 0.72 : s.age < 31 ? 0.42 : s.age < 34 ? 0.18 : 0.05;
   const planFactor: Record<CareerTrainingPlan, number> = { 'バランス': 1, '筋力': 0.9, '技術': 1.05, '持久力': 0.88, '回復': 0.68 };
   for (const k of STAT_KEYS) {
-    const focus = k === s.training ? (s.trainingPlan === 'バランス' ? 1.35 : s.trainingPlan === '筋力' && ['str','sta'].includes(k) ? 1.8 : s.trainingPlan === '技術' && ['tec','han','kic'].includes(k) ? 1.8 : s.trainingPlan === '持久力' && ['sta','spd'].includes(k) ? 1.8 : 1.08) : 0.1;
+    const focus = k === s.training ? (s.trainingPlan === 'バランス' ? 1.35 : s.trainingPlan === '筋力' && ['pow','sta'].includes(k) ? 1.8 : s.trainingPlan === '技術' && ['tec','men'].includes(k) ? 1.8 : s.trainingPlan === '持久力' && ['sta','spd'].includes(k) ? 1.8 : 1.08) : 0.1;
     const inc = s.player.talent * baseStage * Math.max(0.04, ageFactor) * planFactor[s.trainingPlan] * focus * (1 - s.player.stats[k] / 125) * (0.85 + rand() * 0.3);
     s.player.stats[k] = clamp(s.player.stats[k] + inc, 0, 99);
     if (s.age >= 31 && rand() < (s.age >= 35 ? 0.12 : 0.045)) s.player.stats[k] = clamp(s.player.stats[k] - (s.age >= 35 ? 0.18 : 0.08), 0, 99);
