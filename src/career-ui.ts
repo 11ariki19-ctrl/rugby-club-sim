@@ -1,9 +1,9 @@
 import {
   advanceCareerMonth, careerOverall, currentTeam, newCareer, setCareerTraining, setCareerTrainingPlan,
-  resolveCareerTransfer, careerHallOfFame, careerLegacyScore,
+  resolveCareerTransfer, careerHallOfFame, careerLegacyScore, playCareerMatchAction,
   CAREER_POSITIONS, CAREER_STAT_KEYS, CAREER_STAT_LABEL, CAREER_TALENTS, hasCareerSave, loadCareer, saveCareer,
 } from './career';
-import type { CareerState, CareerPhase, CareerTrainingPlan } from './career';
+import type { CareerState, CareerPhase, CareerTrainingPlan, CareerMatchAction } from './career';
 import { STAT_LABEL } from './game';
 import type { Pos, StatKey } from './game';
 import { PREFS, schoolsOf } from './data';
@@ -89,9 +89,44 @@ function homeScreen(s: CareerState): string {
     <h3>シーズン記録・年鑑</h3>${seasons || '<p class="note">シーズン終了後に記録が追加されます。</p>'}
     <button class="btn" data-career="title">タイトルへ戻る</button><p class="note">このモードのセーブは監督モードとは独立しています。</p></main>`;
 }
+function liveMatchScreen(s: CareerState): string {
+  const g = s.liveMatch!;
+  const fieldLeft = Math.max(2, Math.min(98, g.fieldPosition));
+  const actions: { id: CareerMatchAction; label: string; detail: string }[] = g.possession === '自チーム'
+    ? [
+      { id: 'carry', label: 'ボールを持って突破', detail: 'パワーとスピードで前進を狙う' },
+      { id: 'pass', label: 'パスで展開', detail: '成功率が高め。ラインブレイクのチャンス' },
+      { id: 'kick', label: 'タッチキック', detail: '大きく陣地を進めるが、ボールを渡す' },
+      { id: 'scrum', label: 'スクラムで押す', detail: 'FWのパワーを使って堅実に前進' },
+      { id: 'lineout', label: 'ラインアウト', detail: '技術でボールを確保して攻撃継続' },
+      ...(g.fieldPosition >= 55 ? [{ id: 'goal' as const, label: 'ペナルティゴール', detail: '成功すれば3点。キック能力が重要' }] : []),
+    ]
+    : [
+      { id: 'rush', label: '前に出るタックル', detail: '相手の前進を止め、圧力をかける' },
+      { id: 'drift', label: '外へ追い込む守備', detail: '守備を崩さず相手の選択肢を減らす' },
+      { id: 'jackal', label: 'ジャッカルを狙う', detail: '成功すればターンオーバー。リスクも高い' },
+    ];
+  return `<main class="page">
+    <header class="hd"><div class="school">🏉 ライブマッチ</div><div class="date">${g.elapsed}' / 80'・${s.phase === 'highschool' ? '高校' : s.phase === 'university' ? '大学' : '社会人'}</div></header>
+    <div class="card"><p><b>${esc(g.fixture.label)}</b> ／ ${esc(g.fixture.date)}</p>
+      <div class="scoreboard"><div><span>${esc(currentTeam(s))}</span><strong>${g.scoreFor}</strong></div><div class="score-dash">—</div><div><span>${esc(g.fixture.opponent)}</span><strong>${g.scoreAgainst}</strong></div></div>
+      <p>起用：<b>${esc(g.role)}</b> ／ ボール：<b>${g.possession}</b> ／ ${g.possession === '自チーム' ? '相手陣' : '自陣'}への進行度</p>
+      <div class="rugby-pitch"><div class="pitch-lines"></div><div class="pitch-half"></div><div class="pitch-ball" style="left:${fieldLeft}%">🏉</div><div class="pitch-own">自陣</div><div class="pitch-opponent">敵陣</div></div>
+      <div class="bar"><span>前進位置</span><div class="track"><i style="width:${g.fieldPosition}%"></i></div><b>${g.fieldPosition}m</b></div>
+      <div class="match-event"><b>直近のプレー</b><p>${esc(g.lastEvent)}</p></div>
+    </div>
+    <h3>${g.possession === '自チーム' ? '攻撃を選択' : '守備を選択'}</h3>
+    <p class="note">1回の選択で時計が5分進みます。80分までプレーして勝利を目指しましょう。能力・疲労・選択した戦術でプレーの成功率が変わります。</p>
+    <div class="match-actions">${actions.map((a) => `<button class="btn mode" data-career="match-action" data-v="${a.id}"><b>${a.label}</b><span>${a.detail}</span></button>`).join('')}</div>
+    <div class="card"><b>この試合の個人成績</b><div class="cards"><div class="card stat"><span class="k">トライ</span><b>${g.tries}</b></div><div class="card stat"><span class="k">キャリー</span><b>${g.carries}</b></div><div class="card stat"><span class="k">タックル</span><b>${g.tackles}</b></div><div class="card stat"><span class="k">突破</span><b>${g.lineBreaks}</b></div><div class="card stat"><span class="k">キック</span><b>${g.kicks}</b></div><div class="card stat"><span class="k">ミス</span><b>${g.errors}</b></div></div></div>
+    <button class="btn" data-career="match-exit">試合を中断してキャリア画面へ</button>
+    <p class="note">試合の途中経過は自動保存されます。再開すると続きからプレーできます。</p>
+  </main>`;
+}
+
 function render(): void {
   if (!root) return;
-  root.innerHTML = creating || !state ? createScreen() : homeScreen(state);
+  root.innerHTML = creating || !state ? createScreen() : state.liveMatch ? liveMatchScreen(state) : homeScreen(state);
 }
 function act(action: string, value = ''): void {
   if (!root) return;
@@ -113,7 +148,14 @@ function act(action: string, value = ''): void {
   } else if (action === 'transfer' && state) {
     resolveCareerTransfer(state, Number(value));
   } else if (action === 'advance' && state) {
-    advanceCareerMonth(state);
+    advanceCareerMonth(state, true);
+  } else if (action === 'match-action' && state) {
+    playCareerMatchAction(state, value as CareerMatchAction);
+  } else if (action === 'match-exit' && state) {
+    saveCareer(state);
+    // Keep the in-progress match in the save; the home screen can be reopened by resuming the career.
+    if (root) root.innerHTML = '<main class="page"><h2>試合を中断しました</h2><p>試合経過は保存されています。続けるには「人生キャリアの続きから」を選んでください。</p><button class="btn primary" data-career="title">タイトルへ戻る</button></main>';
+    return;
   }
   render();
 }
