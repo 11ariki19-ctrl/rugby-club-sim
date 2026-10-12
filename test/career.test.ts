@@ -128,6 +128,7 @@ appearances.phase = 'professional'; appearances.stageYear = 1; appearances.profe
 const proReserve = careerAppearanceProbability(appearances);
 appearances.professionalStarterGuaranteed = true;
 const proStar = careerAppearanceProbability(appearances);
-assert.ok(proStar > 0.9 && proStar > proReserve + 0.4, 'university stars with a guaranteed starting role should start their pro career with very high selection odds');
+assert.equal(proStar, 1, 'a guaranteed professional starter must always appear in the match simulation');
+assert.ok(proStar > proReserve + 0.4, 'university stars with a guaranteed starting role should start their pro career with much higher selection odds');
 console.log('  ok - appearance opportunities progress by year and reflect reputation, competition, and pro starter contracts');
 console.log('\n8 passed');
