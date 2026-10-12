@@ -213,7 +213,7 @@ t('同じシードなら同じ結果になる', () => {
   const a = run(5, 1, 24, true);
   seed(11);
   const b = run(5, 1, 24, true);
-  assert.equal(JSON.stringify(a), JSON.stringify(b));
+  assert.deepEqual(a, b);
 });
 
 t('保存データはJSONで往復できる', () => {
