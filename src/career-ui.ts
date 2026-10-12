@@ -209,7 +209,7 @@ export function openCareerMode(el: HTMLElement, resume: boolean): void {
   if (!bound) {
     root.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
-      if (target.closest('[data-roster-sheet]') && !target.closest('[data-roster-sheet]')?.contains(target.closest('[data-career="roster-close"]'))) return;
+      if (target.closest('[data-roster-sheet]') && !target.closest('button[data-career="roster-close"]')) return;
       const t = target.closest<HTMLElement>('[data-career]');
       if (t) act(t.dataset.career ?? '', t.dataset.v ?? '');
     });
