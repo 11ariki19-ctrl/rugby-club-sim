@@ -233,95 +233,145 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   return { my, their, win: my > their, exp, match };
 }
 function finishCareerTournament(s: CareerState): void {
-  const t = s.pendingTournament;
-  if (!t) return;
-  const title = t.wins === t.totalRounds;
-  const runnerUp = t.kind === 'pref' && t.wins === t.totalRounds - 1;
-  const result = title ? '優勝' : runnerUp ? '準優勝' : `${t.rounds}回戦敗退`;
-  const bonus = title ? 40 : runnerUp ? 20 : t.wins * 5;
+  const t = s.pendingTournament; if (!t) return;
+  let result = '', bonus = 0;
+  if (t.kind === 'world') {
+    result = t.wins >= 3 ? '世界大会優勝' : t.wins === 2 ? '世界大会準優勝' : t.wins === 1 ? '世界大会3位' : '世界大会4位';
+    bonus = t.wins * 15 + (t.wins === 3 ? 40 : 0); s.worldTournamentWins = t.wins;
+  } else {
+    const title = t.wins === t.totalRounds, runnerUp = t.kind === 'pref' && t.wins === t.totalRounds - 1;
+    result = title ? '優勝' : runnerUp ? '準優勝' : `${t.rounds}回戦敗退`;
+    bonus = title ? 40 : runnerUp ? 20 : t.wins * 5;
+  }
   s.experiencePoints += bonus;
   s.currentSeason.notes.push(`${t.name}：${result}（大会ボーナス経験点+${bonus}）`);
   s.history.unshift(`${t.name}：${result}。大会ボーナス経験点+${bonus}。`);
   if (t.kind === 'pref') s.qualified = t.wins >= t.totalRounds - 1;
   if (t.kind === 'nat') s.qualified = false;
-  s.pendingTournament = undefined;
-  s.tournamentCompletedMonth = s.month;
+  s.pendingTournament = undefined; s.tournamentCompletedMonth = s.month;
+}
+function roundName(round: number, total: number): string {
+  if (round === total) return '決勝';
+  if (round === total - 1) return '準決勝';
+  if (round === total - 2) return '準々決勝';
+  return `${round}回戦`;
 }
 function playCareerTournamentMatch(s: CareerState): void {
-  const t = s.pendingTournament;
-  if (!t) return;
+  const t = s.pendingTournament; if (!t) return;
   const round = t.rounds + 1;
-  const m = simulateMatch(s, `${t.name}・${round}回戦`);
+  const label = t.kind === 'world' ? `高校日本代表候補・世界大会 第${round}戦` : `${t.name}・${roundName(round, t.totalRounds)}`;
+  const opponent = t.kind === 'world' ? WORLD_OPPONENTS[t.rounds] : t.kind === 'nat' ? `${pick(PREFS.filter((_, i) => i !== s.prefIndex)).short}${pick(SUFFIX)}高校` : `${PREFS[s.prefIndex].short}${pick(SUFFIX)}高校`;
+  const m = simulateMatch(s, label, opponent, `${s.month}月・${round}試合目`, t.kind === 'world' ? 'world' : 'highschool');
   t.rounds++;
-  if (m.win) {
-    t.wins++;
-    s.experiencePoints += 5;
-    s.currentSeason.notes.push(`${t.name}・${round}回戦勝利ボーナス経験点+5`);
-  }
+  if (m.win) { t.wins++; s.experiencePoints += 5; s.currentSeason.notes.push(`${t.name}・勝利ボーナス経験点+5`); }
   if (!m.win || t.rounds >= t.totalRounds) finishCareerTournament(s);
 }
-function finishSeason(s: CareerState): void {
-  const r = s.currentSeason;
-  s.seasons.push(clone(r));
-  const total = r.wins + r.losses + r.draws;
-  s.history.unshift(`${r.age}歳・${r.team} ${r.year}年目：${r.wins}勝${r.losses}敗${r.draws}分、出場${r.appearances}試合、${r.tries}トライ。`);
-  if (total > 0 && r.wins / total >= 0.65) {
-    for (const k of STAT_KEYS) s.player.stats[k] = clamp(s.player.stats[k] + 0.25, 0, 99);
-    s.history.unshift('好成績による自信で、全能力が少し成長した。');
+function monthlyFixtures(s: CareerState): CareerFixture[] {
+  if (s.phase === 'university') {
+    if (s.month === 5) return [{ date: '5月・春季交流戦', label: '大学春季交流戦', opponent: opponentFor(s, 'university-spring'), difficulty: 57, kind: 'university-spring' }];
+    if (s.month === 6) return [1,2].map((n) => ({ date: `6月・春季交流戦${n}`, label: `大学春季交流戦${n}`, opponent: opponentFor(s, 'university-spring'), difficulty: 58 + n, kind: 'university-spring' }));
+    if (s.month === 9 || s.month === 10 || s.month === 11) {
+      const count = s.month === 9 ? 2 : s.month === 10 ? 3 : 2, start = s.currentSeason.leaguePlayed;
+      return Array.from({ length: Math.min(count, 7 - start) }, (_, i) => {
+        const round = start + i + 1;
+        return { date: `${s.month}月・第${round}節`, label: `${s.universityGroup} 第${round}節`, opponent: opponentFor(s, 'university-league'), difficulty: 55 + round * 1.1, kind: 'university-league' as const };
+      });
+    }
+    if (s.month === 12 && s.universityTournamentAlive) return [
+      { date: '12/14・3回戦', label: '全国大学選手権 3回戦', opponent: opponentFor(s, 'university-championship'), difficulty: 62, kind: 'university-championship' },
+      { date: '12/20・準々決勝', label: '全国大学選手権 準々決勝', opponent: opponentFor(s, 'university-championship'), difficulty: 66, kind: 'university-championship' },
+    ];
+    if (s.month === 1 && s.universityTournamentAlive) return [
+      { date: '1/2・準決勝', label: '全国大学選手権 準決勝', opponent: opponentFor(s, 'university-championship'), difficulty: 70, kind: 'university-championship' },
+      { date: '1/11・決勝', label: '全国大学選手権 決勝', opponent: opponentFor(s, 'university-championship'), difficulty: 73, kind: 'university-championship' },
+    ];
   }
+  if (s.phase === 'professional') {
+    if ([12,1,2,3,4,5].includes(s.month)) return s.proSchedule.filter((f, i) => i >= s.proMatchIndex && f.date.startsWith(`${s.month}月`));
+    if (s.month === 6 && s.proDivision === 1 && s.currentSeason.leagueWins >= 11) return [
+      { date: '5/23・プレーオフ', label: 'リーグワンD1 プレーオフ準々決勝', opponent: pick(PRO_TEAMS[1].filter((x) => x !== s.professionalTeam)), difficulty: 70, kind: 'professional-playoff' },
+      { date: '5/30・プレーオフ', label: 'リーグワンD1 プレーオフ準決勝', opponent: pick(PRO_TEAMS[1].filter((x) => x !== s.professionalTeam)), difficulty: 74, kind: 'professional-playoff' },
+      { date: '6/7・プレーオフ', label: 'リーグワンD1 プレーオフ決勝', opponent: pick(PRO_TEAMS[1].filter((x) => x !== s.professionalTeam)), difficulty: 77, kind: 'professional-playoff' },
+    ];
+    if (s.month === 6 && s.proDivision === 2 && s.currentSeason.leagueWins >= 10) return [
+      { date: '5月下旬・入替戦', label: 'リーグワンD1/D2入替戦', opponent: pick(PRO_TEAMS[1]), difficulty: 72, kind: 'professional-playoff' },
+    ];
+    if (s.month === 6 && s.proDivision === 3 && s.currentSeason.leagueWins >= 10) return [
+      { date: '5月下旬・入替戦', label: 'リーグワンD2/D3入替戦', opponent: pick(PRO_TEAMS[2]), difficulty: 65, kind: 'professional-playoff' },
+    ];
+  }
+  return [];
+}
+function playNextFixture(s: CareerState): void {
+  const fixture = s.pendingFixtures?.shift(); if (!fixture) return;
+  const m = simulateMatch(s, fixture.label, fixture.opponent, fixture.date, fixture.kind, fixture.difficulty);
+  if (fixture.kind === 'professional-league') s.proMatchIndex++;
+  if (fixture.kind === 'university-league' && s.currentSeason.leaguePlayed >= 7) {
+    s.universityQualified = s.currentSeason.leagueWins >= 4 || s.universityTier === '最上位';
+    s.universityTournamentAlive = s.universityQualified;
+    if (s.universityQualified) s.history.unshift(`${s.universityGroup} ${s.currentSeason.leagueWins}勝で全国大学選手権への出場権を獲得。`);
+  }
+  if (fixture.kind === 'university-championship' && !m.win) { s.universityTournamentAlive = false; s.pendingFixtures = []; }
+  if (fixture.kind === 'professional-playoff' && !m.win) s.pendingFixtures = [];
+  if (!s.pendingFixtures?.length) s.tournamentCompletedMonth = s.month;
+}
+function finishSeason(s: CareerState): void {
+  const r = s.currentSeason; s.seasons.push(clone(r));
+  const total = r.wins + r.losses + r.draws;
+  s.history.unshift(`${r.age}歳・${r.team} ${r.year}年目：${r.wins}勝${r.losses}敗${r.draws}分、公式リーグ戦${r.leaguePlayed}試合（${r.leagueWins}勝${r.leagueLosses}敗${r.leagueDraws}分）、出場${r.appearances}試合、${r.tries}トライ。`);
+  if (total > 0 && r.wins / total >= 0.65) { for (const k of STAT_KEYS) s.player.stats[k] = clamp(s.player.stats[k] + 0.25, 0, 99); s.history.unshift('好成績による自信で、全能力が少し成長した。'); }
+}
+function evaluateHighSchoolCandidate(s: CareerState): boolean {
+  const avg = s.highSchoolRatingCount ? s.highSchoolRatingTotal / s.highSchoolRatingCount : 0;
+  return careerOverall(s) >= 52 && s.highSchoolAppearances >= 4 && (s.highSchoolTries >= 2 || avg >= 6.5);
+}
+function advanceCalendar(s: CareerState): void {
+  const seasonEnd = s.phase === 'professional' ? s.month === 6 : s.month === 3;
+  if (seasonEnd) {
+    finishSeason(s);
+    if (s.phase === 'highschool' && s.stageYear >= 3) assignUniversity(s);
+    else if (s.phase === 'university' && s.stageYear >= 4) assignProfessional(s);
+    else if (s.phase === 'professional' && s.age >= s.retirementAge) {
+      s.phase = 'retired';
+      const games = s.seasons.reduce((n, r) => n + r.appearances, 0), tries = s.seasons.reduce((n, r) => n + r.tries, 0);
+      s.finalSummary = `${s.player.name}は${s.age}歳で現役を引退。通算出場${games}試合、${tries}トライ。最高総合値${Math.round(s.player.peak)}。獲得経験点${s.experiencePoints}。`;
+      s.history.unshift(s.finalSummary);
+    } else {
+      s.stageYear++; s.age++; s.month = s.phase === 'professional' ? 7 : 4; s.currentSeason = newSeason(s);
+      if (s.phase === 'professional') { s.proMatchIndex = 0; s.proSchedule = buildProSchedule(s); }
+    }
+  } else s.month = s.month === 12 ? 1 : s.month + 1;
+  s.pendingFixtures = []; s.tournamentCompletedMonth = undefined;
+  if (s.phase !== 'retired') s.currentSeason.age = s.age;
 }
 export function advanceCareerMonth(s: CareerState): CareerState {
   if (s.phase === 'retired') return s;
-  // 大会は監督モードと同じく1試合ずつ進行。大会終了後の月送りも別操作。
-  if (s.pendingTournament) {
-    playCareerTournamentMatch(s);
-    saveCareer(s);
-    return s;
-  }
-  const alreadyPlayedThisMonth = s.tournamentCompletedMonth === s.month;
-  if (!alreadyPlayedThisMonth) {
-    if (s.phase === 'highschool') {
-      const event = s.month === 7 ? { kind: 'summer' as const, name: '夏季県大会', rounds: 4 }
-        : s.month === 11 ? { kind: 'pref' as const, name: '花園予選（県大会）', rounds: 4 }
-        : s.month === 12 && s.qualified ? { kind: 'nat' as const, name: '全国大会（花園）', rounds: 5 }
-        : s.month === 2 ? { kind: 'newbie' as const, name: '新人大会', rounds: 3 } : null;
-      if (event) {
-        s.pendingTournament = { name: event.name, kind: event.kind, totalRounds: event.rounds, rounds: 0, wins: 0 };
-        playCareerTournamentMatch(s);
-        saveCareer(s);
-        return s;
-      }
-    } else if (s.phase === 'university' && s.month >= 9 && s.month <= 12) {
-      simulateMatch(s, `${s.month}月大学リーグ戦`);
-      s.tournamentCompletedMonth = s.month;
-      saveCareer(s);
-      return s;
-    } else if (s.phase === 'university' && s.month === 1) {
-      s.universityTournamentFinalist = false;
-      const m = simulateMatch(s, '大学冬季トーナメント準決勝');
-      s.universityTournamentFinalist = m.win;
-      const bonus = m.win ? 15 : 0;
-      s.experiencePoints += bonus;
-      s.currentSeason.notes.push(`冬季トーナメント準決勝ボーナス経験点+${bonus}`);
-      s.tournamentCompletedMonth = s.month;
-      saveCareer(s);
-      return s;
-    } else if (s.phase === 'university' && s.month === 2 && s.universityTournamentFinalist) {
-      const m = simulateMatch(s, '大学冬季トーナメント決勝');
-      const bonus = m.win ? 40 : 20;
-      s.experiencePoints += bonus;
-      s.currentSeason.notes.push(`冬季トーナメント決勝ボーナス経験点+${bonus}`);
-      s.history.unshift(`大学冬季トーナメント決勝：${m.win ? '優勝' : '準優勝'}。ボーナス経験点+${bonus}。`);
-      s.universityTournamentFinalist = false;
-      s.tournamentCompletedMonth = s.month;
-      saveCareer(s);
-      return s;
-    } else if (s.phase === 'professional' && [7, 11, 2].includes(s.month)) {
-      simulateMatch(s, `${s.month}月社会人リーグ戦`);
-      s.tournamentCompletedMonth = s.month;
-      saveCareer(s);
-      return s;
+  if (s.pendingTournament) { playCareerTournamentMatch(s); saveCareer(s); return s; }
+  if (s.pendingFixtures?.length) { playNextFixture(s); saveCareer(s); return s; }
+  if (s.tournamentCompletedMonth === s.month) {
+    const stageFactor = s.phase === 'highschool' ? 1.15 : s.phase === 'university' ? 0.95 : 0.55;
+    for (const k of STAT_KEYS) {
+      const focus = k === s.training ? 1.15 : 0.12;
+      const inc = s.player.talent * stageFactor * focus * (1 - s.player.stats[k] / 125) * (0.85 + rand() * 0.3);
+      s.player.stats[k] = clamp(s.player.stats[k] + inc, 0, 99);
     }
+    s.player.peak = Math.max(s.player.peak, careerOverall(s)); s.elapsedMonths++;
+    advanceCalendar(s); saveCareer(s); return s;
+  }
+  if (s.phase === 'highschool') {
+    let event: { kind: 'summer' | 'pref' | 'nat' | 'newbie' | 'world'; name: string; rounds: number } | null = null;
+    if (s.month === 7) event = { kind: 'summer', name: `${PREFS[s.prefIndex].name}夏季県大会`, rounds: 4 };
+    else if (s.month === 11) event = { kind: 'pref', name: `${PREFS[s.prefIndex].name}花園予選`, rounds: 4 };
+    else if (s.month === 12 && s.qualified) event = { kind: 'nat', name: '全国大会（花園）', rounds: 5 };
+    else if (s.month === 2 && s.stageYear === 3 && evaluateHighSchoolCandidate(s)) {
+      s.nationalCandidate = true; event = { kind: 'world', name: '高校日本代表候補・世界大会', rounds: 3 };
+      s.history.unshift('高校大会での活躍が評価され、2月に高校日本代表候補へ選出された！');
+    } else if (s.month === 2) event = { kind: 'newbie', name: `${PREFS[s.prefIndex].name}新人大会`, rounds: 3 };
+    if (event) { s.pendingTournament = { name: event.name, kind: event.kind, totalRounds: event.rounds, rounds: 0, wins: 0 }; playCareerTournamentMatch(s); saveCareer(s); return s; }
+  }
+  if (s.phase === 'university' || s.phase === 'professional') {
+    const fixtures = monthlyFixtures(s);
+    if (fixtures.length) { s.pendingFixtures = fixtures; playNextFixture(s); saveCareer(s); return s; }
   }
   const stageFactor = s.phase === 'highschool' ? 1.15 : s.phase === 'university' ? 0.95 : 0.55;
   for (const k of STAT_KEYS) {
@@ -329,33 +379,8 @@ export function advanceCareerMonth(s: CareerState): CareerState {
     const inc = s.player.talent * stageFactor * focus * (1 - s.player.stats[k] / 125) * (0.85 + rand() * 0.3);
     s.player.stats[k] = clamp(s.player.stats[k] + inc, 0, 99);
   }
-  s.player.peak = Math.max(s.player.peak, careerOverall(s));
-  s.elapsedMonths++;
-  s.tournamentCompletedMonth = undefined;
-  if (s.month === 3) {
-    finishSeason(s);
-    if (s.phase === 'highschool' && s.stageYear >= 3) {
-      assignUniversity(s);
-    } else if (s.phase === 'university' && s.stageYear >= 4) {
-      assignProfessional(s);
-    } else if (s.phase === 'professional' && s.age >= s.retirementAge) {
-      s.phase = 'retired';
-      const games = s.seasons.reduce((n, r) => n + r.appearances, 0);
-      const tries = s.seasons.reduce((n, r) => n + r.tries, 0);
-      s.finalSummary = `${s.player.name}は${s.age}歳で現役を引退。通算出場${games}試合、${tries}トライ。最高総合値${Math.round(s.player.peak)}。獲得経験点${s.experiencePoints}。`;
-      s.history.unshift(s.finalSummary);
-    } else {
-      s.stageYear++;
-      s.age++;
-      s.month = 4;
-      s.currentSeason = newSeason(s);
-    }
-  } else {
-    s.month = s.month === 12 ? 1 : s.month + 1;
-  }
-  if (s.phase !== 'retired') s.currentSeason.age = s.age;
-  saveCareer(s);
-  return s;
+  s.player.peak = Math.max(s.player.peak, careerOverall(s)); s.elapsedMonths++;
+  advanceCalendar(s); saveCareer(s); return s;
 }
 export function saveCareer(s: CareerState): void {
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* local storage may be unavailable */ }
