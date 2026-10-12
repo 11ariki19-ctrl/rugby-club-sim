@@ -32,7 +32,7 @@ function seasonCard(s: CareerState): string {
     ${r.notes.length ? `<ul class="news">${r.notes.slice().reverse().map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : '<p class="note">7月・11月・2月にリーグ戦が行われます。</p>'}</div>`;
 }
 function phaseDescription(s: CareerState): string {
-  if (s.phase === 'highschool') return `高校${s.stageYear}年生。3月の年度終了後、総合値に応じた大学へ進学します。`;
+  if (s.phase === 'highschool') return `高校${s.stageYear}年生。監督モードと同じ大会カレンダーで試合を進め、3月の年度終了後に総合値に応じた大学へ進学します。`;
   if (s.phase === 'university') return `大学${s.stageYear}年生。4年間のリーグ戦で活躍し、卒業後の社会人チーム入りを目指します。`;
   if (s.phase === 'professional') return `社会人${s.stageYear}年目。現役引退予定年齢は${s.retirementAge}歳。年齢と能力のピークを意識してキャリアを重ねます。`;
   return s.finalSummary ?? '現役生活を終えました。';
@@ -50,7 +50,7 @@ function homeScreen(s: CareerState): string {
     ${s.university ? `<div class="card"><b>進学先</b><p>${esc(s.university)}（${esc(s.universityTier)}）</p></div>` : ''}
     ${s.professionalTeam ? `<div class="card"><b>所属社会人チーム</b><p>${esc(s.professionalTeam)}</p></div>` : ''}
     <div class="card"><h3>選手能力</h3>${bars}<p class="small">最高総合値：${Math.round(s.player.peak)} ／ 才能：${s.player.talent >= 1.25 ? '大器' : s.player.talent >= 0.95 ? '標準' : '努力型'}</p></div>
-    ${s.phase !== 'retired' ? `<h3>今月の育成方針</h3><p class="note">選んだ能力が最も伸びます。毎月の進行で練習とリーグ戦が自動処理されます。</p>${training}
+    ${s.phase !== 'retired' ? `<h3>今月の育成方針</h3><p class="note">選んだ能力が最も伸びます。高校編は監督モードと同じ大会日程、大学編は9〜12月リーグ戦・1〜2月トーナメント。試合は1試合ずつ進み、試合結果に応じて経験点を獲得します。</p>${training}
     <button class="btn primary big" data-career="advance">1か月進める（${monthLabel(s.month)}）</button>` : `<div class="panel"><h3>現役引退</h3><p>${esc(s.finalSummary ?? '')}</p><p>通算リーグ出場：${s.seasons.reduce((n, r) => n + r.appearances, 0)}試合 ／ 通算トライ：${s.seasons.reduce((n, r) => n + r.tries, 0)}</p></div>`}
     ${seasonCard(s)}<h3>キャリア年表</h3><ul class="news">${history}</ul>
     <h3>シーズン記録</h3>${seasons || '<p class="note">シーズン終了後に記録が追加されます。</p>'}
