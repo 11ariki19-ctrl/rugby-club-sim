@@ -301,7 +301,12 @@ export function loadCareer(): CareerState | null {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const s = JSON.parse(raw) as CareerState;
-    return s?.v === 1 && s.player?.stats && Array.isArray(s.seasons) ? s : null;
+    if (s?.v !== 1 || !s.player?.stats || !Array.isArray(s.seasons)) return null;
+    // 旧バージョンのキャリアセーブにも新しい日程・経験点項目を補完する。
+    if (typeof s.experiencePoints !== 'number' || !Number.isFinite(s.experiencePoints)) s.experiencePoints = 0;
+    if (typeof s.qualified !== 'boolean') s.qualified = false;
+    if (typeof s.universityTournamentFinalist !== 'boolean') s.universityTournamentFinalist = false;
+    return s;
   } catch { return null; }
 }
 export function hasCareerSave(): boolean { return loadCareer() !== null; }
