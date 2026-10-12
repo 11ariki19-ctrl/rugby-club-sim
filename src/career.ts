@@ -291,6 +291,7 @@ function opponentFor(s: CareerState, kind: CareerFixture['kind'] | 'highschool' 
  * 確率は「その試合に出場する確率」であり、先発/途中出場の区別は今後の拡張対象。
  */
 export function careerAppearanceProbability(s: CareerState): number {
+  if (s.injuryMonths > 0) return 0;
   if (s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed) return 1;
   const year = Math.max(1, Math.min(4, s.stageYear));
   let chance: number;
@@ -388,11 +389,11 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   else if (role === 'メンバー外') scenes.unshift(s.injuryMonths > 0 ? `負傷療養中（残り約${s.injuryMonths}か月）のためメンバー外。` : '今回はメンバー外。練習で次の機会を狙う。');
   else if (role === '途中出場') scenes.unshift('途中出場でピッチへ。限られた時間でアピールを狙う。');
   else scenes.unshift('先発メンバーとして試合開始から出場。');
-  if (kind === 'japan-test') {
+  if (kind === 'japan-test' && appeared) {
     s.japanNationalTeamCaps++;
     if (my > their) s.japanNationalTeamWins++;
     match.scenes.unshift(`日本代表として${match.opponent}戦に出場。国際試合出場${s.japanNationalTeamCaps}試合目。`);
-  }
+  } else if (kind === 'japan-test') match.scenes.unshift('日本代表に帯同したが、今回は出場機会がなかった。');
   s.lastMatch = match; s.matchHistory.unshift(match); s.matchHistory = s.matchHistory.slice(0, 80);
   if (appeared) season.appearances++; season.tries += tries;
   if (appeared && rating >= 7.5 && !s.currentSeason.awards?.includes('週間ベストプレーヤー')) { s.currentSeason.awards ??= []; s.currentSeason.awards.push('週間ベストプレーヤー'); }
@@ -545,7 +546,8 @@ function advanceCalendar(s: CareerState): void {
       s.phase = 'retired';
       const games = s.seasons.reduce((n, r) => n + r.appearances, 0), tries = s.seasons.reduce((n, r) => n + r.tries, 0);
       s.legacyScore = careerLegacyScore(s);
-      s.finalSummary = `${s.player.name}は${s.age}歳で現役を引退。通算出場${games}試合、${tries}トライ。日本代表${s.japanNationalTeamCaps}キャップ、最高総合値${Math.round(s.player.peak)}、レガシースコア${s.legacyScore}。獲得経験点${s.experiencePoints}。`;
+      const legacy = s.japanNationalTeamCaps >= 20 ? '日本代表の中心選手として歴史に名を刻んだ。' : tries >= 40 ? '得点力に優れた名トライゲッターとして記憶された。' : games >= 120 ? '長年にわたりチームを支えた鉄人として称えられた。' : s.awards.length >= 3 ? '数々の表彰を受けた実力者としてキャリアを終えた。' : '競技人生で培った経験を次の世代へ伝えていく。';
+      s.finalSummary = `${s.player.name}は${s.age}歳で現役を引退。通算出場${games}試合、${tries}トライ。日本代表${s.japanNationalTeamCaps}キャップ、最高総合値${Math.round(s.player.peak)}、レガシースコア${s.legacyScore}。${legacy}獲得経験点${s.experiencePoints}。`;
       s.history.unshift(s.finalSummary); saveCareerLegacy(s);
     } else {
       s.stageYear++; s.age++; s.month = s.phase === 'professional' ? 7 : 4; s.currentSeason = newSeason(s);
