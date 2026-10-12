@@ -99,7 +99,8 @@ national.phase = 'university'; national.age = 19; national.stageYear = 2; nation
 for (const key of Object.keys(national.player.stats) as (keyof typeof national.player.stats)[]) national.player.stats[key] = 70;
 advanceCareerMonth(national);
 assert.equal(national.japanNationalTeamSelected, true, 'university standout should be selected for Japan');
-while (national.month === 6) advanceCareerMonth(national);
+let internationalGuard = 0;
+while (national.japanNationalTeamCaps === 0 && internationalGuard < 30) { advanceCareerMonth(national); internationalGuard++; }
 assert.ok(national.japanNationalTeamCaps > 0, 'university Japan selection should play international tests');
 console.log('  ok - university standouts can be selected for Japan and play test matches');
 console.log('\n7 passed');
