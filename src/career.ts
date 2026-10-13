@@ -676,12 +676,11 @@ function advanceCalendar(s: CareerState): void {
   if (s.phase !== 'retired') s.currentSeason.age = s.age;
 }
 export function careerGrowthMultiplier(s: CareerState): number {
-  const stageBonus = s.phase === 'highschool' ? 1.45 : s.phase === 'university' ? 1.30 : 1;
-  return (s.player.talentType === '天才' ? 2 : 1) * stageBonus;
+  return s.player.talentType === '天才' ? 2 : 1;
 }
 
 function applyCareerDevelopment(s: CareerState): void {
-  const baseStage = s.phase === 'highschool' ? 1.15 : s.phase === 'university' ? 0.95 : 0.55;
+  const baseStage = s.phase === 'highschool' ? 1.15 * 1.45 : s.phase === 'university' ? 0.95 * 1.30 : 0.55;
   const ageFactor = s.age < 22 ? 1 : s.age < 27 ? 0.72 : s.age < 31 ? 0.42 : s.age < 34 ? 0.18 : 0.05;
   const planFactor: Record<CareerTrainingPlan, number> = { 'バランス': 1, '筋力': 0.9, '技術': 1.05, '持久力': 0.88, '回復': 0.68 };
   for (const k of STAT_KEYS) {
