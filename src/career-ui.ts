@@ -1,9 +1,9 @@
 import {
   advanceCareerMonth, careerOverall, currentTeam, newCareer, setCareerTraining, setCareerTrainingPlan,
-  resolveCareerTransfer, careerHallOfFame, careerLegacyScore, playCareerMatchAction,
+  resolveCareerTransfer, careerHallOfFame, careerLegacyScore,
   CAREER_POSITIONS, CAREER_STAT_KEYS, CAREER_STAT_LABEL, CAREER_TALENTS, hasCareerSave, loadCareer, saveCareer,
 } from './career';
-import type { CareerState, CareerPhase, CareerTrainingPlan, CareerMatchAction } from './career';
+import type { CareerState, CareerPhase, CareerTrainingPlan } from './career';
 import { STAT_LABEL } from './game';
 import type { Pos, StatKey } from './game';
 import { PREFS, schoolsOf } from './data';
@@ -190,7 +190,8 @@ function liveMatchScreen(s: CareerState): string {
 
 function render(): void {
   if (!root) return;
-  root.innerHTML = creating || !state ? createScreen() : state.liveMatch ? liveMatchScreen(state) : homeScreen(state);
+  if (state?.liveMatch) state.liveMatch = undefined;
+  root.innerHTML = creating || !state ? createScreen() : homeScreen(state);
 }
 function act(action: string, value = ''): void {
   if (!root) return;
@@ -219,16 +220,9 @@ function act(action: string, value = ''): void {
   } else if (action === 'transfer' && state) {
     resolveCareerTransfer(state, Number(value));
   } else if (action === 'advance' && state) {
-    const hasMatch = Boolean(state.pendingTournament || state.pendingFixtures?.length || (state.phase === 'highschool' && [7,11,12,2].includes(state.month)) || ((state.phase === 'university' || state.phase === 'professional') && [5,6,8,9,10,11,12,1,2,3].includes(state.month)));
-    const playInteractively = hasMatch ? window.confirm('次の試合をプレーしますか？\n\nOK：試合を操作する\nキャンセル：結果のみ確認する') : true;
-    advanceCareerMonth(state, playInteractively);
-  } else if (action === 'match-action' && state) {
-    playCareerMatchAction(state, value as CareerMatchAction);
-  } else if (action === 'match-exit' && state) {
-    saveCareer(state);
-    // Keep the in-progress match in the save; the home screen can be reopened by resuming the career.
-    if (root) root.innerHTML = '<main class="page"><h2>試合を中断しました</h2><p>試合経過は保存されています。続けるには「人生キャリアの続きから」を選んでください。</p><button class="btn primary" data-career="title">タイトルへ戻る</button></main>';
-    return;
+    // キャリアモードは試合を自動シミュレーションし、結果・個人成績のみ表示する。
+    state.liveMatch = undefined;
+    advanceCareerMonth(state, false);
   }
   render();
 }
