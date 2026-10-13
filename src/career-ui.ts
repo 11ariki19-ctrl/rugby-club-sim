@@ -126,12 +126,17 @@ function teamRoster(team: string, s: CareerState, own: boolean): RosterMember[] 
     const stats = {} as Record<StatKey, number>;
     for (const [j, key] of CAREER_STAT_KEYS.entries()) {
       const variation = ((seed >>> ((i + j) % 24)) + i * 13 + j * 7) % 19 - 9;
-      const base = own ? (s.player.stats[key] * 0.68 + 34 + variation) : (48 + variation + (s.phase === 'professional' ? 9 : s.phase === 'university' ? 4 : 0));
+      const hsPenalty = !own && s.phase === 'highschool' ? 10 + ((seed + i * 7 + j * 3) % 6) : 0;
+      const base = own ? (s.player.stats[key] * 0.68 + 34 + variation) : (48 + variation + (s.phase === 'professional' ? 9 : s.phase === 'university' ? 4 : 0) - hsPenalty);
       stats[key] = Math.max(15, Math.min(99, Math.round(isUser ? s.player.stats[key] : base)));
     }
     if (isUser) for (const key of CAREER_STAT_KEYS) stats[key] = Math.round(s.player.stats[key]);
     const overall = Math.round(CAREER_STAT_KEYS.reduce((sum, key) => sum + stats[key], 0) / CAREER_STAT_KEYS.length);
-    return { name: isUser ? s.player.name : `${rosterNames[(i + seed) % rosterNames.length]} ${['蓮','大翔','悠真','健太','湊','翔太','陸','陽向'][(i * 3 + seed) % 8]}`, pos, number: i + 1, role: isUser && s.liveMatch ? s.liveMatch.role : i < 15 ? '先発' : '控え', stats, overall, isUser };
+    const international = team.includes('日本代表') ? null : team.match(/ニュージーランド|南アフリカ|オーストラリア|イングランド|アイルランド|フランス|ウェールズ|スコットランド|フィジー|トンガ|サモア|アルゼンチン|イタリア|ジョージア|アメリカ|カナダ/);
+    const internationalNames: Record<string, string[]> = { 'ニュージーランド':['Liam','Noah','Oliver','Jack','Lucas','Mason'], '南アフリカ':['Mandla','Thabo','Johan','Sipho','Pieter','Nkosi'], 'オーストラリア':['Jack','Oliver','Charlie','Lachlan','Cooper','Thomas'], 'イングランド':['Harry','George','James','Arthur','Freddie','Theo'], 'アイルランド':['Cian','Sean','Conor','Oisin','Ronan','Eoin'], 'フランス':['Hugo','Louis','Gabriel','Jules','Antoine','Mathis'], 'ウェールズ':['Dylan','Rhys','Morgan','Evan','Owen','Gareth'], 'スコットランド':['Callum','Ewan','Finlay','Hamish','Jamie','Fraser'], 'フィジー':['Semi','Josua','Peni','Viliame','Manasa','Tevita'], 'トンガ':['Sione','Viliami','Manu','Latu','Pita','Tupou'], 'サモア':['Tuala','Mika','Levi','Toa','Matai','Laki'], 'アルゼンチン':['Mateo','Santiago','Joaquín','Thiago','Lautaro','Tomás'], 'イタリア':['Luca','Matteo','Leonardo','Alessandro','Marco','Lorenzo'], 'ジョージア':['Giorgi','Nika','Luka','Davit','Saba','Levan'], 'アメリカ':['Jack','Logan','Wyatt','Carter','Owen','Ryan'], 'カナダ':['Liam','Benjamin','Ethan','Logan','Jacob','Noah'] };
+    const intlNames = international ? internationalNames[international[0]] : undefined;
+    const generatedName = intlNames ? `${intlNames[(i + seed) % intlNames.length]} ${['Smith','Jones','Brown','Taylor','Wilson','Martin'][(i * 3 + seed) % 6]}` : `${rosterNames[(i + seed) % rosterNames.length]} ${['蓮','大翔','悠真','健太','湊','翔太','陸','陽向'][(i * 3 + seed) % 8]}`;
+    return { name: isUser ? s.player.name : generatedName, pos, number: i + 1, role: isUser && s.liveMatch ? s.liveMatch.role : i < 15 ? '先発' : '控え', stats, overall, isUser };
   });
 }
 function playerDetail(member: RosterMember): string {
@@ -214,7 +219,9 @@ function act(action: string, value = ''): void {
   } else if (action === 'transfer' && state) {
     resolveCareerTransfer(state, Number(value));
   } else if (action === 'advance' && state) {
-    advanceCareerMonth(state, true);
+    const hasMatch = Boolean(state.pendingTournament || state.pendingFixtures?.length || (state.phase === 'highschool' && [7,11,12,2].includes(state.month)) || ((state.phase === 'university' || state.phase === 'professional') && [5,6,8,9,10,11,12,1,2,3].includes(state.month)));
+    const playInteractively = hasMatch ? window.confirm('次の試合をプレーしますか？\n\nOK：試合を操作する\nキャンセル：結果のみ確認する') : true;
+    advanceCareerMonth(state, playInteractively);
   } else if (action === 'match-action' && state) {
     playCareerMatchAction(state, value as CareerMatchAction);
   } else if (action === 'match-exit' && state) {
