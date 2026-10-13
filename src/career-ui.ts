@@ -99,7 +99,7 @@ function homeScreen(s: CareerState): string {
     ${s.university ? `<div class="card"><b>進学先</b><p>${esc(s.university)}（${esc(s.universityTier)}）</p></div>` : ''}
     ${s.professionalTeam ? `<div class="card"><b>所属社会人チーム</b><p>${esc(s.professionalTeam)}（リーグワンD${s.proDivision}）</p></div>` : ''}
     ${s.nationalCandidate ? `<div class="card"><b>高校日本代表候補</b><p>選出済み ／ 世界大会勝利数：${s.worldTournamentWins}</p></div>` : ''}
-    <div class="card"><b>コンディション</b><p>疲労：${Math.round(s.fatigue)} / 100　／　士気：${Math.round(s.morale)} / 100</p><div class="bar"><span>疲労</span><div class="track"><i style="width:${Math.round(s.fatigue)}%"></i></div><b>${Math.round(s.fatigue)}%</b></div>${s.injuryMonths > 0 ? `<p class="note">負傷中：${esc(s.injurySeverity ?? '負傷')}・復帰まで約${s.injuryMonths}か月。療養中は試合に出場できません。</p>` : '<p class="small">現在は負傷なし。連戦や疲労蓄積で負傷リスクが上がります。</p>'}</div>
+    <div class="card"><b>コンディション</b><p>疲労：${Math.round(s.fatigue)} / 100　／　士気：${Math.round(s.morale)} / 100</p><div class="bar"><span>疲労</span><div class="track"><i style="width:${Math.round(s.fatigue)}%"></i></div><b>${Math.round(s.fatigue)}%</b></div><p class="small">負傷による長期離脱はありません。疲労は月ごとの回復と育成プランで管理します。</p></div>
     ${s.japanNationalTeamSelected ? `<div class="card"><b>日本代表</b><p>選出中 ／ 国際試合 ${s.japanNationalTeamCaps}キャップ・${s.japanNationalTeamWins}勝</p><p class="small">代表選考はクラブ成績・能力・コンディションで変動し、落選後の再招集もあります。</p></div>` : `<div class="card"><b>日本代表</b><p>現在は未選出 ／ 通算 ${s.japanNationalTeamCaps}キャップ・${s.japanNationalTeamWins}勝</p></div>`}
     <div class="card"><h3>選手能力</h3>${bars}<p class="small">最高総合値：${Math.round(s.player.peak)} ／ 成長タイプ：${s.player.talentType}（成長係数 ${s.player.talent.toFixed(2)}）</p></div>
     ${lastMatchCard(s)}
@@ -131,7 +131,7 @@ function teamRoster(team: string, s: CareerState, own: boolean): RosterMember[] 
     }
     if (isUser) for (const key of CAREER_STAT_KEYS) stats[key] = Math.round(s.player.stats[key]);
     const overall = Math.round(CAREER_STAT_KEYS.reduce((sum, key) => sum + stats[key], 0) / CAREER_STAT_KEYS.length);
-    return { name: isUser ? s.player.name : `${rosterNames[(i + seed) % rosterNames.length]} ${['蓮','大翔','悠真','健太','湊','翔太','陸','陽向'][(i * 3 + seed) % 8]}`, pos, number: i + 1, role: i < 15 ? '先発' : '控え', stats, overall, isUser };
+    return { name: isUser ? s.player.name : `${rosterNames[(i + seed) % rosterNames.length]} ${['蓮','大翔','悠真','健太','湊','翔太','陸','陽向'][(i * 3 + seed) % 8]}`, pos, number: i + 1, role: isUser && s.liveMatch ? s.liveMatch.role : i < 15 ? '先発' : '控え', stats, overall, isUser };
   });
 }
 function playerDetail(member: RosterMember): string {
@@ -141,7 +141,7 @@ function playerDetail(member: RosterMember): string {
   return `<div class="modal" data-career="roster-close"><section class="sheet" role="dialog" aria-modal="true" aria-label="選手詳細" data-roster-sheet><button class="link" data-career="roster-close">← メンバー表へ戻る</button><h2>${esc(member.name)}</h2><div class="panel">背番号 ${member.number} ／ ${member.pos} ／ ${member.role}<br>総合値 <b>${member.overall}</b>${member.isUser ? '<br>あなたが操作する選手' : ''}</div><div class="card"><h3>能力ステータス</h3>${bars}</div><div class="cards"><div class="card stat"><span class="k">身長</span><b>${height}cm</b></div><div class="card stat"><span class="k">体重</span><b>${weight}kg</b></div></div><button class="btn primary" data-career="roster-close">閉じる</button></section></div>`;
 }
 function lineupCard(s: CareerState, team: string, own: boolean): string {
-  const roster = teamRoster(team, s, own);
+  const roster = teamRoster(team, s, own).filter((p) => !own || !p.isUser || (p.role === '先発' || p.role === '途中出場'));
   return `<section class="card"><h3>${own ? '自チームのメンバー表' : '対戦相手のメンバー表'}</h3><p class="note">選手をタップすると能力の詳細を確認できます。背番号1〜15は先発、16〜23は控えです。</p><div class="roster-list">${roster.map((p) => `<button class="row roster-player" data-career="roster-player" data-v="${own ? 'own' : 'opponent'}:${p.number}"><span class="pos">${p.number}</span><span class="nm">${esc(p.name)}${p.isUser ? '（あなた）' : ''}<small>${p.pos}・${p.role}</small></span><span class="ov">${p.overall}</span><span aria-hidden="true">›</span></button>`).join('')}</div></section>`;
 }
 
