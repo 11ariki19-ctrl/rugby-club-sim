@@ -136,7 +136,7 @@ assert.ok(proStar > proReserve + 0.4, 'university stars with a guaranteed starti
 console.log('  ok - appearance opportunities progress by year and reflect reputation, competition, and pro starter contracts');
 assert.ok(proStar > proReserve + 0.4, 'university stars with a guaranteed starting role should start their pro career with much higher selection odds');
 appearances.injuryMonths = 2;
-assert.equal(careerAppearanceProbability(appearances), 0, 'injured players cannot be selected even with a guaranteed starter contract');
+assert.equal(careerAppearanceProbability(appearances), proStar, 'legacy injury save fields do not affect selection because injury mechanics are disabled');
 appearances.injuryMonths = 0;
 assert.equal(appearances.trainingPlan, 'バランス');
 setCareerTrainingPlan(appearances, '回復');
