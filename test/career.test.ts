@@ -156,6 +156,7 @@ assert.ok(s.matchHistory.every((m) => ['先発','途中出場','控え','メン�
 assert.ok(s.rivals.length >= 3, 'career includes persistent rivals');
 console.log('  ok - selection roles, injury/fatigue, training plans, transfers, rivals, and legacy records');
 const liveCareer = newCareer('実戦テスト', 'CTB');
+liveCareer.phase = 'professional'; liveCareer.stageYear = 1; liveCareer.professionalStarterGuaranteed = true;
 liveCareer.liveMatch = undefined;
 beginCareerLiveMatch(liveCareer, 'fixture', { date: 'テスト日', label: 'キャリア実戦テスト', opponent: 'テスト高校', difficulty: 45, kind: 'university-spring' });
 assert.ok(liveCareer.liveMatch, 'advancing to a fixture can open a playable live match');
