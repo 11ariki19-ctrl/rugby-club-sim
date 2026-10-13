@@ -303,11 +303,9 @@ function opponentFor(s: CareerState, kind: CareerFixture['kind'] | 'highschool' 
  * 確率は「その試合に出場する確率」であり、先発/途中出場の区別は今後の拡張対象。
  */
 export function careerAppearanceProbability(s: CareerState): number {
-  if (s.injuryMonths > 0) return 0;
   if (s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed) return 1;
   const year = Math.max(1, Math.min(4, s.stageYear));
   let chance: number;
-  if (s.injuryMonths > 0) return 0;
   if (s.phase === 'highschool') {
     chance = [0, 0.22, 0.39, 0.58][Math.min(3, year)] ?? 0.58;
   } else if (s.phase === 'university') {
@@ -348,8 +346,7 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   const o = careerOverall(s), expected = s.phase === 'highschool' ? 43 : s.phase === 'university' ? 59 : 66;
   const selectionChance = careerAppearanceProbability(s);
   let role: CareerRole = live?.role ?? 'メンバー外';
-  if (!live && s.injuryMonths > 0) role = 'メンバー外';
-  else if (!live && s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed) role = '先発';
+  if (!live && s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed) role = '先発';
   else if (!live && rand() < selectionChance) {
     const starterChance = clamp(0.32 + (o - expected) / 100 + (s.morale - 60) / 300 - s.fatigue / 350, 0.12, 0.95);
     role = rand() < starterChance ? '先発' : '途中出場';
@@ -391,12 +388,6 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   if (appeared) {
     const fatigueGain = (role === '先発' ? 24 : 13) + (s.trainingPlan === '持久力' ? -4 : 0);
     s.fatigue = clamp(s.fatigue + fatigueGain, 0, 100);
-    const injuryRisk = 0.012 + s.fatigue / 1400 + (s.trainingPlan === '筋力' ? 0.008 : 0) - (s.trainingPlan === '回復' ? 0.008 : 0);
-    if (s.injuryMonths <= 0 && rand() < clamp(injuryRisk, 0.008, 0.09)) {
-      s.injuryMonths = int(1, s.fatigue > 75 ? 3 : 2); s.injurySeverity = s.injuryMonths >= 3 ? '重傷' : s.injuryMonths === 2 ? '中傷' : '軽傷';
-      scenes.push(`${s.injurySeverity}を負い、回復まで約${s.injuryMonths}か月を要する。`);
-      s.history.unshift(`${s.age}歳：${s.player.name}が${s.injurySeverity}。復帰まで約${s.injuryMonths}か月。`);
-    }
   }
   if (role === '控え') scenes.unshift('ベンチ入りしたが出場機会はなかった。');
   else if (role === 'メンバー外') scenes.unshift(s.injuryMonths > 0 ? `負傷療養中（残り約${s.injuryMonths}か月）のためメンバー外。` : '今回はメンバー外。練習で次の機会を狙う。');
@@ -442,8 +433,7 @@ function roundName(round: number, total: number): string {
 export function beginCareerLiveMatch(s: CareerState, source: 'tournament' | 'fixture', fixture: CareerFixture): void {
   if (s.liveMatch) return;
   let role: CareerRole = 'メンバー外';
-  if (s.injuryMonths > 0) role = 'メンバー外';
-  else if (s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed) role = '先発';
+  if (s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed) role = '先発';
   else if (rand() < careerAppearanceProbability(s)) role = rand() < clamp(0.32 + (careerOverall(s) - (s.phase === 'highschool' ? 43 : s.phase === 'university' ? 59 : 66)) / 100 + (s.morale - 60) / 300 - s.fatigue / 350, 0.12, 0.95) ? '先発' : '途中出場';
   else role = rand() < 0.58 ? '控え' : 'メンバー外';
   s.liveMatch = {
@@ -451,6 +441,8 @@ export function beginCareerLiveMatch(s: CareerState, source: 'tournament' | 'fix
     tries: 0, carries: 0, tackles: 0, lineBreaks: 0, kicks: 0, errors: 0, scenes: [],
     lastEvent: `キックオフ！${s.player.name}のチームが試合を始める。`, actions: 0,
   };
+  // 先発・途中出場でなければ操作プレー画面を開かず、結果だけを自動確定する。
+  if (role !== '先発' && role !== '途中出場') finishCareerLiveMatch(s);
   saveCareer(s);
 }
 function finishCareerLiveMatch(s: CareerState): void {
@@ -663,7 +655,6 @@ function evaluateHighSchoolCandidate(s: CareerState): boolean {
 }
 function advanceCalendar(s: CareerState): void {
   s.fatigue = clamp(s.fatigue - (s.trainingPlan === '回復' ? 30 : s.trainingPlan === '持久力' ? 22 : 16), 0, 100);
-  if (s.injuryMonths > 0) { s.injuryMonths--; if (s.injuryMonths <= 0) { s.injuryMonths = 0; s.injurySeverity = undefined; s.history.unshift(`${s.age}歳：負傷から復帰。段階的に実戦へ戻る。`); } }
   const seasonEnd = s.phase === 'professional' ? s.month === 6 : s.month === 3;
   if (seasonEnd) {
     finishSeason(s);
@@ -685,7 +676,8 @@ function advanceCalendar(s: CareerState): void {
   if (s.phase !== 'retired') s.currentSeason.age = s.age;
 }
 export function careerGrowthMultiplier(s: CareerState): number {
-  return s.player.talentType === '天才' ? 2 : 1;
+  const stageBonus = s.phase === 'highschool' ? 1.45 : s.phase === 'university' ? 1.30 : 1;
+  return (s.player.talentType === '天才' ? 2 : 1) * stageBonus;
 }
 
 function applyCareerDevelopment(s: CareerState): void {
