@@ -121,6 +121,7 @@ const PRO_TEAMS: Record<1 | 2 | 3, string[]> = {
   3: ['ヤクルトレビンズ戸田','栗田工業ウォーターガッシュ昭島','中国電力レッドレグリオンズ','ルリーロ福岡','狭山セコムラガッツ','マツダスカイアクティブズ広島'],
 };
 const WORLD_OPPONENTS = ['オーストラリア','ウェールズ','フィジー'];
+const WORLD_CUP_TEAMS = ['日本','ニュージーランド','南アフリカ','アイルランド','フランス','イングランド','オーストラリア','アルゼンチン','スコットランド','ウェールズ','フィジー','イタリア','サモア','トンガ','ジョージア','アメリカ','カナダ','ウルグアイ','チリ','ポルトガル','スペイン','ルーマニア','ナミビア','ジンバブエ','香港','韓国','ブラジル','ケニア','オランダ','ベルギー','スイス','ドイツ'];
 const JAPAN_TEST_OPPONENTS = ['ニュージーランド','オーストラリア','イングランド'];
 const PHASE_LABEL: Record<CareerPhase, string> = {
   highschool: '高校生', university: '大学生', professional: '社会人', retired: '引退',
@@ -290,7 +291,7 @@ function awardMatchExperience(s: CareerState, my: number, their: number, appeare
   s.experiencePoints += earned; return earned;
 }
 function opponentFor(s: CareerState, kind: CareerFixture['kind'] | 'highschool' | 'world', round = 0): string {
-  if (kind === 'world') return WORLD_OPPONENTS[round % WORLD_OPPONENTS.length];
+  if (kind === 'world') return WORLD_CUP_TEAMS.filter((team) => team !== '日本')[round % (WORLD_CUP_TEAMS.length - 1)];
   if (kind === 'japan-test') return JAPAN_TEST_OPPONENTS[round % JAPAN_TEST_OPPONENTS.length];
   if (kind === 'highschool') return `${PREFS[s.prefIndex].short}${pick(SUFFIX)}高校`;
   if (kind === 'university-league' || kind === 'university-spring' || kind === 'university-championship') {
