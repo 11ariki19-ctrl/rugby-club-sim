@@ -94,3 +94,35 @@ export function generateUniquePlayerName(usedNames: Set<string>, country = '日�
   }
   throw new Error(`一意な選手名を生成できませんでした: ${country}`);
 }
+
+/** Infer a player's nationality from an explicit country label or an overseas club/league name. */
+export function inferPlayerCountry(countryOrTeam: string): string {
+  const explicit = COUNTRY_ALIASES[countryOrTeam];
+  if (explicit) return explicit;
+  const value = countryOrTeam.toLocaleLowerCase();
+  const rules: [string, string[]][] = [
+    ['SouthAfrica', ['south africa','南アフリカ','currie cup','カリーカップ','bulls','sharks','lions','stormers','cheetahs','pumas','griquas','western province']],
+    ['NZ', ['new zealand','ニュージーランド','super rugby','スーパーラグビー','crusaders','blues','chiefs','hurricanes','highlanders','moana pasifika']],
+    ['Australia', ['australia','オーストラリア','brumbies','waratahs','queensland reds','western force']],
+    ['England', ['england','イングランド','premiership','プレミアシップ','saracens','harlequins','leicester','bath rugby','bristol bears','exeter chiefs','sale sharks','northampton saints','gloucester rugby']],
+    ['France', ['france','フランス','top 14','トップ14','pro d2','toulousain','bordeaux','la rochelle','toulon','clermont','montpellier','stade français','provence rugby']],
+    ['Ireland', ['ireland','アイルランド','leinster','munster','connacht','ulster']],
+    ['Scotland', ['scotland','スコットランド','glasgow warriors','edinburgh']],
+    ['Wales', ['wales','ウェールズ','cardiff rugby','ospreys','scarlets','dragons rfc']],
+    ['Fiji', ['fiji','フィジー','fijian drua']],
+    ['Tonga', ['tonga','トンガ']],
+    ['Samoa', ['samoa','サモア']],
+    ['Argentina', ['argentina','アルゼンチン','jaguares','pampas']],
+    ['Italy', ['italy','イタリア','benetton','zebre']],
+    ['Georgia', ['georgia','ジョージア']],
+    ['USA', ['usa','アメリカ','united states','major league rugby','メジャーリーグラグビー','seattle seawolves','dallas jackals','chicago hounds','new england free jacks','utah warriors','houston sabercats','miami sharks']],
+    ['Canada', ['canada','カナダ']],
+    ['Portugal', ['portugal','ポルトガル']],
+    ['Uruguay', ['uruguay','ウルグアイ']],
+    ['Chile', ['chile','チリ']],
+    ['Spain', ['spain','スペイン']],
+    ['Romania', ['romania','ルーマニア']],
+  ];
+  for (const [country, tokens] of rules) if (tokens.some((token) => value.includes(token))) return country;
+  return '日本';
+}
