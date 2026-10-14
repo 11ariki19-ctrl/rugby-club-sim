@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { seed } from '../src/rng';
 import { PREFS } from '../src/data';
-import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, careerGrowthMultiplier, careerTeamStrengthProfile, WORLD_CUP_TEAMS, worldCupPools, saveCareer, loadCareer, setCareerSaveSlot, clearCareer, nationalCandidatePool, careerRoleByPositionalRank } from '../src/career';
+import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, careerGrowthMultiplier, careerTeamStrengthProfile, WORLD_CUP_TEAMS, worldCupPools, saveCareer, loadCareer, setCareerSaveSlot, clearCareer, nationalCandidatePool, careerRoleByPositionalRank, nationalMatchRole } from '../src/career';
 
 console.log('career mode tests');
 const initialPlayer = newCareer('年代調整テスト', 'CTB');
@@ -216,6 +216,19 @@ positionalSelection.rivals = [70, 65, 60, 55].map((overall, index) => ({
 assert.equal(careerRoleByPositionalRank(positionalSelection, 72), '先発', 'top same-position rating starts');
 assert.equal(careerRoleByPositionalRank(positionalSelection, 62), '途中出場', 'next same-position rating is a substitute');
 assert.equal(careerRoleByPositionalRank(positionalSelection, 50), '控え', 'lower same-position ratings fall behind starters and substitutes');
+const representativeCareer = newCareer('代表選抜テスト', 'CTB', 24);
+representativeCareer.phase = 'professional';
+representativeCareer.japanNationalTeamSelected = true;
+representativeCareer.nationalSquad = [
+  { name: '代表センターA', pos: 'CTB', age: 25, overall: 90, phase: 'professional', team: '代表', country: '日本', league: '日本代表', appearances: 0, tries: 0, retired: false },
+  { name: '代表選抜テスト', pos: 'CTB', age: 24, overall: 80, phase: 'professional', team: '代表', country: '日本', league: '日本代表', appearances: 0, tries: 0, retired: false },
+  { name: '代表センターB', pos: 'CTB', age: 23, overall: 75, phase: 'professional', team: '代表', country: '日本', league: '日本代表', appearances: 0, tries: 0, retired: false },
+];
+assert.equal(nationalMatchRole(representativeCareer, 'japan-test'), '先発', 'selected national squad player starts when inside the positional starting slots');
+representativeCareer.nationalSquad = representativeCareer.nationalSquad.map(p => p.name === '代表選抜テスト' ? { ...p, overall: 60 } : p);
+assert.equal(nationalMatchRole(representativeCareer, 'world-cup'), '途中出場', 'selected national squad player is at least a substitute even when below the starter rank');
+representativeCareer.japanNationalTeamSelected = false;
+assert.equal(nationalMatchRole(representativeCareer, 'japan-test'), undefined, 'players not selected for Japan are not assigned a national-team role');
 const simulatedCareer = newCareer('自動試合テスト', 'CTB');
 simulatedCareer.phase = 'professional'; simulatedCareer.stageYear = 1; simulatedCareer.professionalStarterGuaranteed = true;
 beginCareerLiveMatch(simulatedCareer, 'fixture', { date: 'テスト日', label: 'キャリア自動試合テスト', opponent: 'テストクラブ', difficulty: 45, kind: 'university-spring' });
