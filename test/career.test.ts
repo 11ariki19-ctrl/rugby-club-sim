@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { seed } from '../src/rng';
 import { PREFS } from '../src/data';
-import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, careerGrowthMultiplier, careerTeamStrengthProfile, WORLD_CUP_TEAMS, worldCupPools, saveCareer, loadCareer, setCareerSaveSlot, clearCareer, nationalCandidatePool } from '../src/career';
+import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, careerGrowthMultiplier, careerTeamStrengthProfile, WORLD_CUP_TEAMS, worldCupPools, saveCareer, loadCareer, setCareerSaveSlot, clearCareer, nationalCandidatePool, careerRoleByPositionalRank } from '../src/career';
 
 console.log('career mode tests');
 const initialPlayer = newCareer('年代調整テスト', 'CTB');
@@ -206,6 +206,16 @@ assert.ok(s.seasons.every((r) => (r.starts ?? 0) + (r.substituteApps ?? 0) + (r.
 assert.ok(s.matchHistory.every((m) => ['先発','途中出場','控え','メンバー外'].includes(m.role ?? (m.appeared ? '先発' : 'メンバー外'))), 'match reports include an explicit selection role');
 assert.ok(s.rivals.length >= 3, 'career includes persistent rivals');
 console.log('  ok - selection roles, injury/fatigue, training plans, transfers, rivals, and legacy records');
+const positionalSelection = newCareer('ポジション順位テスト', 'CTB');
+positionalSelection.phase = 'highschool';
+positionalSelection.rivals = [70, 65, 60, 55].map((overall, index) => ({
+  name: `同ポジション選手${index + 1}`, pos: 'CTB' as const, age: 16, overall,
+  phase: 'highschool' as const, team: positionalSelection.highSchool, country: '日本',
+  league: '高校ラグビー', appearances: 0, tries: 0, retired: false,
+}));
+assert.equal(careerRoleByPositionalRank(positionalSelection, 72), '先発', 'top same-position rating starts');
+assert.equal(careerRoleByPositionalRank(positionalSelection, 62), '途中出場', 'next same-position rating is a substitute');
+assert.equal(careerRoleByPositionalRank(positionalSelection, 50), 'メンバー外', 'lower same-position ratings are not selected');
 const simulatedCareer = newCareer('自動試合テスト', 'CTB');
 simulatedCareer.phase = 'professional'; simulatedCareer.stageYear = 1; simulatedCareer.professionalStarterGuaranteed = true;
 beginCareerLiveMatch(simulatedCareer, 'fixture', { date: 'テスト日', label: 'キャリア自動試合テスト', opponent: 'テストクラブ', difficulty: 45, kind: 'university-spring' });
