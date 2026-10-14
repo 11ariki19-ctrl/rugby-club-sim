@@ -423,9 +423,16 @@ function opponentFor(s: CareerState, kind: CareerFixture['kind'] | 'highschool' 
   if (kind === 'world-cup') return s.worldCup?.poolOpponents[round % Math.max(1, s.worldCup.poolOpponents.length)] ?? 'ニュージーランド';
   if (kind === 'world') return WORLD_OPPONENTS[round % WORLD_OPPONENTS.length];
   if (kind === 'japan-test') return JAPAN_TEST_OPPONENTS[round % JAPAN_TEST_OPPONENTS.length];
-  if (kind === 'highschool') return `${PREFS[s.prefIndex].short}${pick(SUFFIX)}高校`;
-  if (kind === 'university-league' || kind === 'university-spring' || kind === 'university-championship') {
-    const list = UNIVERSITY_GROUPS[s.universityGroup]; return pick(list.filter((x) => x !== s.university));
+  if (kind === 'highschool') return pick(schoolsOf(s.prefIndex).map((school) => school.name).filter((name) => name !== s.highSchool)) ?? '対戦校';
+  if (kind === 'university-league') {
+    const list = UNIVERSITY_GROUPS[s.universityGroup].filter((x) => x !== s.university);
+    const played = s.currentSeason.leaguePlayed ?? 0;
+    const ownIndex = Math.max(0, UNIVERSITY_GROUPS[s.universityGroup].indexOf(s.university));
+    return list[(played + ownIndex) % Math.max(1, list.length)] ?? list[0] ?? '大学選抜';
+  }
+  if (kind === 'university-spring' || kind === 'university-championship' || kind === 'university-playoff') {
+    const groups = kind === 'university-playoff' && s.universityPlayoff ? UNIVERSITY_GROUPS[s.universityPlayoff.targetGroup] : UNIVERSITY_GROUPS[s.universityGroup];
+    return pick(groups.filter((x) => x !== s.university));
   }
   return pick(PRO_TEAMS[s.proDivision].filter((x) => x !== s.professionalTeam));
 }
@@ -820,7 +827,7 @@ function playCareerTournamentMatch(s: CareerState, interactive = false): void {
   const t = s.pendingTournament; if (!t) return;
   const round = t.rounds + 1;
   const label = t.kind === 'world' ? `高校日本代表候補・世界大会 第${round}戦` : `${t.name}・${roundName(round, t.totalRounds)}`;
-  const opponent = t.kind === 'world' ? WORLD_OPPONENTS[t.rounds] : t.kind === 'nat' ? `${pick(PREFS.filter((_, i) => i !== s.prefIndex)).short}${pick(SUFFIX)}高校` : `${PREFS[s.prefIndex].short}${pick(SUFFIX)}高校`;
+  const opponent = t.kind === 'world' ? WORLD_OPPONENTS[t.rounds] : t.kind === 'nat' ? pick(allSchools().map((school) => school.name).filter((name) => name !== s.highSchool)) : pick(schoolsOf(s.prefIndex).map((school) => school.name).filter((name) => name !== s.highSchool));
   if (interactive) { beginCareerLiveMatch(s, 'tournament', { date: `${s.month}月・${round}試合目`, label, opponent, difficulty: t.kind === 'world' ? 70 : 48 + round * 2, kind: t.kind === 'world' ? 'world' : 'highschool' }); return; }
   const m = simulateMatch(s, label, opponent, `${s.month}月・${round}試合目`, t.kind === 'world' ? 'world' : 'highschool');
   t.rounds++;
@@ -846,10 +853,12 @@ function monthlyFixtures(s: CareerState): CareerFixture[] {
         return { date: `${s.month}月・第${round}節`, label: `${s.universityGroup} 第${round}節`, opponent: opponentFor(s, 'university-league'), difficulty: 55 + round * 1.1, kind: 'university-league' as const };
       });
     }
-    if (s.month === 12 && s.universityTournamentAlive) return [
-      { date: '12月・3回戦', label: '全国大学選手権 3回戦', opponent: opponentFor(s, 'university-championship'), difficulty: 62, kind: 'university-championship' },
-      { date: '12月・準々決勝', label: '全国大学選手権 準々決勝', opponent: opponentFor(s, 'university-championship'), difficulty: 66, kind: 'university-championship' },
-    ];
+    if (s.month === 12 && s.universityTournamentAlive) return s.currentSeason.leagueWins >= 6
+      ? [{ date: '12/20・準々決勝', label: '全国大学選手権 準々決勝', opponent: opponentFor(s, 'university-championship'), difficulty: 66, kind: 'university-championship' }]
+      : [
+          { date: '12/14・3回戦', label: '全国大学選手権 3回戦', opponent: opponentFor(s, 'university-championship'), difficulty: 62, kind: 'university-championship' },
+          { date: '12/20・準々決勝', label: '全国大学選手権 準々決勝', opponent: opponentFor(s, 'university-championship'), difficulty: 66, kind: 'university-championship' },
+        ];
     if (s.month === 1 && s.universityTournamentAlive) return [
       { date: '1/2・準決勝', label: '全国大学選手権 準決勝', opponent: opponentFor(s, 'university-championship'), difficulty: 70, kind: 'university-championship' },
       { date: '1/11・決勝', label: '全国大学選手権 決勝', opponent: opponentFor(s, 'university-championship'), difficulty: 73, kind: 'university-championship' },
