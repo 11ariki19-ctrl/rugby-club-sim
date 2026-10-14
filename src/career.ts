@@ -679,7 +679,7 @@ function playNextFixture(s: CareerState, interactive = false): void {
     s.worldCup.poolPlayed++;
     if (m.win) s.worldCup.poolWins++;
     if (s.worldCup.poolPlayed === 4) {
-      const table = [{ team: '日本', wins: s.worldCup.poolWins, tie: rand() }, ...s.worldCup.poolOpponents.map((team, i) => ({ team, wins: s.worldCup.poolRivalWins[i] ?? int(0,4), tie: rand() }))].sort((a,b) => b.wins - a.wins || b.tie - a.tie);
+      const table = [{ team: '日本', wins: s.worldCup!.poolWins, tie: rand() }, ...s.worldCup!.poolOpponents.map((team, i) => ({ team, wins: s.worldCup!.poolRivalWins[i] ?? int(0,4), tie: rand() }))].sort((a,b) => b.wins - a.wins || b.tie - a.tie);
       s.worldCup.qualified = table.findIndex((row) => row.team === '日本') < 2;
       if (s.worldCup.qualified) s.pendingFixtures = [
         { date: '10月・準々決勝', label: 'ラグビーワールドカップ 準々決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本' && !s.worldCup!.poolOpponents.includes(x))), difficulty: 82, kind: 'world-cup' },
@@ -690,7 +690,7 @@ function playNextFixture(s: CareerState, interactive = false): void {
     } else if (s.worldCup.poolPlayed > 4) {
       s.worldCup.knockoutStage++;
       if (!m.win || s.worldCup.knockoutStage >= 3) { s.worldCup.completed = true; s.pendingFixtures = []; }
-      else if (s.worldCup.knockoutStage === 1 && s.pendingFixtures.length === 0) s.pendingFixtures = [{ date: '10月・準決勝', label: 'ラグビーワールドカップ 準決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), difficulty: 86, kind: 'world-cup' }];
+      else if (s.worldCup.knockoutStage === 1 && (s.pendingFixtures?.length ?? 0) === 0) s.pendingFixtures = [{ date: '10月・準決勝', label: 'ラグビーワールドカップ 準決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), difficulty: 86, kind: 'world-cup' }];
       else if (s.worldCup.knockoutStage === 2 && s.pendingFixtures.length === 0) s.pendingFixtures = [{ date: '10月・決勝', label: 'ラグビーワールドカップ 決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), difficulty: 90, kind: 'world-cup' }];
     }
   }
