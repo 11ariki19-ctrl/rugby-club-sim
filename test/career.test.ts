@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { seed, rand } from '../src/rng';
 import { PREFS, SURNAMES } from '../src/data';
-import { generateUniqueJapaneseName } from '../src/names';
+import { generateUniquePlayerName, generateUniqueJapaneseName, inferPlayerCountry } from '../src/names';
 import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, careerGrowthMultiplier, careerTeamStrengthProfile, WORLD_CUP_TEAMS, worldCupPools, saveCareer, loadCareer, setCareerSaveSlot, clearCareer, nationalCandidatePool, careerRoleByPositionalRank, nationalMatchRole } from '../src/career';
 
 console.log('career mode tests');
@@ -14,6 +14,17 @@ assert.ok([...generatedNameSet].every((name) => SURNAMES.includes(name.split(' '
 assert.equal(new Set(initialPlayer.rivals.map((r) => r.name)).size, initialPlayer.rivals.length, 'career rival full names are unique');
 assert.ok(initialPlayer.rivals.every((r) => SURNAMES.includes(r.name.split(' ')[0] as never)), 'career rivals use the top-300 surname pool');
 console.log('  ok - unique random full names and top-300 surname pool');
+const overseasNames = new Set<string>();
+const nzName = generateUniquePlayerName(overseasNames, 'NZ', rand);
+const frenchName = generateUniquePlayerName(overseasNames, 'フランス', rand);
+const fijianName = generateUniquePlayerName(overseasNames, 'Fiji', rand);
+assert.ok(['Smith','Williams','Brown','Taylor','Wilson','Martin','Thompson','Anderson','Walker','Robinson','Clarke','Wright'].includes(nzName.split(' ')[0]), 'New Zealand player uses a local surname pool');
+assert.ok(['Martin','Bernard','Dubois','Thomas','Robert','Richard','Petit','Durand','Leroy','Moreau','Laurent','Simon'].includes(frenchName.split(' ')[0]), 'French player uses a French surname pool');
+assert.ok(['Radradra','Tuisova','Nayacalevu','Botia','Yato','Nakarawa','Mata','Vunivalu','Nadolo','Waqaniburotu','Tawake','Drua'].includes(fijianName.split(' ')[0]), 'Fijian player uses a Fijian surname pool');
+assert.equal(new Set([nzName, frenchName, fijianName]).size, 3, 'international names stay unique across nationalities');
+assert.equal(inferPlayerCountry('Leinster Rugby'), 'Ireland', 'Irish club resolves to Ireland');
+assert.equal(inferPlayerCountry('Stade Toulousain'), 'France', 'French club resolves to France');
+console.log('  ok - overseas names follow nationality and remain unique');
 assert.ok(careerOverall(initialPlayer) >= 25 && careerOverall(initialPlayer) < 60, 'new high school player starts within a plausible rating range');
 const eliteSchool = careerTeamStrengthProfile('highschool', '東福岡');
 const averageSchool = careerTeamStrengthProfile('highschool', '北海道県立選抜');
