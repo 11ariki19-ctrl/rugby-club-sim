@@ -654,3 +654,37 @@ main { min-height: 100vh; }
 .national-squad-card .squad-main b { font-size:12px; }
 .national-squad-card .squad-main small { font-size:10px; line-height:1.4; color:var(--muted,#84939b); overflow-wrap:anywhere; }
 .national-squad-card .national-squad-list li > strong { font-size:13px; font-variant-numeric:tabular-nums; }
+
+/* Keep the primary career progression control reachable without scrolling back to the top. */
+.career-pennant-shell .career-sticky-progress {
+  position: sticky;
+  top: 0;
+  z-index: 35;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 10px;
+  padding: 9px;
+  border: 1px solid #486657;
+  border-radius: 14px;
+  background: rgba(12, 25, 23, .97);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .22);
+  backdrop-filter: blur(14px);
+}
+.career-pennant-shell .career-sticky-progress-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 62px;
+  color: #f3f5ef;
+  font-size: 12px;
+}
+.career-pennant-shell .career-sticky-progress-meta b { font-size: 15px; line-height: 1.1; }
+.career-pennant-shell .career-sticky-progress-meta span { color: #b5c5ba; white-space: nowrap; }
+.career-pennant-shell .career-sticky-progress-button { min-height: 48px; padding: 10px 12px; border-radius: 10px; font-size: 14px; line-height: 1.25; }
+@media (max-width: 420px) {
+  .career-pennant-shell .career-sticky-progress { gap: 7px; padding: 7px; }
+  .career-pennant-shell .career-sticky-progress-meta { min-width: 54px; font-size: 11px; }
+  .career-pennant-shell .career-sticky-progress-button { min-height: 46px; font-size: 13px; }
+}
