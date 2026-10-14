@@ -8,6 +8,7 @@ import type { CareerState, CareerPhase, CareerTrainingPlan } from './career';
 import { STAT_LABEL } from './game';
 import type { Pos, StatKey } from './game';
 import { PREFS, schoolsOf } from './data';
+import { generateUniqueJapaneseName } from './names';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 let root: HTMLElement | null = null;
@@ -154,10 +155,10 @@ let selectedRivalIndex: number | null = null;
 let showMatchResult = false;
 let activeCareerTab = 'player';
 const rosterPositions: Pos[] = ['PR','HO','PR','LO','LO','FL','FL','N8','SH','SO','WTB','CTB','CTB','WTB','FB','PR','HO','LO','FL','N8','SH','SO','CTB'];
-const rosterNames = ['佐々木','田中','山本','中村','小林','加藤','吉田','山田','佐藤','松本','井上','木村','林','清水','山口','森','池田','橋本','阿部','石川','前田','藤田','岡田'];
 function stableHash(text: string): number { let h = 2166136261; for (const ch of text) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; }
 function teamRoster(team: string, s: CareerState, own: boolean): RosterMember[] {
-  const seed = stableHash(team);
+  const seed = stableHash(`${s.phase}|${team}`);
+  const usedNames = new Set<string>([s.player.name, ...s.rivals.map((r) => r.name), ...s.matchHistory.flatMap((m) => (m.scoreEvents ?? []).map((e) => e.scorer))]);
   return rosterPositions.map((pos, i) => {
     const isUser = own && pos === s.player.pos && i === rosterPositions.findIndex((p) => p === s.player.pos);
     const stats = {} as Record<StatKey, number>;
@@ -172,10 +173,11 @@ function teamRoster(team: string, s: CareerState, own: boolean): RosterMember[] 
     }
     if (isUser) for (const key of CAREER_STAT_KEYS) stats[key] = Math.round(s.player.stats[key]);
     const overall = Math.round(CAREER_STAT_KEYS.reduce((sum, key) => sum + stats[key], 0) / CAREER_STAT_KEYS.length);
-    const international = team.includes('日本代表') ? null : team.match(/ニュージーランド|南アフリカ|オーストラリア|イングランド|アイルランド|フランス|ウェールズ|スコットランド|フィジー|トンガ|サモア|アルゼンチン|イタリア|ジョージア|アメリカ|カナダ/);
-    const internationalNames: Record<string, string[]> = { 'ニュージーランド':['Liam','Noah','Oliver','Jack','Lucas','Mason'], '南アフリカ':['Mandla','Thabo','Johan','Sipho','Pieter','Nkosi'], 'オーストラリア':['Jack','Oliver','Charlie','Lachlan','Cooper','Thomas'], 'イングランド':['Harry','George','James','Arthur','Freddie','Theo'], 'アイルランド':['Cian','Sean','Conor','Oisin','Ronan','Eoin'], 'フランス':['Hugo','Louis','Gabriel','Jules','Antoine','Mathis'], 'ウェールズ':['Dylan','Rhys','Morgan','Evan','Owen','Gareth'], 'スコットランド':['Callum','Ewan','Finlay','Hamish','Jamie','Fraser'], 'フィジー':['Semi','Josua','Peni','Viliame','Manasa','Tevita'], 'トンガ':['Sione','Viliami','Manu','Latu','Pita','Tupou'], 'サモア':['Tuala','Mika','Levi','Toa','Matai','Laki'], 'アルゼンチン':['Mateo','Santiago','Joaquín','Thiago','Lautaro','Tomás'], 'イタリア':['Luca','Matteo','Leonardo','Alessandro','Marco','Lorenzo'], 'ジョージア':['Giorgi','Nika','Luka','Davit','Saba','Levan'], 'アメリカ':['Jack','Logan','Wyatt','Carter','Owen','Ryan'], 'カナダ':['Liam','Benjamin','Ethan','Logan','Jacob','Noah'] };
-    const intlNames = international ? internationalNames[international[0]] : undefined;
-    const generatedName = intlNames ? `${intlNames[(i + seed) % intlNames.length]} ${['Smith','Jones','Brown','Taylor','Wilson','Martin'][(i * 3 + seed) % 6]}` : `${rosterNames[(i + seed) % rosterNames.length]} ${['蓮','大翔','悠真','健太','湊','翔太','陸','陽向'][(i * 3 + seed) % 8]}`;
+    let nameSeed = (seed + (i + 1) * 2654435761) >>> 0;
+    const generatedName = isUser ? s.player.name : generateUniqueJapaneseName(usedNames, () => {
+      nameSeed = (Math.imul(nameSeed, 1664525) + 1013904223) >>> 0;
+      return nameSeed / 4294967296;
+    });
     return { name: isUser ? s.player.name : generatedName, pos, number: i + 1, role: i < 15 ? '先発' : '控え', stats, overall, isUser };
   }).map((member, index, all) => {
     const startsByPos: Partial<Record<Pos, number>> = { PR: 2, HO: 1, LO: 2, FL: 2, N8: 1, SH: 1, SO: 1, WTB: 2, CTB: 2, FB: 1 };
