@@ -580,3 +580,47 @@ main { min-height: 100vh; }
 @media (prefers-reduced-motion:reduce) {
  .match-event,.scoreboard strong { animation:none !important; }
 }
+
+
+/* Pennant-mode inspired career dashboard */
+.career-pennant-shell { max-width: 1060px; margin: 0 auto; padding: 12px 14px 110px; }
+.career-pennant-ribbon { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0 0 12px; padding:9px 12px; border:1px solid #426044; border-radius:10px; background:linear-gradient(100deg,#203c2b,#15232b 72%); color:#bde98b; font-size:10px; font-weight:950; letter-spacing:.14em; }
+.career-pennant-ribbon span:last-child { color:#9fb2bc; text-align:right; letter-spacing:.06em; }
+.career-pennant-header { border-radius:16px; border:1px solid #3c5843; background:linear-gradient(115deg,#1c3928,#172630); box-shadow:0 10px 25px rgba(0,0,0,.18); }
+.career-pennant-shell > .career-player-hero { border-color:#486548; background:linear-gradient(145deg,#1b3226,#17232d 75%); }
+.career-pennant-shell > .card, .career-pennant-shell > .panel { margin-bottom:12px; }
+.career-pennant-shell h3 { display:flex; align-items:center; gap:8px; }
+.career-pennant-shell h3:before { content:""; display:inline-block; width:4px; height:1.15em; border-radius:4px; background:#9add5f; }
+.career-pennant-shell .career-command-panel { margin:18px 0; padding:15px; border:1px solid #3b5142; border-radius:16px; background:linear-gradient(145deg,#192b25,#131e28); box-shadow:0 10px 25px rgba(0,0,0,.14); }
+.career-section-heading { display:flex; align-items:flex-start; gap:10px; margin-bottom:12px; }
+.career-section-heading h3 { margin:0 0 4px; }
+.career-section-heading p { margin:0; }
+.career-section-no { display:grid; place-items:center; flex:0 0 34px; height:34px; border-radius:9px; background:#8bd83f; color:#15220e; font-weight:950; }
+.career-training-grid, .career-plan-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.career-pennant-shell .career-training-grid .btn, .career-pennant-shell .career-plan-grid .btn { min-height:66px; margin:0; padding:11px; text-align:left; border-radius:10px; }
+.career-pennant-shell .career-training-grid .btn b, .career-pennant-shell .career-plan-grid .btn b { display:block; font-size:13px; }
+.career-pennant-shell .career-training-grid .btn span, .career-pennant-shell .career-plan-grid .btn span { display:block; margin-top:4px; font-size:10px; line-height:1.4; color:#aabac4; }
+.career-pennant-shell .career-training-grid .btn.primary span, .career-pennant-shell .career-plan-grid .btn.primary span { color:#23351a; }
+.career-subheading { margin:16px 0 8px; color:#cbd9e1; font-size:13px; }
+.career-pennant-shell .career-advance-button { display:flex; align-items:center; justify-content:center; width:100%; min-height:58px; margin:16px 0 4px; border-radius:12px; font-size:16px; letter-spacing:.02em; }
+.career-pennant-shell .career-advance-button:after { content:"›"; margin-left:10px; font-size:24px; line-height:1; }
+.career-pennant-shell .career-player-hero .profile-hero { padding-bottom:14px; border-bottom:1px solid rgba(170,205,166,.16); }
+.career-pennant-shell .bar { margin:9px 0; }
+.career-pennant-shell .cards { gap:8px; }
+.career-pennant-shell .cards .stat { border-radius:10px; }
+.career-create-screen > .card { padding:18px; border-color:#405b43; }
+.career-create-screen > .card label { display:block; margin:12px 0; color:#dce9df; font-weight:750; }
+.career-create-screen > .card .search { display:block; width:100%; margin-top:6px; }
+@media (min-width:700px) {
+ .career-pennant-shell { padding:20px 24px 70px; }
+ .career-training-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+ .career-plan-grid { grid-template-columns:repeat(5,minmax(0,1fr)); }
+ .career-pennant-shell .career-player-hero { padding:22px; }
+}
+@media (max-width:420px) {
+ .career-pennant-ribbon { font-size:8px; padding:8px; }
+ .career-pennant-shell { padding-left:10px; padding-right:10px; }
+ .career-pennant-shell .career-command-panel { padding:11px; }
+ .career-training-grid, .career-plan-grid { gap:6px; }
+ .career-pennant-shell .career-training-grid .btn, .career-pennant-shell .career-plan-grid .btn { padding:9px; min-height:62px; }
+}
