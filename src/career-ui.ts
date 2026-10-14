@@ -1,10 +1,10 @@
 import { careerTeamStrengthProfile } from './career';
 import {
-  advanceCareerMonth, careerOverall, currentTeam, newCareer, setCareerTraining, setCareerTrainingPlan, playCareerMatchAction,
+  advanceCareerMonth, careerOverall, currentTeam, newCareer, setCareerTraining, setCareerTrainingPlan,
   resolveCareerTransfer, careerHallOfFame, careerLegacyScore,
   CAREER_POSITIONS, CAREER_STAT_KEYS, CAREER_STAT_LABEL, CAREER_TALENTS, hasCareerSave, loadCareer, saveCareer, setCareerSaveSlot, careerSaveSummary,
 } from './career';
-import type { CareerState, CareerPhase, CareerTrainingPlan, CareerMatchAction } from './career';
+import type { CareerState, CareerPhase, CareerTrainingPlan } from './career';
 import { STAT_LABEL } from './game';
 import type { Pos, StatKey } from './game';
 import { PREFS, schoolsOf } from './data';
@@ -190,48 +190,6 @@ function lineupCard(s: CareerState, team: string, own: boolean): string {
   return `<section class="card"><h3>${own ? '自チームのメンバー表' : '対戦相手のメンバー表'}</h3><p class="note">23名登録・ポジション順。先発／控えは同ポジション内の総合力で判定。選手をタップすると能力詳細を確認できます。</p><div class="roster-list">${roster.map((p) => `<button class="row roster-player" data-career="roster-player" data-v="${own ? 'own' : 'opponent'}:${p.number}"><span class="pos">${p.number}</span><span class="nm">${esc(p.name)}${p.isUser ? '（あなた）' : ''}<small>${p.pos}・${p.role}</small></span><span class="ov">${p.overall}</span><span aria-hidden="true">›</span></button>`).join('')}</div></section>`;
 }
 
-function liveMatchScreen(s: CareerState): string {
-  const g = s.liveMatch!;
-  const fieldLeft = Math.max(2, Math.min(98, g.fieldPosition));
-  const actions: { id: CareerMatchAction; label: string; detail: string }[] = g.possession === '自チーム'
-    ? [
-      { id: 'carry', label: 'ボールを持って突破', detail: 'パワーとスピードで前進を狙う' },
-      { id: 'pass', label: 'パスで展開', detail: '成功率が高め。ラインブレイクのチャンス' },
-      { id: 'kick', label: 'タッチキック', detail: '大きく陣地を進めるが、ボールを渡す' },
-      { id: 'scrum', label: 'スクラムで押す', detail: 'FWのパワーを使って堅実に前進' },
-      { id: 'lineout', label: 'ラインアウト', detail: '技術でボールを確保して攻撃継続' },
-      ...(g.fieldPosition >= 55 ? [{ id: 'goal' as const, label: 'ペナルティゴール', detail: '成功すれば3点。キック能力が重要' }] : []),
-    ]
-    : [
-      { id: 'rush', label: '前に出るタックル', detail: '相手の前進を止め、圧力をかける' },
-      { id: 'drift', label: '外へ追い込む守備', detail: '守備を崩さず相手の選択肢を減らす' },
-      { id: 'jackal', label: 'ジャッカルを狙う', detail: '成功すればターンオーバー。リスクも高い' },
-    ];
-  const rosterDetail = selectedRosterMember ? playerDetail(selectedRosterMember) : '';
-  const representativeSquad = (g.fixture.kind === 'japan-test' || g.fixture.kind === 'world-cup') && s.nationalSquad?.length
-    ? '<section class="card national-squad-card"><h3>日本代表メンバー（' + Math.min(23, s.nationalSquad.length) + '名）</h3><ol class="national-squad-list">' + s.nationalSquad.slice(0, 23).map((p,i) => '<li><span class="squad-rank">' + (i+1) + '</span><span class="squad-main"><b>' + esc(p.name) + '</b><small>' + p.pos + ' ／ ' + esc(p.team) + '</small></span><strong>' + p.overall + '</strong></li>').join('') + '</ol></section>'
-    : '';
-  return `<main class="page">
-    ${rosterDetail}
-    <header class="hd"><div class="school">🏉 ライブマッチ</div><div class="date">${g.elapsed}' / 80'・${s.phase === 'highschool' ? '高校' : s.phase === 'university' ? '大学' : '社会人'}</div></header>
-    <div class="card"><p><b>${esc(g.fixture.label)}</b> ／ ${esc(g.fixture.date)}</p>
-      <div class="scoreboard"><div><span>${esc(currentTeam(s))}</span><strong>${g.scoreFor}</strong></div><div class="score-dash">—</div><div><span>${esc(g.fixture.opponent)}</span><strong>${g.scoreAgainst}</strong></div></div>
-      <p>起用：<b>${esc(g.role)}</b> ／ ボール：<b>${g.possession}</b> ／ ${g.possession === '自チーム' ? '相手陣' : '自陣'}への進行度</p>
-      <div class="rugby-pitch"><div class="pitch-lines"></div><div class="pitch-half"></div><div class="pitch-ball" style="left:${fieldLeft}%">🏉</div><div class="pitch-own">自陣</div><div class="pitch-opponent">敵陣</div></div>
-      <div class="bar"><span>前進位置</span><div class="track"><i style="width:${g.fieldPosition}%"></i></div><b>${g.fieldPosition}m</b></div>
-      <div class="match-event"><b>直近のプレー</b><p>${esc(g.lastEvent)}</p></div>
-    </div>
-    ${representativeSquad}
-    <div class="lineup-grid">${lineupCard(s, currentTeam(s), true)}${lineupCard(s, g.fixture.opponent, false)}</div>
-    <h3>${g.possession === '自チーム' ? '攻撃を選択' : '守備を選択'}</h3>
-    <p class="note">1回の選択で時計が5分進みます。80分までプレーして勝利を目指しましょう。能力・疲労・選択した戦術でプレーの成功率が変わります。</p>
-    <div class="match-actions">${actions.map((a) => `<button class="btn mode" data-career="match-action" data-v="${a.id}"><b>${a.label}</b><span>${a.detail}</span></button>`).join('')}</div>
-    <div class="card"><b>この試合の個人成績</b><div class="cards"><div class="card stat"><span class="k">トライ</span><b>${g.tries}</b></div><div class="card stat"><span class="k">キャリー</span><b>${g.carries}</b></div><div class="card stat"><span class="k">タックル</span><b>${g.tackles}</b></div><div class="card stat"><span class="k">突破</span><b>${g.lineBreaks}</b></div><div class="card stat"><span class="k">キック</span><b>${g.kicks}</b></div><div class="card stat"><span class="k">ミス</span><b>${g.errors}</b></div></div></div>
-    <button class="btn" data-career="match-exit">試合を中断してキャリア画面へ</button>
-    <p class="note">試合の途中経過は自動保存されます。再開すると続きからプレーできます。</p>
-  </main>`;
-}
-
 function matchResultScreen(s: CareerState): string {
   const m = s.lastMatch;
   if (!m) return homeScreen(s);
@@ -250,7 +208,7 @@ function matchResultScreen(s: CareerState): string {
 function render(): void {
   if (!root) return;
   if (titleMenu) { root.innerHTML = titleScreen(); return; }
-  root.innerHTML = creating || !state ? createScreen() : state.liveMatch ? liveMatchScreen(state) : showMatchResult ? matchResultScreen(state) : homeScreen(state);
+  root.innerHTML = creating || !state ? createScreen() : showMatchResult ? matchResultScreen(state) : homeScreen(state);
 }
 function act(action: string, value = ''): void {
   if (!root) return;
@@ -280,12 +238,6 @@ function act(action: string, value = ''): void {
     return;
   }
   if (action === 'result-continue' && state) { showMatchResult = false; selectedRosterMember = null; activeCareerTab = 'player'; render(); return; }
-  if (action === 'match-action' && state?.liveMatch) {
-    playCareerMatchAction(state, value as CareerMatchAction);
-    if (!state.liveMatch) showMatchResult = true;
-    render(); return;
-  }
-  if (action === 'match-exit' && state) { state.liveMatch = undefined; showMatchResult = false; saveCareer(state); render(); return; }
   if (action === 'start') {
     const name = root.querySelector<HTMLInputElement>('#career-name')?.value ?? '';
     const pos = (root.querySelector<HTMLSelectElement>('#career-pos')?.value ?? 'CTB') as Pos;
@@ -305,7 +257,7 @@ function act(action: string, value = ''): void {
   } else if (action === 'advance' && state) {
     const previousMatchCount = state.matchHistory.length;
     state.liveMatch = undefined;
-    advanceCareerMonth(state, true);
+    advanceCareerMonth(state, false);
     showMatchResult = state.matchHistory.length > previousMatchCount;
     selectedRosterMember = null;
   }
