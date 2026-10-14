@@ -1,7 +1,7 @@
 import './style.css';
-import { mount } from './ui';
-import { installCareerEntry } from './career-entry';
+import { openCareerMode } from './career-ui';
 
-const app = document.getElementById('app') as HTMLElement;
-mount(app);
-installCareerEntry(app);
+// このアプリはラグビー人生キャリア専用。旧・部活監督モードの画面は起動しない。
+const app = document.getElementById('app');
+if (!app) throw new Error('アプリの起動領域 #app が見つかりません。');
+openCareerMode(app, false);
