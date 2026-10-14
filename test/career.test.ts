@@ -64,7 +64,8 @@ const officialProMatches = s.proDivision === 1 ? 18 : s.proDivision === 2 ? 14 :
 assert.ok(proSeasons.length > 0);
 assert.ok(proSeasons.every((r) => r.leaguePlayed === officialProMatches), `league one division ${s.proDivision} should play ${officialProMatches} regular-season matches`);
 assert.ok(s.experiencePoints > 0, 'match results should award experience points');
-assert.ok(careerOverall(s) >= 0 && careerOverall(s) <= 200);\nfor (const value of Object.values(s.player.stats)) assert.ok(value >= 0 && value <= 200, 'career abilities must stay within the 200-point cap');
+assert.ok(careerOverall(s) >= 0 && careerOverall(s) <= 200);
+for (const value of Object.values(s.player.stats)) assert.ok(value >= 0 && value <= 200, 'career abilities must stay within the 200-point cap');
 console.log('  ok - high school 3 years, university 4 years, professional career through retirement');
 console.log('  ok - university is assigned to a 2025 official league group');
 console.log('  ok - league records and retirement summary are retained');
