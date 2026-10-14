@@ -39,11 +39,18 @@ export interface CareerSeason {
   awards?: string[];
   notes: string[];
 }
+export interface CareerScoreEvent {
+  minute: number;
+  side: '自チーム' | '相手';
+  points: 3 | 5 | 7;
+  scorer: string;
+  method: 'ペナルティゴール' | 'トライ（コンバージョン成功）' | 'トライ（コンバージョン失敗）';
+}
 export interface CareerMatch {
   date: string; competition: string; opponent: string; my: number; their: number;
   result: '勝利' | '引分' | '敗戦'; appeared: boolean; role?: CareerRole; tries: number; carries: number;
   tackles: number; lineBreaks: number; kicks: number; errors: number; rating: number;
-  experience: number; scenes: string[];
+  experience: number; scenes: string[]; scoreEvents?: CareerScoreEvent[];
 }
 export interface CareerFixture {
   date: string; label: string; opponent: string; difficulty: number;
@@ -527,6 +534,49 @@ export function nationalMatchRole(s: CareerState, kind: CareerFixture['kind'] | 
   return '途中出場';
 }
 
+function rugbyScoreBreakdown(target: number): (3 | 5 | 7)[] {
+  const memo = new Map<number, (3 | 5 | 7)[] | null>();
+  const solve = (n: number): (3 | 5 | 7)[] | null => {
+    if (n === 0) return [];
+    if (n < 0) return null;
+    if (memo.has(n)) return memo.get(n)!;
+    for (const points of [7, 5, 3] as const) {
+      const rest = solve(n - points);
+      if (rest) { const result = [points, ...rest]; memo.set(n, result); return result; }
+    }
+    memo.set(n, null); return null;
+  };
+  for (let score = Math.max(0, Math.round(target)); score >= 0; score--) {
+    const result = solve(score);
+    if (result) return result;
+  }
+  return [];
+}
+function buildCareerScoreEvents(s: CareerState, my: number, their: number, appeared: boolean, opponent: string): { my: number; their: number; playerTries: number; events: CareerScoreEvent[] } {
+  const ownPool = [...new Set([
+    ...(appeared ? [s.player.name] : []),
+    ...s.rivals.filter(r => !r.retired && r.phase === s.phase && r.team === (s.phase === 'highschool' ? s.highSchool : s.phase === 'university' ? s.university : s.professionalTeam)).map(r => r.name),
+  ])];
+  if (!ownPool.length) ownPool.push('チームメイト');
+  const events: CareerScoreEvent[] = [];
+  const appendSide = (score: number, side: CareerScoreEvent['side'], pool: string[]) => {
+    for (const points of rugbyScoreBreakdown(score)) {
+      const isTry = points === 5 || points === 7;
+      const scorer = pick(pool);
+      events.push({
+        minute: int(1, 80), side, points, scorer,
+        method: points === 3 ? 'ペナルティゴール' : points === 7 ? 'トライ（コンバージョン成功）' : 'トライ（コンバージョン失敗）',
+      });
+    }
+  };
+  const ownScore = rugbyScoreBreakdown(my).reduce((sum, p) => sum + p, 0);
+  const opponentScore = rugbyScoreBreakdown(their).reduce((sum, p) => sum + p, 0);
+  appendSide(ownScore, '自チーム', ownPool);
+  appendSide(opponentScore, '相手', [`${opponent}の選手`]);
+  events.sort((a, b) => a.minute - b.minute || (a.side === '自チーム' ? -1 : 1));
+  return { my: ownScore, their: opponentScore, playerTries: events.filter(e => e.side === '自チーム' && e.scorer === s.player.name && (e.points === 5 || e.points === 7)).length, events };
+}
+
 function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, opponent?: string, date?: string, kind: CareerFixture['kind'] | 'highschool' | 'world' = 'university-league', difficulty?: number, live?: CareerLiveMatch): { my: number; their: number; win: boolean; exp: number; match: CareerMatch } {
   const o = careerOverall(s), expected = s.phase === 'highschool' ? 43 : s.phase === 'university' ? 59 : 66;
   let role: CareerRole = live?.role ?? 'メンバー外';
@@ -541,8 +591,11 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   const appeared = role === '先発' || role === '途中出場';
   const teamBonus = s.phase === 'university' ? (s.universityTier === '最上位' ? 5 : s.universityTier === '上位' ? 3 : 0) : s.phase === 'professional' ? 4 : 0;
   const strength = o + teamBonus + gauss(0, 8), opponentStrength = difficulty ?? expected + gauss(0, 10);
-  const my = live ? live.scoreFor : Math.max(0, Math.round(22 + (strength - opponentStrength) * 0.55 + gauss(0, 8)));
-  const their = live ? live.scoreAgainst : Math.max(0, Math.round(22 + (opponentStrength - strength) * 0.55 + gauss(0, 8)));
+  const rawMy = live ? live.scoreFor : Math.max(0, Math.round(22 + (strength - opponentStrength) * 0.55 + gauss(0, 8)));
+  const rawTheir = live ? live.scoreAgainst : Math.max(0, Math.round(22 + (opponentStrength - strength) * 0.55 + gauss(0, 8)));
+  const scoreReport = buildCareerScoreEvents(s, rawMy, rawTheir, appeared, opponent || opponentFor(s, kind));
+  const my = scoreReport.my;
+  const their = scoreReport.their;
   const season = s.currentSeason; season.played++;
   if (kind === 'university-league' || kind === 'professional-league') {
     season.leaguePlayed++; if (my > their) season.leagueWins++; else if (my < their) season.leagueLosses++; else season.leagueDraws++;
@@ -555,7 +608,7 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   };
   // 2024-25年の主要プロ大会の傾向を参考に、ポジション別の相対比率を反映したゲーム用モデル。
   const tryChance = clamp(positionTryRate[s.player.pos] * (0.72 + s.player.stats.spd / 180 + s.player.stats.tec / 260) * (0.9 + s.player.stats.men / 500), 0.02, 0.52);
-  const tries = live ? (appeared ? live.tries : 0) : appeared && rand() < tryChance ? 1 : 0;
+  const tries = live ? (appeared ? live.tries : 0) : scoreReport.playerTries;
   const carries = live ? (appeared ? live.carries : 0) : appeared ? int(5, 18) + Math.round(s.player.stats.spd / 20) : 0;
   const tackles = live ? (appeared ? live.tackles : 0) : appeared ? int(4, 15) + Math.round(s.player.stats.sta / 20) : 0;
   const lineBreaks = live ? (appeared ? live.lineBreaks : 0) : appeared && rand() < 0.35 ? int(1, 2) : 0;
@@ -573,7 +626,7 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   }
   const result = my > their ? '勝利' : my === their ? '引分' : '敗戦';
   scenes.push(my > their ? 'チームは勝利。試合後の評価が上がった。' : my === their ? '接戦の末に引き分け。最後まで集中を切らさなかった。' : '悔しい敗戦。課題を持ち帰り、次戦に向けて修正する。');
-  const match: CareerMatch = { date: date || `2025年${s.month}月`, competition: (kind === 'japan-test' || kind === 'world-cup') && !label.includes('日本代表') ? `日本代表 ${label}` : label, opponent: opponent || opponentFor(s, kind), my, their, result, appeared, role, tries, carries, tackles, lineBreaks, kicks, errors, rating, experience: exp, scenes };
+  const match: CareerMatch = { date: date || `2025年${s.month}月`, competition: (kind === 'japan-test' || kind === 'world-cup') && !label.includes('日本代表') ? `日本代表 ${label}` : label, opponent: opponent || opponentFor(s, kind), my, their, result, appeared, role, tries, carries, tackles, lineBreaks, kicks, errors, rating, experience: exp, scenes, scoreEvents: live ? scoreReport.events : scoreReport.events };
   if (role === '先発') season.starts = (season.starts ?? 0) + 1;
   else if (role === '途中出場') season.substituteApps = (season.substituteApps ?? 0) + 1;
   else if (role === '控え') season.bench = (season.bench ?? 0) + 1;
