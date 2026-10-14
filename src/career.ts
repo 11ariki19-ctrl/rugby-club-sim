@@ -588,8 +588,8 @@ export function beginCareerLiveMatch(s: CareerState, source: 'tournament' | 'fix
     tries: 0, carries: 0, tackles: 0, lineBreaks: 0, kicks: 0, errors: 0, scenes: [],
     lastEvent: `キックオフ！${s.player.name}のチームが試合を始める。`, actions: 0,
   };
-  // 先発・途中出場でなければ操作プレー画面を開かず、結果だけを自動確定する。
-  if (role !== '先発' && role !== '途中出場') finishCareerLiveMatch(s);
+  // Matches are resolved by simulation; no interactive match-play mode is used.
+  finishCareerLiveMatch(s);
   saveCareer(s);
 }
 function finishCareerLiveMatch(s: CareerState): void {
@@ -952,13 +952,13 @@ function refreshNationalSelection(s: CareerState): void {
     s.nationalSquad = pool.map((p) => ({ ...p }));
   }
 }
-export function advanceCareerMonth(s: CareerState, interactive = false): CareerState {
+export function advanceCareerMonth(s: CareerState, _interactive = false): CareerState {
   if (s.phase === 'retired' || s.liveMatch) return s;
   // UIから次へ進めた場合、提示中の契約オファーは現所属で更新してから進行する。
   refreshNationalSelection(s);
   if (s.pendingTransfer) { s.pendingTransfer = undefined; s.proContractYears = Math.max(2, s.proContractYears); s.history.unshift(`${s.age}歳：契約オファーを見送り、現所属で契約を更新。年俸${s.proSalary}万円でプレーを続ける。`); }
-  if (s.pendingTournament) { playCareerTournamentMatch(s, interactive); saveCareer(s); return s; }
-  if (s.pendingFixtures?.length) { playNextFixture(s, interactive); saveCareer(s); return s; }
+  if (s.pendingTournament) { playCareerTournamentMatch(s, false); saveCareer(s); return s; }
+  if (s.pendingFixtures?.length) { playNextFixture(s, false); saveCareer(s); return s; }
   if (s.tournamentCompletedMonth === s.month) {
     applyCareerDevelopment(s);
     advanceCalendar(s); saveCareer(s); return s;
