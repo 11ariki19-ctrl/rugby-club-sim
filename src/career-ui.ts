@@ -2,7 +2,7 @@ import { careerTeamStrengthProfile } from './career';
 import {
   advanceCareerMonth, careerOverall, currentTeam, newCareer, setCareerTraining, setCareerTrainingPlan,
   resolveCareerTransfer, careerHallOfFame, careerLegacyScore,
-  CAREER_POSITIONS, CAREER_STAT_KEYS, CAREER_STAT_LABEL, CAREER_TALENTS, hasCareerSave, loadCareer, saveCareer,
+  CAREER_POSITIONS, CAREER_STAT_KEYS, CAREER_STAT_LABEL, CAREER_TALENTS, hasCareerSave, loadCareer, saveCareer, setCareerSaveSlot, careerSaveSummary, careerHallOfFame,
 } from './career';
 import type { CareerState, CareerPhase, CareerTrainingPlan, CareerMatchAction } from './career';
 import { STAT_LABEL } from './game';
@@ -13,6 +13,8 @@ const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;',
 let root: HTMLElement | null = null;
 let state: CareerState | null = null;
 let creating = false;
+let titleMenu = true;
+let selectedSaveSlot: 1 | 2 = 1;
 let bound = false;
 let createPrefIndex = 26;
 let createSchoolIndex = 1;
@@ -45,6 +47,16 @@ function careerUniform(team: string): string {
 }
 
 
+function titleScreen(): string {
+  const slots = ([1, 2] as const).map((slot) => {
+    const s = careerSaveSummary(slot);
+    return `<section class="card"><h3>セーブスロット ${slot}</h3>${s.exists
+      ? `<p><b>${esc(s.name ?? '選手')}</b> ／ ${s.age}歳 ／ ${esc(s.team ?? '')}</p><p>ポジション ${s.pos}・総合値 ${s.overall}・シーズン ${s.years}</p><button class="btn primary" data-career="continue-slot" data-v="${slot}">このデータを続ける</button><button class="btn" data-career="new-slot" data-v="${slot}">この枠で新規開始（上書き）</button>`
+      : `<p>データはありません。</p><button class="btn primary" data-career="new-slot" data-v="${slot}">この枠で新規開始</button>`}</section>`;
+  }).join('');
+  const hall = careerHallOfFame().slice(0, 10).map((p, i) => `<li>${i + 1}位 ${esc(p.name)} — ${p.score}点／${p.appearances}試合・${p.tries}トライ</li>`).join('');
+  return `<main class="page career-pennant-shell"><div class="career-pennant-ribbon"><span>RUGBY PENNANT</span><span>PLAYER CAREER</span></div><header class="hd"><div class="school">🏉 ラグビー人生キャリア</div><div class="date">高校入学から引退まで、一人の選手の物語</div></header><div class="card"><h2>キャリアを選ぶ</h2><p>新しい選手を作るか、2つの独立したセーブデータから再開できます。</p>${slots}</div><div class="card"><h3>歴代選手殿堂</h3><ol class="news">${hall || '<li>引退した選手がここに登録されます。</li>'}</ol></div><p class="note">データはこの端末・ブラウザ内に保存されます。ブラウザのデータ消去や端末変更で失われる場合があります。</p></main>`;
+}
 function createScreen(): string {
   const schools = schoolsOf(createPrefIndex);
   return `<main class="page career-pennant-shell career-create-screen"><div class="career-pennant-ribbon"><span>RUGBY PENNANT</span><span>PLAYER DEVELOPMENT</span></div><button class="link" data-career="title">← タイトルへ</button>
@@ -235,7 +247,16 @@ function render(): void {
 }
 function act(action: string, value = ''): void {
   if (!root) return;
-  if (action === 'title') { window.location.reload(); return; }
+  if (action === 'title') { titleMenu = true; creating = false; showMatchResult = false; selectedRosterMember = null; render(); return; }
+  if (action === 'new-slot') {
+    selectedSaveSlot = value === '2' ? 2 : 1; setCareerSaveSlot(selectedSaveSlot);
+    if (hasCareerSave(selectedSaveSlot) && !confirm(`セーブスロット${selectedSaveSlot}を上書きしますか？`)) return;
+    state = null; creating = true; titleMenu = false; createPrefIndex = 26; createSchoolIndex = 1; createTalentType = '凡人'; render(); return;
+  }
+  if (action === 'continue-slot') {
+    selectedSaveSlot = value === '2' ? 2 : 1; setCareerSaveSlot(selectedSaveSlot);
+    state = loadCareer(selectedSaveSlot); creating = !state; titleMenu = !state; showMatchResult = false; render(); return;
+  }
   if (action === 'roster-close') { selectedRosterMember = null; render(); return; }
   if (action === 'roster-player' && state) {
     const [side, rawNumber] = value.split(':');
@@ -255,7 +276,7 @@ function act(action: string, value = ''): void {
   if (action === 'start') {
     const name = root.querySelector<HTMLInputElement>('#career-name')?.value ?? '';
     const pos = (root.querySelector<HTMLSelectElement>('#career-pos')?.value ?? 'CTB') as Pos;
-    if (hasCareerSave() && !confirm('保存済みの選手キャリアを上書きしますか？')) return;
+    if (hasCareerSave(selectedSaveSlot) && !confirm('保存済みの選手キャリアを上書きしますか？')) return;
     const school = schoolsOf(createPrefIndex)[createSchoolIndex] ?? schoolsOf(createPrefIndex)[1];
     createTalentType = (root.querySelector<HTMLSelectElement>('#career-talent')?.value ?? '凡人') as '凡人' | '秀才' | '天才' | '一芸';
     state = newCareer(name, pos, createPrefIndex, school.name, createTalentType);
