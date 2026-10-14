@@ -215,7 +215,7 @@ positionalSelection.rivals = [70, 65, 60, 55].map((overall, index) => ({
 }));
 assert.equal(careerRoleByPositionalRank(positionalSelection, 72), '先発', 'top same-position rating starts');
 assert.equal(careerRoleByPositionalRank(positionalSelection, 62), '途中出場', 'next same-position rating is a substitute');
-assert.equal(careerRoleByPositionalRank(positionalSelection, 50), 'メンバー外', 'lower same-position ratings are not selected');
+assert.equal(careerRoleByPositionalRank(positionalSelection, 50), '控え', 'lower same-position ratings fall behind starters and substitutes');
 const simulatedCareer = newCareer('自動試合テスト', 'CTB');
 simulatedCareer.phase = 'professional'; simulatedCareer.stageYear = 1; simulatedCareer.professionalStarterGuaranteed = true;
 beginCareerLiveMatch(simulatedCareer, 'fixture', { date: 'テスト日', label: 'キャリア自動試合テスト', opponent: 'テストクラブ', difficulty: 45, kind: 'university-spring' });
