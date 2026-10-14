@@ -19,6 +19,7 @@ export interface CareerSeason {
   phase: Exclude<CareerPhase, 'retired'>;
   year: number;
   team: string;
+  league?: string;
   played: number;
   leaguePlayed: number;
   leagueWins: number;
@@ -148,7 +149,7 @@ const PHASE_LABEL: Record<CareerPhase, string> = {
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
 export function careerOverall(s: CareerState): number { return Math.round(overallAt({ pos: s.player.pos, stats: s.player.stats } as never)); }
 function newSeason(s: CareerState): CareerSeason {
-  return { age: s.age, phase: s.phase === 'retired' ? 'professional' : s.phase, year: s.stageYear, team: currentTeam(s), played: 0, leaguePlayed: 0, leagueWins: 0, leagueLosses: 0, leagueDraws: 0, wins: 0, losses: 0, draws: 0, pointsFor: 0, pointsAgainst: 0, appearances: 0, starts: 0, substituteApps: 0, bench: 0, notSelected: 0, tries: 0, awards: [], notes: [] };
+  return { age: s.age, phase: s.phase === 'retired' ? 'professional' : s.phase, year: s.stageYear, team: currentTeam(s), league: s.phase === 'professional' ? s.professionalLeague : undefined, played: 0, leaguePlayed: 0, leagueWins: 0, leagueLosses: 0, leagueDraws: 0, wins: 0, losses: 0, draws: 0, pointsFor: 0, pointsAgainst: 0, appearances: 0, starts: 0, substituteApps: 0, bench: 0, notSelected: 0, tries: 0, awards: [], notes: [] };
 }
 export function currentTeam(s: CareerState): string {
   if (s.phase === 'highschool') return s.highSchool;
@@ -339,7 +340,7 @@ export function resolveCareerTransfer(s: CareerState, offerIndex: number): void 
   s.professionalTeam = offer.team; s.proDivision = offer.division; s.professionalLeague = offer.league || leagueForClub(offer.team); s.proSalary = offer.salary; s.proContractYears = int(2, 3);
   s.transferHistory.unshift(`${s.age}歳：${previous}から${offer.team}へ${offer.overseas ? '海外移籍' : '移籍'}。年俸${offer.salary}万円、契約${s.proContractYears}年。`);
   s.history.unshift(s.transferHistory[0]);
-  s.pendingTransfer = undefined; s.proMatchIndex = 0; s.proSchedule = buildProSchedule(s); s.currentSeason.team = s.professionalTeam; s.morale = clamp(s.morale + 8, 0, 100);
+  s.pendingTransfer = undefined; s.proMatchIndex = 0; s.proSchedule = buildProSchedule(s); s.currentSeason.team = s.professionalTeam; s.currentSeason.league = s.professionalLeague; s.morale = clamp(s.morale + 8, 0, 100);
   saveCareer(s);
 }
 function awardMatchExperience(s: CareerState, my: number, their: number, appeared: boolean, tries: number, rating: number): number {
@@ -852,6 +853,7 @@ export function loadCareer(): CareerState | null {
     for (const r of [...s.seasons, s.currentSeason]) {
       if (!r) continue;
       if (typeof r.leaguePlayed !== 'number') r.leaguePlayed = 0;
+      if (r.phase === 'professional' && !r.league) r.league = 'リーグワン';
       if (typeof r.leagueWins !== 'number') r.leagueWins = 0;
       if (typeof r.leagueLosses !== 'number') r.leagueLosses = 0;
       if (typeof r.leagueDraws !== 'number') r.leagueDraws = 0;
