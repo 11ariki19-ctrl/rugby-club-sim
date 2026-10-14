@@ -996,7 +996,8 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
     if (typeof s.qualified !== 'boolean') s.qualified = false;
     if (typeof s.universityTournamentFinalist !== 'boolean') s.universityTournamentFinalist = false;
     if (!Array.isArray(s.pendingFixtures)) s.pendingFixtures = [];
-    if (s.liveMatch && (!s.liveMatch.fixture || typeof s.liveMatch.elapsed !== 'number')) s.liveMatch = undefined;
+    // Interactive play mode was removed; discard any stale in-progress match screen from older saves.
+    if (s.liveMatch) s.liveMatch = undefined;
     if (!Array.isArray(s.matchHistory)) s.matchHistory = [];
     if (typeof s.highSchoolAppearances !== 'number') s.highSchoolAppearances = 0;
     if (typeof s.highSchoolTries !== 'number') s.highSchoolTries = 0;
