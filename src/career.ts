@@ -194,8 +194,9 @@ function buildProSchedule(s: CareerState): CareerFixture[] {
   for (let i = 0; i < count; i++) rounds.push(opponents[i % Math.max(1, opponents.length)]);
   for (let i = rounds.length - 1; i > 0; i--) { const j = int(0, i); [rounds[i], rounds[j]] = [rounds[j], rounds[i]]; }
   const months = league === 'スーパーラグビー・パシフィック' ? [12,1,2,3,4,5] : [12,1,2,3,4,5];
+  const fixturesPerMonth = Math.ceil(count / months.length);
   return rounds.map((opponent, i) => {
-    const month = months[i % months.length];
+    const month = months[Math.min(months.length - 1, Math.floor(i / fixturesPerMonth))];
     return { date: `${month}月第${i + 1}節`, label: `${league} 第${i + 1}節`, opponent, difficulty: 75 + rand() * 45, kind: 'professional-league' as const };
   });
 }
