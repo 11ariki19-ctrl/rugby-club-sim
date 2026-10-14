@@ -530,13 +530,17 @@ export function nationalMatchRole(s: CareerState, kind: CareerFixture['kind'] | 
 
 function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, opponent?: string, date?: string, kind: CareerFixture['kind'] | 'highschool' | 'world' = 'university-league', difficulty?: number, live?: CareerLiveMatch): { my: number; their: number; win: boolean; exp: number; match: CareerMatch } {
   const o = careerOverall(s), expected = s.phase === 'highschool' ? 43 : s.phase === 'university' ? 59 : 66;
-  const selectionChance = careerAppearanceProbability(s);
   let role: CareerRole = live?.role ?? 'メンバー外';
   const representativeRole = !live ? nationalMatchRole(s, kind) : undefined;
   if (!live && representativeRole) role = representativeRole;
   else if (!live && s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed) role = '先発';
-  else if (!live && rand() < selectionChance) role = careerRoleByPositionalRank(s, o);
-  else if (!live) role = rand() < 0.58 ? '控え' : 'メンバー外';
+  else if (!live) {
+    // 試合前のポジション順位表示と試合後の記録を一致させる。
+    // 出場確率による別判定を挟むと、先発表示なのに試合後は未出場になるため、
+    // 同ポジション内の総合力順位からこの試合の起用を一意に決める。
+    role = careerRoleByPositionalRank(s, o);
+    if (s.injuryMonths > 0) role = 'メンバー外';
+  }
   const appeared = role === '先発' || role === '途中出場';
   const teamBonus = s.phase === 'university' ? (s.universityTier === '最上位' ? 5 : s.universityTier === '上位' ? 3 : 0) : s.phase === 'professional' ? 4 : 0;
   const strength = o + teamBonus + gauss(0, 8), opponentStrength = difficulty ?? expected + gauss(0, 10);
