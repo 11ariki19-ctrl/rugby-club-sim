@@ -126,3 +126,8 @@ export function inferPlayerCountry(countryOrTeam: string): string {
   for (const [country, tokens] of rules) if (tokens.some((token) => value.includes(token))) return country;
   return '日本';
 }
+
+/** Backwards-compatible Japanese-only name generator used by the school management mode. */
+export function generateUniqueJapaneseName(usedNames: Set<string>, random: () => number = Math.random): string {
+  return generateUniquePlayerName(usedNames, '日本', random);
+}
