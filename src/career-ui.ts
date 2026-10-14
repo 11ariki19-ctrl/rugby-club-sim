@@ -242,6 +242,7 @@ function matchResultScreen(s: CareerState): string {
 }
 function render(): void {
   if (!root) return;
+  if (titleMenu) { root.innerHTML = titleScreen(); return; }
   if (state?.liveMatch) state.liveMatch = undefined;
   root.innerHTML = creating || !state ? createScreen() : showMatchResult ? matchResultScreen(state) : homeScreen(state);
 }
