@@ -216,7 +216,7 @@ function makePlayer(s: GameState, o: MakeOpts): Player {
   const usedNames = new Set<string>([
     ...(s.generatedNames ?? []),
     ...s.players.map((player) => player.name),
-    ...s.grads.map((grad) => grad.name),
+    ...s.grads.flatMap((grad) => grad.list.map((entry) => entry.name)),
     ...s.scoutLog.map((entry) => entry.name),
   ]);
   const generatedName = generateUniqueJapaneseName(usedNames, rand);
