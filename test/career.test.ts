@@ -78,7 +78,7 @@ const specialistValues = Object.values(specialist.player.stats);
 assert.ok(Math.min(...specialistValues) >= 15 && Math.min(...specialistValues) <= 20, 'specialist minimum stat is between 15 and 20');
 assert.ok(specialistValues.some((value) => value === Math.min(...specialistValues) * 3), 'specialist has one stat three times the minimum');
 assert.equal(careerGrowthMultiplier(genius), 1.35, 'genius talent improves growth without causing runaway ratings');
-assert.equal(careerGrowthMultiplier(scholar), 1, 'scholar talent keeps the existing growth rate');
+assert.equal(careerGrowthMultiplier(scholar), 1.12, 'scholar talent receives a modest growth bonus');
 assert.equal(careerGrowthMultiplier(ordinary), 1, 'ordinary talent keeps the existing growth rate');
 console.log('  ok - four selectable talent types apply their specified starting stats');
 assert.equal(s.phase, 'highschool');
