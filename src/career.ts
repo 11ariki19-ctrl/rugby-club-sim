@@ -1123,6 +1123,19 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
     // 既存のキャリアセーブを新しい大会・個人成績データへ安全に移行する。
     if (typeof s.experiencePoints !== 'number' || !Number.isFinite(s.experiencePoints)) s.experiencePoints = 0;
     if (typeof s.prefIndex !== 'number') s.prefIndex = 26;
+    const realSchoolNames = new Set(allSchools().map((school) => school.name));
+    if (typeof s.highSchool !== 'string' || !realSchoolNames.has(s.highSchool)) {
+      const options = schoolsOf(s.prefIndex);
+      const o = careerOverall(s);
+      const index = o >= 65 ? options.length - 1 : o >= 50 ? Math.floor(options.length / 2) : 0;
+      s.highSchool = options[Math.max(0, Math.min(options.length - 1, index))]?.name ?? options[0]?.name ?? '高校ラグビー部';
+      s.history.unshift(`旧セーブの高校名を実在校データへ移行しました：${s.highSchool}`);
+    }
+    if (s.phase === 'highschool' && s.rivals?.some((r) => r.phase === 'highschool' && !realSchoolNames.has(r.team))) {
+      s.rivals = s.rivals.filter((r) => r.phase !== 'highschool');
+      s.rivals.push(...createCareerRivals(s).filter((r) => r.phase === 'highschool'));
+      s.history.unshift('高校編の対戦相手を実在校データへ更新しました。');
+    }
     if (typeof s.qualified !== 'boolean') s.qualified = false;
     if (typeof s.universityTournamentFinalist !== 'boolean') s.universityTournamentFinalist = false;
     if (!Array.isArray(s.pendingFixtures)) s.pendingFixtures = [];
@@ -1200,8 +1213,18 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
     for (const r of [...s.seasons, s.currentSeason]) { if (!r) continue; if (typeof r.starts !== 'number') r.starts = r.appearances || 0; if (typeof r.substituteApps !== 'number') r.substituteApps = 0; if (typeof r.bench !== 'number') r.bench = 0; if (typeof r.notSelected !== 'number') r.notSelected = Math.max(0, (r.played || 0) - (r.appearances || 0)); if (!Array.isArray(r.awards)) r.awards = []; }
     for (const m of s.matchHistory) if (!m.role) m.role = m.appeared ? '先発' : 'メンバー外';
     if (!s.universityGroup || !UNIVERSITY_GROUPS[s.universityGroup]) s.universityGroup = groupForUniversity(s.university || '');
-    if (s.university && !Object.values(UNIVERSITY_GROUPS).some((teams) => teams.includes(s.university))) {
+    const allUniversityNames = new Set(Object.values(UNIVERSITY_GROUPS).flat());
+    if (s.university && !allUniversityNames.has(s.university)) {
       s.university = pick(UNIVERSITY_GROUPS[s.universityGroup]);
+      s.universityGroup = groupForUniversity(s.university);
+      s.history.unshift(`旧セーブの大学名を実在大学データへ移行しました：${s.university}`);
+    } else if (s.university && !UNIVERSITY_GROUPS[s.universityGroup].includes(s.university) && !s.universityPlayoff) {
+      s.universityGroup = groupForUniversity(s.university);
+    }
+    if (s.phase === 'university' && s.rivals?.some((r) => r.phase === 'university' && !allUniversityNames.has(r.team))) {
+      s.rivals = s.rivals.filter((r) => r.phase !== 'university');
+      addPhaseRivals(s);
+      s.history.unshift('大学編の対戦相手を2025年度の実在リーグ所属校へ更新しました。');
     }
     if (typeof s.universityQualified !== 'boolean') s.universityQualified = false;
     if (typeof s.universityTournamentAlive !== 'boolean') s.universityTournamentAlive = false;
