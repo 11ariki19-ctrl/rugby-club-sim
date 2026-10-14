@@ -1123,6 +1123,8 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
     // 既存のキャリアセーブを新しい大会・個人成績データへ安全に移行する。
     if (typeof s.experiencePoints !== 'number' || !Number.isFinite(s.experiencePoints)) s.experiencePoints = 0;
     if (typeof s.prefIndex !== 'number') s.prefIndex = 26;
+    s.prefIndex = Math.max(0, Math.min(PREFS.length - 1, Math.round(s.prefIndex)));
+    if (!Array.isArray(s.history)) s.history = [];
     const realSchoolNames = new Set(allSchools().map((school) => school.name));
     if (typeof s.highSchool !== 'string' || !realSchoolNames.has(s.highSchool)) {
       const options = schoolsOf(s.prefIndex);
