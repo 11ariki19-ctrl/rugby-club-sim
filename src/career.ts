@@ -865,7 +865,7 @@ function nationalCandidatePool(s: CareerState): { name: string; pos: Pos; overal
   const ownEligible = ownOverall >= (s.phase === 'highschool' ? 70 : s.phase === 'university' ? 85 : 100);
   const pool = eligible.map((r) => ({ name: r.name, pos: r.pos, overall: Math.round(r.overall), team: r.team, year: s.phase === 'highschool' ? `${Math.max(1, Math.min(3, r.age - 14))}年` : s.phase === 'university' ? `${Math.max(1, Math.min(4, r.age - 17))}年` : undefined, country: r.country }));
   if (ownEligible) pool.push({ name: s.player.name, pos: s.player.pos, overall: Math.round(ownOverall), team: ownTeam, year: s.phase === 'highschool' ? `${s.stageYear}年` : s.phase === 'university' ? `${s.stageYear}年` : undefined, country: '日本' });
-  const thresholds = s.phase === 'highschool' ? 80 : s.phase === 'university' ? 94 : 115;
+  const thresholds = s.phase === 'highschool' ? 100 : s.phase === 'university' ? 120 : 145;
   const selected: typeof pool = [];
   const positionSlots: [Pos, number][] = [['PR',3],['HO',2],['LO',3],['FL',3],['N8',2],['SH',2],['SO',2],['CTB',2],['WTB',3],['FB',1]];
   for (const [pos, slots] of positionSlots) {
