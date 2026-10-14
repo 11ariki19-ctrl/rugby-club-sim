@@ -287,9 +287,45 @@ function saveCareerLegacy(s: CareerState): void {
     localStorage.setItem(LEGACY_KEY, JSON.stringify(rows.sort((a,b)=>b.score-a.score).slice(0,10)));
   } catch { /* local storage may be unavailable */ }
 }
+const RIVAL_NAME_POOLS: Record<string, string[]> = {
+  日本: ['高橋 悠','山本 海斗','田中 陸','中村 翔','伊藤 大和','小林 蒼','加藤 蓮','吉田 湊','佐藤 大地','渡辺 颯'],
+  NZ: ['Ardie Savea','Beauden Barrett','Will Jordan','Caleb Clarke','Rieko Ioane','Damian McKenzie','Tamaiti Williams','Cam Roigard'],
+  SouthAfrica: ['Siya Kolisi','Cheslin Kolbe','Damian de Allende','Eben Etzebeth','Kurt-Lee Arendse','Manie Libbok'],
+  England: ['Maro Itoje','Marcus Smith','Tommy Freeman','Ellis Genge','Henry Arundell','Fin Smith'],
+  France: ['Antoine Dupont','Damian Penaud','Louis Bielle-Biarrey','Gregory Alldritt','Matthieu Jalibert','Thomas Ramos'],
+  Ireland: ['Caelan Doris','Jamison Gibson-Park','James Lowe','Bundee Aki','Dan Sheehan'],
+  Australia: ['Harry Wilson','Joseph-Aukuso Suaalii','Len Ikitau','Tom Wright','Fraser McReight'],
+  Fiji: ['Semi Radradra','Waisea Nayacalevu','Josua Tuisova','Levani Botia'],
+  Argentina: ['Pablo Matera','Juan Cruz Mallia','Emiliano Boffelli','Santiago Carreras'],
+};
+const RIVAL_COUNTRIES = ['日本','NZ','SouthAfrica','England','France','Ireland','Australia','Fiji','Argentina'];
 function createCareerRivals(s: CareerState): CareerRival[] {
-  const names = ['高橋 悠','山本 海斗','田中 陸','中村 翔','伊藤 大和','小林 蒼','加藤 蓮','吉田 湊'];
-  return names.slice(0, 5).map((name, i) => ({ name, pos: i < 3 ? s.player.pos : POSITIONS[(POSITIONS.indexOf(s.player.pos) + i) % POSITIONS.length], age: s.age, overall: clamp(careerOverall(s) + (s.phase === 'highschool' ? 0 : s.phase === 'university' ? 28 : 48) + int(-12, 12) + i - 2, 25, 195), phase: s.phase, team: `${['東','西','北','南','中央'][i]}地区ライバル校`, appearances: 0, tries: 0, retired: false }));
+  const names = RIVAL_NAME_POOLS.日本;
+  const high = s.phase === 'highschool';
+  const uni = s.phase === 'university';
+  const overall = careerOverall(s);
+  const candidates: CareerRival[] = names.slice(0, 6).map((name, i) => ({
+    name, pos: i < 4 ? (i < 3 ? s.player.pos : POSITIONS[(POSITIONS.indexOf(s.player.pos) + i) % POSITIONS.length]) : POSITIONS[(i + 2) % POSITIONS.length],
+    age: s.age + (i % 3) - 1, overall: clamp(overall + (high ? 8 : uni ? 20 : 35) + int(-8, 15) + i * 2, 25, 200),
+    phase: s.phase, team: high ? `${['東','西','北','南','中央','県選抜'][i]}地区ライバル校` : uni ? pick(Object.values(UNIVERSITY_GROUPS).flatMap((x) => [...x])) : pick(PRO_TEAMS[1]), country: '日本', league: uni ? '大学リーグ' : high ? '高校ラグビー' : '国内プロ', appearances: 0, tries: 0, retired: false,
+  }));
+  if (!high) {
+    const foreignCount = uni ? 2 : 5;
+    const foreignKeys = RIVAL_COUNTRIES.filter((x) => x !== '日本');
+    for (let i = 0; i < foreignCount; i++) {
+      const country = pick(foreignKeys);
+      const name = pick(RIVAL_NAME_POOLS[country]);
+      const overseasLeague = pick(OVERSEAS_LEAGUE_NAMES);
+      const club = pick(teamsForLeague(overseasLeague));
+      candidates.push({
+        name, pos: pick(POSITIONS), age: s.age + int(-2, 3),
+        overall: clamp(overall + (uni ? 24 : 42) + int(-10, 18), 35, 200),
+        phase: s.phase, team: club, country, league: overseasLeague,
+        appearances: 0, tries: 0, retired: false,
+      });
+    }
+  }
+  return candidates;
 }
 export function resolveCareerTransfer(s: CareerState, offerIndex: number): void {
   const offer = s.pendingTransfer?.offers[offerIndex]; if (!offer) return;
@@ -378,7 +414,13 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   }
   season.pointsFor += my; season.pointsAgainst += their;
   if (my > their) season.wins++; else if (my < their) season.losses++; else season.draws++;
-  const tries = live ? (appeared ? live.tries : 0) : appeared && rand() < clamp(0.08 + s.player.stats.spd / 500 + s.player.stats.tec / 700, 0.08, 0.38) ? 1 : 0;
+  const positionTryRate: Record<Pos, number> = {
+    PR: 0.055, HO: 0.095, LO: 0.070, FL: 0.105, N8: 0.125,
+    SH: 0.060, SO: 0.085, CTB: 0.115, WTB: 0.245, FB: 0.145,
+  };
+  // 2024-25年の主要プロ大会の傾向を参考に、ポジション別の相対比率を反映したゲーム用モデル。
+  const tryChance = clamp(positionTryRate[s.player.pos] * (0.72 + s.player.stats.spd / 180 + s.player.stats.tec / 260) * (0.9 + s.player.stats.men / 500), 0.02, 0.52);
+  const tries = live ? (appeared ? live.tries : 0) : appeared && rand() < tryChance ? 1 : 0;
   const carries = live ? (appeared ? live.carries : 0) : appeared ? int(5, 18) + Math.round(s.player.stats.spd / 20) : 0;
   const tackles = live ? (appeared ? live.tackles : 0) : appeared ? int(4, 15) + Math.round(s.player.stats.sta / 20) : 0;
   const lineBreaks = live ? (appeared ? live.lineBreaks : 0) : appeared && rand() < 0.35 ? int(1, 2) : 0;
@@ -634,7 +676,7 @@ function updateRivals(s: CareerState): void {
     const previousPhase = r.phase;
     const growth = r.age < 23 ? 1.2 : r.age < 28 ? 0.55 : r.age < 32 ? 0.1 : -0.7;
     r.overall = clamp(r.overall + gauss(growth, 2.5), 20, 200);
-    r.phase = r.age < 18 ? 'highschool' : r.age < 22 ? 'university' : r.age <= 37 ? 'professional' : 'retired';
+    r.phase = r.age < 18 ? 'highschool' : r.age < 22 ? 'university' : r.age <= 37 ? 'professional' : 'retired';\n    if (r.phase === 'professional' && r.country && r.country !== '日本' && !r.league) r.league = pick(OVERSEAS_LEAGUE_NAMES);
     if (r.phase !== previousPhase && r.phase === 'university') r.team = pick(Object.values(UNIVERSITY_GROUPS).flatMap((x) => [...x]));
     else if (r.phase !== previousPhase && r.phase === 'professional') r.team = pick(PRO_TEAMS[careerOverall(s) >= 75 ? 1 : careerOverall(s) >= 60 ? 2 : 3]);
     if (r.phase === 'retired') r.retired = true;
