@@ -1,5 +1,5 @@
 import { PREFS, SUFFIX, SURNAMES, schoolsOf } from './data';
-import { generateUniqueJapaneseName } from './names';
+import { generateUniquePlayerName, inferPlayerCountry } from './names';
 import { rand, int, pick, gauss, clamp } from './rng';
 import { POS_LABEL, STAT_KEYS, STAT_LABEL, overallAt, rankOf } from './game';
 import type { Pos, StatKey, Stats } from './game';
@@ -364,7 +364,7 @@ function createCareerRivals(s: CareerState): CareerRival[] {
     for (let j = 0; j < countPerTeam; j++) {
       const teamIndex = Math.floor(n / countPerTeam);
       const pos = POSITIONS[(teamIndex * countPerTeam + j * 3) % POSITIONS.length];
-      const name = generateUniqueJapaneseName(usedNames, rand);
+      const name = generateUniquePlayerName(usedNames, '日本', rand);
       const profile = careerTeamStrengthProfile(s.phase, team);
       const growthAdjustment = Math.max(-8, Math.min(8, playerOverall - (high ? 44 : uni ? 62 : 78))) * 0.18;
       const age = high ? 15 + (n % 3) : uni ? 18 + (n % 4) : 21 + (n % 14);
@@ -384,7 +384,7 @@ function createCareerRivals(s: CareerState): CareerRival[] {
       const rank = NATIONAL_COUNTRY_RANK[country] ?? 72;
       const pos = POSITIONS[(i * 3 + 2) % POSITIONS.length];
       const overall = clamp((uni ? 112 : 142) + (rank - 85) * 1.35 + int(-5, 16), uni ? 92 : 115, uni ? 185 : 200);
-      candidates.push({ name: generateUniqueJapaneseName(usedNames, rand), pos, age: uni ? 18 + i % 4 : 22 + i % 12, overall, phase: s.phase, team, country: COUNTRY_LABEL[country] ?? country, league, appearances: 0, tries: 0, retired: false });
+      candidates.push({ name: generateUniquePlayerName(usedNames, country, rand), pos, age: uni ? 18 + i % 4 : 22 + i % 12, overall, phase: s.phase, team, country: COUNTRY_LABEL[country] ?? country, league, appearances: 0, tries: 0, retired: false });
     }
   }
   return candidates;
@@ -1075,7 +1075,7 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
       const renameMap = new Map<string, string>();
       for (const rival of s.rivals) {
         const oldName = rival.name;
-        const newName = generateUniqueJapaneseName(usedNames, rand);
+        const newName = generateUniquePlayerName(usedNames, rival.country ?? '日本', rand);
         rival.name = newName;
         if (!renameMap.has(oldName)) renameMap.set(oldName, newName);
       }
@@ -1099,8 +1099,8 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
     }
     const uniqueRivalNames = new Set<string>([s.player.name]);
     for (const rival of s.rivals) {
-      if (uniqueRivalNames.has(rival.name) || !SURNAMES.includes(rival.name.split(' ')[0] as never)) {
-        rival.name = generateUniqueJapaneseName(uniqueRivalNames, rand);
+      if (uniqueRivalNames.has(rival.name) || (rival.country === '日本' && !SURNAMES.includes(rival.name.split(' ')[0] as never))) {
+        rival.name = generateUniquePlayerName(uniqueRivalNames, rival.country ?? '日本', rand);
       } else uniqueRivalNames.add(rival.name);
     }
     if (!Array.isArray(s.awards)) s.awards = [];
