@@ -69,7 +69,7 @@ function seasonCard(s: CareerState): string {
 function phaseDescription(s: CareerState): string {
   if (s.phase === 'highschool') return `高校${s.stageYear}年生。${PREFS[s.prefIndex]?.name ?? ''}の県予選から進みます。大会での成績が優秀なら2月に高校日本代表候補へ選出され、世界大会に出場します。`;
   if (s.phase === 'university') return `大学${s.stageYear}年生。${s.universityGroup}に所属。9〜11月に公式リーグ戦7試合、11月〜1月に全国大学選手権（条件を満たした場合）を戦います。`;
-  if (s.phase === 'professional') return `社会人${s.stageYear}年目・リーグワン ディビジョン${s.proDivision}。2025-26方式を参考に公式リーグ戦${s.proDivision === 1 ? 18 : s.proDivision === 2 ? 14 : 15}試合を戦い、現役引退予定年齢${s.retirementAge}歳までキャリアを重ねます。`;
+  if (s.phase === 'professional') return `社会人${s.stageYear}年目・${s.professionalLeague || `リーグワンD${s.proDivision}`}。${s.professionalLeague === 'フランス・トップ14' ? 26 : s.professionalLeague === 'フランス・プロD2' ? 30 : s.professionalLeague === 'ユナイテッド・ラグビー・チャンピオンシップ' ? 18 : s.professionalLeague === 'スーパーラグビー・パシフィック' ? 14 : s.professionalLeague === 'メジャーリーグラグビー' ? 16 : s.professionalLeague === 'カリーカップ' ? 14 : s.proDivision === 1 ? 18 : s.proDivision === 2 ? 14 : 15}試合を基準にシーズンを戦い、現役引退予定年齢${s.retirementAge}歳までキャリアを重ねます。`;
   return s.finalSummary ?? '現役生活を終えました。';
 }
 function lastMatchCard(s: CareerState): string {
@@ -92,7 +92,7 @@ function homeScreen(s: CareerState): string {
   const team = currentTeam(s);
   const plans: CareerTrainingPlan[] = ['バランス','筋力','技術','持久力','回復'];
   const planButtons = plans.map((p) => `<button class="btn mode ${s.trainingPlan === p ? 'primary' : ''}" data-career="plan" data-v="${p}"><b>${p}</b><span>${s.trainingPlan === p ? '選択中' : ({'バランス':'成長と回復の両立','筋力':'筋力を伸ばすが疲労が増えやすい','技術':'技術系能力を重点育成','持久力':'スタミナと疲労耐性','回復':'疲労軽減・負傷回復を優先'} as Record<CareerTrainingPlan,string>)[p]}</span></button>`).join('');
-  const rivals = s.rivals.filter((r) => !r.retired).slice().sort((a,b) => b.overall-a.overall).slice(0,5).map((r) => `<li>${esc(r.name)}（${r.pos}・総合値${Math.round(r.overall)}）／${esc(r.team)} ${r.pos === s.player.pos ? '・同ポジションのライバル' : ''}</li>`).join('');
+  const rivals = s.rivals.filter((r) => !r.retired).slice().sort((a,b) => b.overall-a.overall).slice(0,5).map((r) => `<li>${esc(r.name)}（${r.country && r.country !== '日本' ? `${esc(r.country)}・` : ''}${r.pos}・総合値${Math.round(r.overall)}）／${esc(r.team)}${r.league ? `・${esc(r.league)}` : ''} ${r.pos === s.player.pos ? '・同ポジションのライバル' : ''}</li>`).join('');
   const hall = careerHallOfFame().slice(0,5).map((r,i) => `<li>${i+1}位 ${esc(r.name)}：スコア${r.score}／出場${r.appearances}・${r.tries}トライ</li>`).join('');
   return `<main class="page career-pennant-shell"><div class="career-pennant-ribbon"><span>RUGBY PENNANT</span><span>${esc(team)} ・ SEASON ${s.currentSeason.year}</span></div><header class="hd career-pennant-header"><div class="school">🏉 ラグビー人生キャリア</div><div class="date">${s.age}歳・${monthLabel(s.month)} ／ ${labels[s.phase]} ${s.phase === 'retired' ? '' : s.stageYear + '年目'}</div></header>
     <div class="panel career-player-hero"><div class="profile-hero">${careerPortrait(s.player.name,s.player.pos)}<div><span class="profile-kicker">PLAYER CAREER</span><b class="career-player-name">${esc(s.player.name)}</b><p>${s.player.pos} ／ 総合値 ${o}（${o >= 160 ? 'S' : o >= 135 ? 'A' : o >= 110 ? 'B' : o >= 85 ? 'C' : o >= 60 ? 'D' : 'E'}ランク）</p><span class="small">${esc(team)} ・ ${s.player.height}cm / ${s.player.weight}kg</span></div></div><p>${phaseDescription(s)}</p><div class="career-kit-radar">${careerUniform(team)}<div class="radar-wrap"><h3>能力バランス</h3>${careerRadar(s.player.stats as unknown as Record<string,number>)}</div></div></div>
