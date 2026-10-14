@@ -190,8 +190,8 @@ appearances.injuryMonths = 2;
 assert.equal(careerAppearanceProbability(appearances), proStar, 'legacy injury save fields do not affect selection because injury mechanics are disabled');
 appearances.injuryMonths = 0;
 assert.equal(appearances.trainingPlan, 'バランス');
-setCareerTrainingPlan(appearances, '回復');
-assert.equal(appearances.trainingPlan, '回復', 'training plans can be changed and saved with the career state');
+setCareerTrainingPlan(appearances, '技術');
+assert.equal(appearances.trainingPlan, '技術', 'training plans can be changed without fatigue or injury recovery settings');
 const transfer = newCareer('移籍テスト', 'CTB');
 transfer.phase = 'professional'; transfer.age = 26; transfer.professionalTeam = 'テストクラブ'; transfer.proDivision = 2;
 transfer.pendingTransfer = { age: 26, offers: [{ team: '海外クラブ（欧州リーグ）', division: 1, salary: 2800, overseas: true }] };
@@ -205,7 +205,7 @@ assert.ok(careerLegacyScore(transfer) >= 0, 'career legacy score is computed fro
 assert.ok(s.seasons.every((r) => (r.starts ?? 0) + (r.substituteApps ?? 0) + (r.bench ?? 0) + (r.notSelected ?? 0) === r.played), 'every played fixture is recorded as starter, substitute, bench, or not selected');
 assert.ok(s.matchHistory.every((m) => ['先発','途中出場','控え','メンバー外'].includes(m.role ?? (m.appeared ? '先発' : 'メンバー外'))), 'match reports include an explicit selection role');
 assert.ok(s.rivals.length >= 3, 'career includes persistent rivals');
-console.log('  ok - selection roles, injury/fatigue, training plans, transfers, rivals, and legacy records');
+console.log('  ok - deterministic selection roles, simplified training plans, transfers, rivals, and legacy records');
 const positionalSelection = newCareer('ポジション順位テスト', 'CTB');
 positionalSelection.phase = 'highschool';
 positionalSelection.rivals = [70, 65, 60, 55].map((overall, index) => ({
