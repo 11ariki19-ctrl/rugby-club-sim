@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { PREFS, SURNAMES, schoolsOf } from '../src/data';
+import { PREFS, SURNAMES, schoolsOf, allSchools, HANAZONO_FINALS_LAST_10 } from '../src/data';
 import { seed } from '../src/rng';
 import {
   newGame, advanceMonth, scout, pickStarters, teamStrength, overall, overallAt, careerFor,
@@ -38,19 +38,21 @@ t('all generated players have unique full names from the top-300 surname pool', 
   assert.ok(generated.every((name) => SURNAMES.includes(name.split(' ')[0] as never) && name.split(' ').length === 2), 'every generated name uses a top-300 surname and a given name');
 });
 
-t('47都道府県と、それぞれ3校がある', () => {
+t('47都道府県に実在高校の候補と直近10大会の実績評価がある', () => {
   assert.equal(PREFS.length, 47);
+  assert.ok(allSchools().length >= 180);
+  assert.equal(new Set(allSchools().map((school) => school.name)).size, allSchools().length);
+  assert.equal(HANAZONO_FINALS_LAST_10.length, 10);
   for (let i = 0; i < 47; i++) {
     const list = schoolsOf(i);
-    assert.equal(list.length, 3);
+    assert.ok(list.length >= 2);
     for (const sc of list) {
       assert.ok(sc.name.length > 3);
       assert.ok(sc.power >= 1 && sc.power <= 5);
     }
   }
-  assert.equal(schoolsOf(0)[0].name, '北海道立中央高校');
-  assert.equal(schoolsOf(12)[0].name, '東京都立中央高校');
-  assert.equal(schoolsOf(26)[0].name, '大阪府立中央高校');
+  assert.ok(schoolsOf(12).some((school) => school.name === '目黒学院高等学校'));
+  assert.ok(schoolsOf(26).some((school) => school.name === '大阪桐蔭高等学校'));
 });
 
 t('新規ゲームは27人で、先発15枠がすべて埋まる', () => {
