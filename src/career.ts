@@ -287,7 +287,7 @@ export function setCareerTraining(s: CareerState, k: StatKey): void {
   if (STAT_KEYS.includes(k)) s.training = k;
 }
 export function setCareerTrainingPlan(s: CareerState, plan: CareerTrainingPlan): void {
-  if (['バランス','筋力','技術','持久力','回復'].includes(plan)) s.trainingPlan = plan;
+  if (['バランス','筋力','技術','持久力'].includes(plan)) s.trainingPlan = plan;
 }
 export function careerLegacyScore(s: CareerState): number {
   const includeCurrent = s.phase !== 'retired';
@@ -532,7 +532,6 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   let role: CareerRole = live?.role ?? 'メンバー外';
   const representativeRole = !live ? nationalMatchRole(s, kind) : undefined;
   if (!live && representativeRole) role = representativeRole;
-  else if (!live && s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed) role = '先発';
   else if (!live) {
     // 試合前のポジション順位表示と試合後の記録を一致させる。
     // 出場確率による別判定を挟むと、先発表示なのに試合後は未出場になるため、
@@ -623,10 +622,7 @@ function roundName(round: number, total: number): string {
 export function beginCareerLiveMatch(s: CareerState, source: 'tournament' | 'fixture', fixture: CareerFixture): void {
   if (s.liveMatch) return;
   // 出場可否は抽選せず、所属チームの同ポジション内総合値順位で決定する。
-  const role: CareerRole = nationalMatchRole(s, fixture.kind)
-    ?? (s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed
-      ? '先発'
-      : careerRoleByPositionalRank(s));
+  const role: CareerRole = nationalMatchRole(s, fixture.kind) ?? careerRoleByPositionalRank(s);
   s.liveMatch = {
     source, fixture, elapsed: 0, possession: '自チーム', fieldPosition: 50, scoreFor: 0, scoreAgainst: 0, role,
     tries: 0, carries: 0, tackles: 0, lineBreaks: 0, kicks: 0, errors: 0, scenes: [],
@@ -940,7 +936,7 @@ export function careerGrowthMultiplier(s: CareerState): number {
 function applyCareerDevelopment(s: CareerState): void {
   const baseStage = s.phase === 'highschool' ? 0.58 : s.phase === 'university' ? 0.42 : 0.28;
   const ageFactor = s.age < 22 ? 1 : s.age < 27 ? 0.72 : s.age < 31 ? 0.42 : s.age < 34 ? 0.18 : 0.05;
-  const planFactor: Record<CareerTrainingPlan, number> = { 'バランス': 1, '筋力': 0.9, '技術': 1.05, '持久力': 0.88, '回復': 0.68 };
+  const planFactor: Record<CareerTrainingPlan, number> = { 'バランス': 1, '筋力': 0.9, '技術': 1.05, '持久力': 0.88 };
   for (const k of STAT_KEYS) {
     const focus = k === s.training ? (s.trainingPlan === 'バランス' ? 1.35 : s.trainingPlan === '筋力' && ['pow','sta'].includes(k) ? 1.8 : s.trainingPlan === '技術' && ['tec','men'].includes(k) ? 1.8 : s.trainingPlan === '持久力' && ['sta','spd'].includes(k) ? 1.8 : 1.08) : 0.1;
     const inc = s.player.talent * careerGrowthMultiplier(s) * baseStage * Math.max(0.04, ageFactor) * planFactor[s.trainingPlan] * focus * Math.max(0.08, 1 - s.player.stats[k] / 220) * (0.85 + rand() * 0.3);
