@@ -80,7 +80,7 @@ export interface CareerState {
   pendingFixtures?: CareerFixture[]; liveMatch?: CareerLiveMatch; lastMatch?: CareerMatch; matchHistory: CareerMatch[];
   highSchoolAppearances: number; highSchoolTries: number; highSchoolRatingTotal: number; highSchoolRatingCount: number;
   nationalCandidate: boolean; worldTournamentWins: number;
-  worldCup?: { year: number; pool: string; poolOpponents: string[]; poolPlayed: number; poolWins: number; qualified: boolean; knockoutStage: number; completed: boolean };
+  worldCup?: { year: number; pool: string; poolOpponents: string[]; poolRivalWins: number[]; poolPlayed: number; poolWins: number; qualified: boolean; knockoutStage: number; completed: boolean };
   japanNationalTeamSelected: boolean; japanNationalTeamCaps: number; japanNationalTeamWins: number;
   professionalStarterGuaranteed: boolean;
   fatigue: number;
@@ -644,13 +644,13 @@ function monthlyFixtures(s: CareerState): CareerFixture[] {
     ];
   }
   if (s.phase === 'professional') {
-    if (s.japanNationalTeamSelected && s.month === 9 && (s.age - 23) % 4 === 0 && !s.worldCup?.completed) {
+    if (s.japanNationalTeamSelected && s.month === 9 && (s.age - 23) % 4 === 0 && (!s.worldCup || s.worldCup.completed)) {
       const shuffled = [...WORLD_CUP_TEAMS];
       for (let i = shuffled.length - 1; i > 0; i--) { const j = int(0, i); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
       const pools = [shuffled.slice(0,5), shuffled.slice(5,10), shuffled.slice(10,15), shuffled.slice(15,20)];
       const pool = pools.find((p) => p.includes('日本')) ?? pools[0];
       const opponents = pool.filter((x) => x !== '日本');
-      s.worldCup = { year: 2023 + Math.max(0, Math.floor((s.age - 23) / 4)) * 4, pool: String.fromCharCode(65 + pools.indexOf(pool)), poolOpponents: opponents, poolPlayed: 0, poolWins: 0, qualified: false, knockoutStage: 0, completed: false };
+      s.worldCup = { year: 2023 + Math.max(0, Math.floor((s.age - 23) / 4)) * 4, pool: String.fromCharCode(65 + pools.indexOf(pool)), poolOpponents: opponents, poolRivalWins: opponents.map(() => int(0, 4)), poolPlayed: 0, poolWins: 0, qualified: false, knockoutStage: 0, completed: false };
       return opponents.map((opponent, i) => ({ date: `${9 + Math.floor(i * 2 / 3)}月・プール戦`, label: `ラグビーワールドカップ プール${s.worldCup!.pool} 第${i + 1}戦`, opponent, difficulty: 76 + i * 2, kind: 'world-cup' as const }));
     }
     if (s.month === 8 && s.japanNationalTeamSelected) return JAPAN_TEST_OPPONENTS.map((opponent, i) => ({ date: `8月・日本代表戦${i + 1}`, label: `日本代表テストマッチ 第${i + 1}戦`, opponent, difficulty: 72 + i * 2, kind: 'japan-test' as const }));
@@ -678,7 +678,7 @@ function playNextFixture(s: CareerState, interactive = false): void {
     s.worldCup.poolPlayed++;
     if (m.win) s.worldCup.poolWins++;
     if (s.worldCup.poolPlayed === 4) {
-      s.worldCup.qualified = s.worldCup.poolWins >= 2;
+      const table = [{ team: '日本', wins: s.worldCup.poolWins, tie: rand() }, ...s.worldCup.poolOpponents.map((team, i) => ({ team, wins: s.worldCup.poolRivalWins[i] ?? int(0,4), tie: rand() }))].sort((a,b) => b.wins - a.wins || b.tie - a.tie);\n      s.worldCup.qualified = table.findIndex((row) => row.team === '日本') < 2;
       if (s.worldCup.qualified) s.pendingFixtures = [
         { date: '10月・準々決勝', label: 'ラグビーワールドカップ 準々決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本' && !s.worldCup!.poolOpponents.includes(x))), difficulty: 82, kind: 'world-cup' },
         { date: '10月・準決勝', label: 'ラグビーワールドカップ 準決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), difficulty: 86, kind: 'world-cup' },
@@ -687,7 +687,7 @@ function playNextFixture(s: CareerState, interactive = false): void {
       else s.worldCup.completed = true;
     } else if (s.worldCup.poolPlayed > 4) {
       s.worldCup.knockoutStage++;
-      if (!m.win || s.worldCup.knockoutStage >= 3) s.worldCup.completed = true;
+      if (!m.win || s.worldCup.knockoutStage >= 3) { s.worldCup.completed = true; s.pendingFixtures = []; }
       else if (s.worldCup.knockoutStage === 1 && s.pendingFixtures.length === 0) s.pendingFixtures = [{ date: '10月・準決勝', label: 'ラグビーワールドカップ 準決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), difficulty: 86, kind: 'world-cup' }];
       else if (s.worldCup.knockoutStage === 2 && s.pendingFixtures.length === 0) s.pendingFixtures = [{ date: '10月・決勝', label: 'ラグビーワールドカップ 決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), difficulty: 90, kind: 'world-cup' }];
     }
@@ -856,7 +856,7 @@ export function loadCareer(): CareerState | null {
     if (typeof s.highSchoolRatingCount !== 'number') s.highSchoolRatingCount = 0;
     if (typeof s.nationalCandidate !== 'boolean') s.nationalCandidate = false;
     if (typeof s.worldTournamentWins !== 'number') s.worldTournamentWins = 0;
-    if (s.worldCup && (!Array.isArray(s.worldCup.poolOpponents) || typeof s.worldCup.poolPlayed !== 'number')) s.worldCup = undefined;
+    if (s.worldCup && (!Array.isArray(s.worldCup.poolOpponents) || typeof s.worldCup.poolPlayed !== 'number')) s.worldCup = undefined;\n    if (s.worldCup && !Array.isArray(s.worldCup.poolRivalWins)) s.worldCup.poolRivalWins = s.worldCup.poolOpponents.map(() => 2);
     if (!s.player.talentType || !CAREER_TALENTS.some((x) => x.id === s.player.talentType)) s.player.talentType = '凡人';
     if (typeof s.japanNationalTeamSelected !== 'boolean') s.japanNationalTeamSelected = false;
     if (typeof s.japanNationalTeamCaps !== 'number') s.japanNationalTeamCaps = 0;
