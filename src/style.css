@@ -688,3 +688,6 @@ main { min-height: 100vh; }
   .career-pennant-shell .career-sticky-progress-meta { min-width: 54px; font-size: 11px; }
   .career-pennant-shell .career-sticky-progress-button { min-height: 46px; font-size: 13px; }
 }
+
+/* Keep the information tabs below the pinned progression bar. */
+.career-pennant-shell .career-tabs { top: 76px; }
