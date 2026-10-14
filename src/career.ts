@@ -1,4 +1,4 @@
-import { PREFS, SUFFIX, SURNAMES, schoolsOf } from './data';
+import { PREFS, SUFFIX, SURNAMES, schoolsOf, allSchools } from './data';
 import { generateUniquePlayerName, inferPlayerCountry } from './names';
 import { rand, int, pick, gauss, clamp } from './rng';
 import { POS_LABEL, STAT_KEYS, STAT_LABEL, overallAt, rankOf } from './game';
@@ -347,7 +347,7 @@ function addPhaseRivals(s: CareerState): void {
 }
 const NATIONAL_COUNTRY_RANK: Record<string, number> = { SouthAfrica: 98, NZ: 97, Ireland: 94, France: 93, England: 92, Australia: 92, Scotland: 91, Argentina: 89, Japan: 87, Fiji: 86, Wales: 85, Italy: 84, Georgia: 81, USA: 79, Portugal: 78, Samoa: 77, Tonga: 76, Uruguay: 75, Chile: 74, Spain: 73, Canada: 72, Romania: 71 };
 const COUNTRY_LABEL: Record<string, string> = { SouthAfrica: '南アフリカ', NZ: 'ニュージーランド', Ireland: 'アイルランド', France: 'フランス', England: 'イングランド', Australia: 'オーストラリア', Scotland: 'スコットランド', Argentina: 'アルゼンチン', Japan: '日本', Fiji: 'フィジー', Wales: 'ウェールズ', Italy: 'イタリア', Georgia: 'ジョージア', USA: 'アメリカ', Portugal: 'ポルトガル', Samoa: 'サモア', Tonga: 'トンガ', Uruguay: 'ウルグアイ', Chile: 'チリ', Spain: 'スペイン', Canada: 'カナダ', Romania: 'ルーマニア' };
-const TOP_SCHOOLS = ['桐蔭学園','東福岡','大阪桐蔭','京都成章','東海大大阪仰星','國學院栃木','東海大相模','佐賀工業','常翔学園','御所実業','中部大春日丘','石見智翠館','尾道','流経大柏','目黒学院','天理','報徳学園','関西学院高等部','大分東明','秋田工業','茗溪学園','日本航空石川','高鍋','長崎北陽台','京都工学院','仙台育英','盛岡工業','札幌山の手'];
+const TOP_SCHOOLS = allSchools().filter((school) => school.power >= 5).map((school) => school.name);
 const UNI_STRENGTH: Record<string, number> = { '帝京大学': 98, '明治大学': 97, '早稲田大学': 97, '京都産業大学': 94, '天理大学': 93, '東海大学': 93, '筑波大学': 91, '関西学院大学': 90, '同志社大学': 89, '慶應義塾大学': 89, '東洋大学': 88, '立命館大学': 87, '大東文化大学': 86, '日本大学': 85, '関東学院大学': 84, '近畿大学': 84, '流通経済大学': 83, '福岡工業大学': 82, '青山学院大学': 82, '法政大学': 82 };
 export function careerTeamStrengthProfile(phase: CareerPhase, team: string): { center: number; min: number; max: number } {
   if (phase === 'highschool') {
@@ -371,7 +371,7 @@ function createCareerRivals(s: CareerState): CareerRival[] {
   const playerOverall = careerOverall(s);
   const candidates: CareerRival[] = [];
   const usedNames = new Set<string>([s.player.name, ...s.rivals.map((r) => r.name), ...s.matchHistory.flatMap((m) => (m.scoreEvents ?? []).map((e) => e.scorer))]);
-  const schools = [...TOP_SCHOOLS, ...PREFS.map((p) => `${p.name.replace(/県|府|都|道/g, '')}県立選抜`)];
+  const schools = allSchools().map((school) => school.name);
   const universities = [...new Set(Object.values(UNIVERSITY_GROUPS).flatMap((x) => [...x]))];
   const proClubs = [...new Set(Object.values(PRO_LEAGUES).flatMap((x) => x.teams))];
   const domesticTeams = high ? schools : uni ? universities : proClubs;
