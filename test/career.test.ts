@@ -1,9 +1,27 @@
 import assert from 'node:assert/strict';
 import { seed } from '../src/rng';
 import { PREFS } from '../src/data';
-import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, playCareerMatchAction, careerGrowthMultiplier, careerTeamStrengthProfile, WORLD_CUP_TEAMS, worldCupPools } from '../src/career';
+import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, playCareerMatchAction, careerGrowthMultiplier, careerTeamStrengthProfile, WORLD_CUP_TEAMS, worldCupPools, saveCareer, loadCareer, setCareerSaveSlot, clearCareer } from '../src/career';
 
 console.log('career mode tests');
+const storageData = new Map<string, string>();
+Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
+  getItem: (key: string) => storageData.get(key) ?? null,
+  setItem: (key: string, value: string) => { storageData.set(key, value); },
+  removeItem: (key: string) => { storageData.delete(key); },
+}});
+const slotOne = newCareer('スロット1', 'CTB');
+setCareerSaveSlot(1); saveCareer(slotOne);
+const slotTwo = newCareer('スロット2', 'FL');
+setCareerSaveSlot(2); saveCareer(slotTwo);
+assert.equal(loadCareer(1)?.player.name, 'スロット1', 'slot one persists independently');
+assert.equal(loadCareer(2)?.player.name, 'スロット2', 'slot two persists independently');
+clearCareer(2);
+assert.equal(loadCareer(2), null, 'clearing slot two leaves it empty');
+assert.equal(loadCareer(1)?.player.name, 'スロット1', 'clearing slot two does not delete slot one');
+setCareerSaveSlot(1);
+console.log('  ok - independent local save slots and slot-specific clearing');
+
 assert.equal(WORLD_CUP_TEAMS.length, 32, 'World Cup roster contains 32 nations');
 assert.equal(new Set(WORLD_CUP_TEAMS).size, 32, 'World Cup nations are unique');
 const pools = worldCupPools();
