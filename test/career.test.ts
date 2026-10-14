@@ -1,10 +1,19 @@
 import assert from 'node:assert/strict';
-import { seed } from '../src/rng';
-import { PREFS } from '../src/data';
+import { seed, rand } from '../src/rng';
+import { PREFS, SURNAMES } from '../src/data';
+import { generateUniqueJapaneseName } from '../src/names';
 import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, careerGrowthMultiplier, careerTeamStrengthProfile, WORLD_CUP_TEAMS, worldCupPools, saveCareer, loadCareer, setCareerSaveSlot, clearCareer, nationalCandidatePool, careerRoleByPositionalRank, nationalMatchRole } from '../src/career';
 
 console.log('career mode tests');
 const initialPlayer = newCareer('年代調整テスト', 'CTB');
+seed(774411);
+const generatedNameSet = new Set<string>();
+for (let i = 0; i < 5000; i++) generateUniqueJapaneseName(generatedNameSet, rand);
+assert.equal(generatedNameSet.size, 5000, 'generated full names remain unique across a large batch');
+assert.ok([...generatedNameSet].every((name) => SURNAMES.includes(name.split(' ')[0] as never) && name.split(' ').length === 2), 'generated names use a top-300 surname and full name format');
+assert.equal(new Set(initialPlayer.rivals.map((r) => r.name)).size, initialPlayer.rivals.length, 'career rival full names are unique');
+assert.ok(initialPlayer.rivals.every((r) => SURNAMES.includes(r.name.split(' ')[0] as never)), 'career rivals use the top-300 surname pool');
+console.log('  ok - unique random full names and top-300 surname pool');
 assert.ok(careerOverall(initialPlayer) >= 25 && careerOverall(initialPlayer) < 60, 'new high school player starts within a plausible rating range');
 const eliteSchool = careerTeamStrengthProfile('highschool', '東福岡');
 const averageSchool = careerTeamStrengthProfile('highschool', '北海道県立選抜');
