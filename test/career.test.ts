@@ -10,10 +10,10 @@ Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
   setItem: (key: string, value: string) => { storageData.set(key, value); },
   removeItem: (key: string) => { storageData.delete(key); },
 }});
-const slotOne = newCareer('スロット1', 'CTB');
-setCareerSaveSlot(1); saveCareer(slotOne);
-const slotTwo = newCareer('スロット2', 'FL');
-setCareerSaveSlot(2); saveCareer(slotTwo);
+setCareerSaveSlot(1);
+const slotOne = newCareer('スロット1', 'CTB'); saveCareer(slotOne);
+setCareerSaveSlot(2);
+const slotTwo = newCareer('スロット2', 'FL'); saveCareer(slotTwo);
 assert.equal(loadCareer(1)?.player.name, 'スロット1', 'slot one persists independently');
 assert.equal(loadCareer(2)?.player.name, 'スロット2', 'slot two persists independently');
 clearCareer(2);
