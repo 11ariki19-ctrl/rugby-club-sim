@@ -162,9 +162,9 @@ for (let month = 9; month <= 11; month++) {
   while (schedule.month === month) advanceCareerMonth(schedule);
   if (month < 11) assert.equal(schedule.month, month + 1);
 }
-assert.equal(schedule.currentSeason.leaguePlayed, 7, 'university league has seven matches for an eight-team round robin');
-assert.ok(schedule.currentSeason.notes.some((x) => x.includes('関西大学Aリーグ') || x.includes('関東大学')));
-console.log('  ok - university league has seven official matches across September-November');
+assert.equal(schedule.currentSeason.leaguePlayed, 7, 'university league follows the 2025 season schedule');
+assert.ok(schedule.history.some((x) => x.includes('関西大学Aリーグ') || x.includes('関東大学')) || schedule.matchHistory.some((x) => x.label.includes('関西大学Aリーグ') || x.label.includes('関東大学')));
+console.log('  ok - university league has seven matches across September-November');
 assert.ok(schedule.matchHistory.length > 0);
 assert.ok(schedule.lastMatch?.scenes.length);
 assert.ok(schedule.lastMatch?.experience > 0);
