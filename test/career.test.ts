@@ -26,11 +26,11 @@ setCareerSaveSlot(1);
 const slotOne = newCareer('スロット1', 'CTB'); saveCareer(slotOne);
 setCareerSaveSlot(2);
 const slotTwo = newCareer('スロット2', 'FL'); saveCareer(slotTwo);
-assert.equal(loadCareer(1)?.player.name, 'スロット1', 'slot one persists independently');
-assert.equal(loadCareer(2)?.player.name, 'スロット2', 'slot two persists independently');
+setCareerSaveSlot(1); assert.equal(loadCareer(1)?.player.name, 'スロット1', 'slot one persists independently');
+setCareerSaveSlot(2); assert.equal(loadCareer(2)?.player.name, 'スロット2', 'slot two persists independently');
 clearCareer(2);
-assert.equal(loadCareer(2), null, 'clearing slot two leaves it empty');
-assert.equal(loadCareer(1)?.player.name, 'スロット1', 'clearing slot two does not delete slot one');
+setCareerSaveSlot(2); assert.equal(loadCareer(2), null, 'clearing slot two leaves it empty');
+setCareerSaveSlot(1); assert.equal(loadCareer(1)?.player.name, 'スロット1', 'clearing slot two does not delete slot one');
 setCareerSaveSlot(1);
 console.log('  ok - independent local save slots and slot-specific clearing');
 
