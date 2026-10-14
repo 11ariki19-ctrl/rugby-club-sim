@@ -1,9 +1,18 @@
 import assert from 'node:assert/strict';
 import { seed } from '../src/rng';
 import { PREFS } from '../src/data';
-import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, playCareerMatchAction, careerGrowthMultiplier, careerTeamStrengthProfile } from '../src/career';
+import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, playCareerMatchAction, careerGrowthMultiplier, careerTeamStrengthProfile, WORLD_CUP_TEAMS, worldCupPools } from '../src/career';
 
 console.log('career mode tests');
+assert.equal(WORLD_CUP_TEAMS.length, 32, 'World Cup roster contains 32 nations');
+assert.equal(new Set(WORLD_CUP_TEAMS).size, 32, 'World Cup nations are unique');
+const pools = worldCupPools();
+assert.equal(pools.length, 8, 'World Cup has eight pools');
+assert.ok(pools.every((pool) => pool.length === 4), 'each World Cup pool has four nations');
+assert.equal(new Set(pools.flat()).size, 32, 'each nation appears in exactly one pool');
+assert.ok(pools.flat().includes('日本'), 'Japan is included in the World Cup pools');
+console.log('  ok - World Cup format: 32 nations, 8 pools of 4');
+
 const weakSchoolProfile = careerTeamStrengthProfile('highschool', '青森県立中央高校');
 const eliteSchoolProfile = careerTeamStrengthProfile('highschool', '桐蔭学園');
 const weakUniversityProfile = careerTeamStrengthProfile('university', '青森学院大学');
