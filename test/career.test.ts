@@ -1,9 +1,19 @@
 import assert from 'node:assert/strict';
 import { seed } from '../src/rng';
 import { PREFS } from '../src/data';
-import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, playCareerMatchAction, careerGrowthMultiplier } from '../src/career';
+import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, playCareerMatchAction, careerGrowthMultiplier, careerTeamStrengthProfile } from '../src/career';
 
 console.log('career mode tests');
+const weakSchoolProfile = careerTeamStrengthProfile('highschool', '青森県立中央高校');
+const eliteSchoolProfile = careerTeamStrengthProfile('highschool', '桐蔭学園');
+const weakUniversityProfile = careerTeamStrengthProfile('university', '青森学院大学');
+const eliteUniversityProfile = careerTeamStrengthProfile('university', '帝京大学');
+assert.ok(weakSchoolProfile.center < eliteSchoolProfile.center, 'school ratings should follow school strength');
+assert.ok(weakSchoolProfile.max <= 59, 'one- or two-star high schools must not generate many 70+ players');
+assert.ok(eliteSchoolProfile.max > weakSchoolProfile.max, 'elite high schools may generate stronger players');
+assert.ok(weakUniversityProfile.center < eliteUniversityProfile.center, 'university ratings should follow university strength');
+assert.ok(eliteUniversityProfile.max <= 94, 'university squad ratings should remain within the club-strength ceiling');
+
 function advanceCalendarMonth(s: ReturnType<typeof newCareer>): void {
   const month = s.month, age = s.age, phase = s.phase;
   let guard = 0;
