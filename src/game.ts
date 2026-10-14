@@ -1,5 +1,6 @@
 import { PREFS, SURNAMES, GIVEN, MIDDLE, SUFFIX, UNIVS, schoolsOf } from './data';
 import { rand, int, pick, gauss, clamp } from './rng';
+import { generateUniqueJapaneseName } from './names';
 
 export type Pos = 'PR' | 'HO' | 'LO' | 'FL' | 'N8' | 'SH' | 'SO' | 'CTB' | 'WTB' | 'FB';
 
@@ -212,7 +213,7 @@ function makePlayer(s: GameState, o: MakeOpts): Player {
   if (o.fuzz && rand() < 0.25) stars = clamp(stars + (rand() < 0.5 ? -1 : 1), 1, 5);
   const p: Player = {
     id: s.nextId++,
-    name: `${pick(SURNAMES)} ${pick(GIVEN)}`,
+    name: generateUniqueJapaneseName(new Set([...s.players.map((player) => player.name), ...s.grads.map((grad) => grad.name), ...s.scoutLog.map((entry) => entry.name)]), rand),
     pos: o.pos,
     status: o.status,
     grade: o.grade,
