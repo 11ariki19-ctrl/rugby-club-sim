@@ -1,9 +1,17 @@
 import assert from 'node:assert/strict';
 import { seed } from '../src/rng';
 import { PREFS } from '../src/data';
-import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, playCareerMatchAction, careerGrowthMultiplier, careerTeamStrengthProfile, WORLD_CUP_TEAMS, worldCupPools, saveCareer, loadCareer, setCareerSaveSlot, clearCareer } from '../src/career';
+import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, playCareerMatchAction, careerGrowthMultiplier, careerTeamStrengthProfile, WORLD_CUP_TEAMS, worldCupPools, saveCareer, loadCareer, setCareerSaveSlot, clearCareer, careerOverallCap, nationalCandidatePool } from '../src/career';
 
 console.log('career mode tests');
+assert.equal(careerOverallCap({ phase: 'highschool', age: 15, stageYear: 1 }), 62, 'first-year high school players have a realistic rating ceiling');
+assert.equal(careerOverallCap({ phase: 'highschool', age: 17, stageYear: 3 }), 78, 'third-year high school ceiling remains below elite senior level');
+assert.equal(careerOverallCap({ phase: 'university', age: 21, stageYear: 4 }), 97, 'final-year university players can develop toward senior level');
+assert.equal(careerOverallCap({ phase: 'professional', age: 28, stageYear: 6 }), 112, 'prime professional ceiling is higher than youth ceilings');
+const selectionProbe = newCareer('代表選考テスト', 'CTB');
+assert.ok(nationalCandidatePool(selectionProbe).length <= 23, 'national squad never exceeds 23 players');
+console.log('  ok - age-category rating caps and 23-player national squad limit');
+
 const storageData = new Map<string, string>();
 Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
   getItem: (key: string) => storageData.get(key) ?? null,
