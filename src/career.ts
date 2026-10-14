@@ -840,6 +840,7 @@ export function loadCareer(): CareerState | null {
     if (typeof s.proSalary !== 'number') s.proSalary = 0;
     if (!Array.isArray(s.transferHistory)) s.transferHistory = [];
     if (!Array.isArray(s.rivals)) s.rivals = createCareerRivals(s);
+    if (s.phase !== 'highschool' && !s.rivals.some((r) => r.country && r.country !== '日本')) addPhaseRivals(s);
     if (!Array.isArray(s.awards)) s.awards = [];
     for (const r of [...s.seasons, s.currentSeason]) { if (!r) continue; if (typeof r.starts !== 'number') r.starts = r.appearances || 0; if (typeof r.substituteApps !== 'number') r.substituteApps = 0; if (typeof r.bench !== 'number') r.bench = 0; if (typeof r.notSelected !== 'number') r.notSelected = Math.max(0, (r.played || 0) - (r.appearances || 0)); if (!Array.isArray(r.awards)) r.awards = []; }
     for (const m of s.matchHistory) if (!m.role) m.role = m.appeared ? '先発' : 'メンバー外';
