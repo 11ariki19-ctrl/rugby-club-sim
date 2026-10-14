@@ -602,12 +602,6 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   }
   season.pointsFor += my; season.pointsAgainst += their;
   if (my > their) season.wins++; else if (my < their) season.losses++; else season.draws++;
-  const positionTryRate: Record<Pos, number> = {
-    PR: 0.055, HO: 0.095, LO: 0.070, FL: 0.105, N8: 0.125,
-    SH: 0.060, SO: 0.085, CTB: 0.115, WTB: 0.245, FB: 0.145,
-  };
-  // 2024-25年の主要プロ大会の傾向を参考に、ポジション別の相対比率を反映したゲーム用モデル。
-  const tryChance = clamp(positionTryRate[s.player.pos] * (0.72 + s.player.stats.spd / 180 + s.player.stats.tec / 260) * (0.9 + s.player.stats.men / 500), 0.02, 0.52);
   const tries = live ? (appeared ? live.tries : 0) : scoreReport.playerTries;
   const carries = live ? (appeared ? live.carries : 0) : appeared ? int(5, 18) + Math.round(s.player.stats.spd / 20) : 0;
   const tackles = live ? (appeared ? live.tackles : 0) : appeared ? int(4, 15) + Math.round(s.player.stats.sta / 20) : 0;
