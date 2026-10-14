@@ -137,7 +137,7 @@ export function schoolsOf(i: number): School[] {
       id: `${i}-${index}`, name, power,
       desc: power >= 5 ? '過去10年の花園実績を参考にした全国上位クラス' : power >= 4 ? '県予選上位・花園出場実績を持つ強豪' : power >= 3 ? '県内予選で競争力のある実在校' : '実在校。地域内の競争力を反映',
     };
-  });
+  }).sort((a, b) => a.power - b.power || a.name.localeCompare(b.name, 'ja'));
 }
 
 /**
