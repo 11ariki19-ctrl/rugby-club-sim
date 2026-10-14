@@ -1,6 +1,6 @@
 import { careerTeamStrengthProfile } from './career';
 import {
-  advanceCareerMonth, careerOverall, careerStatCap, currentTeam, newCareer, setCareerTraining, setCareerTrainingPlan, playCareerMatchAction,
+  advanceCareerMonth, careerOverall, currentTeam, newCareer, setCareerTraining, setCareerTrainingPlan, playCareerMatchAction,
   resolveCareerTransfer, careerHallOfFame, careerLegacyScore,
   CAREER_POSITIONS, CAREER_STAT_KEYS, CAREER_STAT_LABEL, CAREER_TALENTS, hasCareerSave, loadCareer, saveCareer, setCareerSaveSlot, careerSaveSummary,
 } from './career';
@@ -100,16 +100,18 @@ function lastMatchCard(s: CareerState): string {
 function homeScreen(s: CareerState): string {
   const o = careerOverall(s);
   const rating = s.phase === 'highschool' ? (o >= 76 ? 'S' : o >= 72 ? 'A' : o >= 68 ? 'B' : o >= 62 ? 'C' : o >= 55 ? 'D' : 'E') : s.phase === 'university' ? (o >= 95 ? 'S' : o >= 90 ? 'A' : o >= 85 ? 'B' : o >= 78 ? 'C' : o >= 68 ? 'D' : 'E') : (o >= 105 ? 'S' : o >= 98 ? 'A' : o >= 90 ? 'B' : o >= 80 ? 'C' : o >= 65 ? 'D' : 'E');
-  const bars = CAREER_STAT_KEYS.map((k) => `<div class="bar"><span>${STAT_LABEL[k]}</span><div class="track"><i style="width:${Math.round(Math.min(careerStatCap(s),s.player.stats[k]) / careerStatCap(s) * 100)}%"></i></div><b>${Math.round(s.player.stats[k])}</b></div>`).join('');
+  const bars = CAREER_STAT_KEYS.map((k) => `<div class="bar"><span>${STAT_LABEL[k]}</span><div class="track"><i style="width:${Math.round(Math.min(120,s.player.stats[k]) / 120 * 100)}%"></i></div><b>${Math.round(s.player.stats[k])}</b></div>`).join('');
   const training = CAREER_STAT_KEYS.map((k) => `<button class="btn mode ${s.training === k ? 'primary' : ''}" data-career="train" data-v="${k}"><b>${STAT_LABEL[k]}を鍛える</b><span>${s.training === k ? '現在選択中' : '今月の重点トレーニングに設定'}</span></button>`).join('');
   const history = s.history.slice(0, 8).map((h) => `<li>${esc(h)}</li>`).join('');
   const seasons = s.seasons.slice().reverse().slice(0, 12).map((r) => `<div class="card"><b>${r.age}歳・${esc(r.team)}</b><div class="small">${labels[r.phase]} ${r.year}年目：${r.wins}勝${r.losses}敗${r.draws}分 ／ 出場${r.appearances}試合・${r.tries}トライ</div><div class="small">先発${r.starts ?? 0}・途中出場${r.substituteApps ?? 0}・控え${r.bench ?? 0}・メンバー外${r.notSelected ?? 0}</div>${r.awards?.length ? `<div class="small">表彰：${r.awards.map(esc).join('、')}</div>` : ''}</div>`).join('');
   const team = currentTeam(s);
+  const advanceLabel = advanceLabel;
   const plans: CareerTrainingPlan[] = ['バランス','筋力','技術','持久力','回復'];
   const planButtons = plans.map((p) => `<button class="btn mode ${s.trainingPlan === p ? 'primary' : ''}" data-career="plan" data-v="${p}"><b>${p}</b><span>${s.trainingPlan === p ? '選択中' : ({'バランス':'成長と回復の両立','筋力':'筋力を伸ばすが疲労が増えやすい','技術':'技術系能力を重点育成','持久力':'スタミナと疲労耐性','回復':'疲労軽減・負傷回復を優先'} as Record<CareerTrainingPlan,string>)[p]}</span></button>`).join('');
   const rivals = s.rivals.filter((r) => !r.retired).slice().sort((a,b) => b.overall-a.overall).slice(0,5).map((r) => `<li>${esc(r.name)}（${r.country && r.country !== '日本' ? `${esc(r.country)}・` : ''}${r.pos}・総合値${Math.round(r.overall)}）／${esc(r.team)}${r.league ? `・${esc(r.league)}` : ''} ${r.pos === s.player.pos ? '・同ポジションのライバル' : ''}</li>`).join('');
   const hall = careerHallOfFame().slice(0,5).map((r,i) => `<li>${i+1}位 ${esc(r.name)}：スコア${r.score}／出場${r.appearances}・${r.tries}トライ</li>`).join('');
   return `<main class="page career-pennant-shell"><div class="career-pennant-ribbon"><span>RUGBY PENNANT</span><span>${esc(team)} ・ SEASON ${s.currentSeason.year}</span></div><header class="hd career-pennant-header"><div class="school">🏉 ラグビー人生キャリア</div><div class="date">${s.age}歳・${monthLabel(s.month)} ／ ${labels[s.phase]} ${s.phase === 'retired' ? '' : s.stageYear + '年目'}</div></header>
+    <div class="career-sticky-progress"><div class="career-sticky-progress-meta"><b>${monthLabel(s.month)}</b><span>${labels[s.phase]}・${s.age}歳</span></div><button class="btn primary career-sticky-progress-button" data-career="advance">${advanceLabel}</button></div>
     <nav class="career-tabs" role="tablist" aria-label="キャリア情報">
       <button class="career-tab ${activeCareerTab === 'player' ? 'active' : ''}" role="tab" aria-selected="${activeCareerTab === 'player'}" data-career="career-tab" data-v="player">選手情報</button>
       <button class="career-tab ${activeCareerTab === 'roster' ? 'active' : ''}" role="tab" aria-selected="${activeCareerTab === 'roster'}" data-career="career-tab" data-v="roster">メンバー</button>
@@ -123,7 +125,7 @@ function homeScreen(s: CareerState): string {
     <div class="card"><b>コンディション</b><p>疲労：${Math.round(s.fatigue)} / 100　／　士気：${Math.round(s.morale)} / 100</p><div class="bar"><span>疲労</span><div class="track"><i style="width:${Math.round(s.fatigue)}%"></i></div><b>${Math.round(s.fatigue)}%</b></div><p class="small">負傷による長期離脱はありません。疲労は月ごとの回復と育成プランで管理します。</p></div>
     ${s.japanNationalTeamSelected ? `<div class="card"><b>日本代表</b><p>選出中 ／ 国際試合 ${s.japanNationalTeamCaps}キャップ・${s.japanNationalTeamWins}勝</p><p class="small">全国の候補からポジション別の総合力で毎月再選考します。</p></div>` : `<div class="card"><b>日本代表</b><p>現在は未選出 ／ 通算 ${s.japanNationalTeamCaps}キャップ・${s.japanNationalTeamWins}勝</p></div>`}
     ${s.nationalSquad?.length && (s.pendingTournament?.kind === 'world' || s.pendingFixtures?.some((f) => f.kind === 'japan-test' || f.kind === 'world-cup') || s.liveMatch?.fixture.kind === 'japan-test' || s.liveMatch?.fixture.kind === 'world-cup') ? `<div class="card national-squad-card"><h3>${s.phase === 'highschool' ? '高校日本代表候補' : '日本代表'} 選出メンバー（${s.nationalSquad.length}名）</h3><p class="small">ポジション別に選考。代表戦の予定があるときにメンバーを表示します。</p><ol class="national-squad-list">${s.nationalSquad.slice(0, 23).map((p,i)=>`<li><span class="squad-rank">${i+1}</span><span class="squad-main"><b>${esc(p.name)}</b><small>${p.pos} ／ ${esc(p.team)}${s.phase !== 'professional' && p.year ? `・${p.year}` : ''}</small></span><strong>${p.overall}</strong></li>`).join('')}</ol></div>` : ''}
-    <div class="card"><h3>選手能力</h3>${bars}<p class="small">能力上限：年代・年齢に応じて変動 ／ 最高総合値：${Math.round(s.player.peak)} ／ 成長タイプ：${s.player.talentType}（成長係数 ${s.player.talent.toFixed(2)}）</p></div>
+    <div class="card"><h3>選手能力</h3>${bars}<p class="small">能力値は育成・経験・年齢に応じて変化 ／ 最高総合値：${Math.round(s.player.peak)} ／ 成長タイプ：${s.player.talentType}（成長係数 ${s.player.talent.toFixed(2)}）</p></div>
     </section>
     <section class="career-tab-panel ${activeCareerTab === 'roster' ? 'active' : ''}" data-tab-panel="roster">
     <section class="career-roster-panel"><h3>チーム登録メンバー（23名）</h3><div class="lineup-grid">${lineupCard(s, currentTeam(s), true)}</div></section>
