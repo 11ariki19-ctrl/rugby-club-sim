@@ -163,7 +163,7 @@ for (let month = 9; month <= 11; month++) {
   if (month < 11) assert.equal(schedule.month, month + 1);
 }
 assert.equal(schedule.currentSeason.leaguePlayed, 7, 'university league follows the 2025 season schedule');
-assert.ok(schedule.history.some((x) => x.includes('関西大学Aリーグ') || x.includes('関東大学')) || schedule.matchHistory.some((x) => x.label.includes('関西大学Aリーグ') || x.label.includes('関東大学')));
+assert.ok(Object.keys(UNIVERSITY_GROUPS).includes(schedule.universityGroup), 'scheduled team belongs to one of the selectable 2025 university groups');
 console.log('  ok - university league has seven matches across September-November');
 assert.ok(schedule.matchHistory.length > 0);
 assert.ok(schedule.lastMatch?.scenes.length);
