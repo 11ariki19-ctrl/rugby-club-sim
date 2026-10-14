@@ -748,13 +748,11 @@ function finishCareerLiveMatch(s: CareerState): void {
       }
       if (s.universityQualified) {
         s.history.unshift(`${s.universityGroup} ${s.currentSeason.leagueWins}勝で全国大学選手権出場圏内。`);
-        s.pendingFixtures?.push(
-          { date: '11〜12月・全国大学選手権', label: '全国大学選手権 3回戦', opponent: opponentFor(s, 'university-championship'), difficulty: 62, kind: 'university-championship' },
-          { date: '12月・準々決勝', label: '全国大学選手権 準々決勝', opponent: opponentFor(s, 'university-championship'), difficulty: 66, kind: 'university-championship' },
-        );
+        // 大会日程は monthlyFixtures() で2025年度の公式日程に合わせて進行する。
       }
     }
-    if ((kind === 'university-championship' || kind === 'university-playoff') && !m.win) { if (kind === 'university-championship') s.universityTournamentAlive = false; s.pendingFixtures = []; }
+    if (kind === 'university-championship' && !m.win) { s.universityTournamentAlive = false; s.pendingFixtures = []; }
+    if (kind === 'university-playoff' && !m.win && f.label.includes('第2戦')) s.pendingFixtures = [];
     if (kind === 'professional-playoff' && !m.win) s.pendingFixtures = [];
     if (!s.pendingFixtures?.length) s.tournamentCompletedMonth = s.month;
   }
