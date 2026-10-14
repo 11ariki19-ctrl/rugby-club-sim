@@ -7,7 +7,7 @@ export type CareerPhase = 'highschool' | 'university' | 'professional' | 'retire
 export type CareerTalentType = '凡人' | '秀才' | '天才' | '一芸';
 export type CareerRole = '先発' | '途中出場' | '控え' | 'メンバー外';
 export type CareerTrainingPlan = 'バランス' | '筋力' | '技術' | '持久力' | '回復';
-export interface CareerRival { name: string; pos: Pos; age: number; overall: number; phase: CareerPhase; team: string; appearances: number; tries: number; retired: boolean; }
+export interface CareerRival { name: string; pos: Pos; age: number; overall: number; phase: CareerPhase; team: string; country?: string; league?: string; appearances: number; tries: number; retired: boolean; }
 export const CAREER_TALENTS: { id: CareerTalentType; label: string; description: string }[] = [
   { id: '凡人', label: '凡人', description: '現行仕様のランダム能力・成長' },
   { id: '秀才', label: '秀才', description: '凡人の初期能力に全ステータス+10' },
@@ -88,7 +88,7 @@ export interface CareerState {
   trainingPlan: CareerTrainingPlan;
   proContractYears: number;
   proSalary: number;
-  pendingTransfer?: { offers: { team: string; division: 1 | 2 | 3; salary: number; overseas: boolean }[]; age: number };
+  pendingTransfer?: { offers: { team: string; division: 1 | 2 | 3; salary: number; overseas: boolean; league?: string }[]; age: number };
   transferHistory: string[];
   rivals: CareerRival[];
   legacyScore?: number;
@@ -103,6 +103,7 @@ export interface CareerState {
   university: string;
   universityTier: string;
   professionalTeam: string;
+  professionalLeague?: string;
   retirementAge: number;
   seasons: CareerSeason[];
   currentSeason: CareerSeason;
@@ -120,6 +121,24 @@ const PRO_TEAMS: Record<1 | 2 | 3, string[]> = {
   2: ['花園近鉄ライナーズ','豊田自動織機シャトルズ愛知','NECグリーンロケッツ東葛','レッドハリケーンズ大阪','清水建設江東ブルーシャークス','日本製鉄釜石シーウェイブス','九州電力キューデンヴォルテクス','日野レッドドルフィンズ'],
   3: ['ヤクルトレビンズ戸田','栗田工業ウォーターガッシュ昭島','中国電力レッドレグリオンズ','ルリーロ福岡','狭山セコムラガッツ','マツダスカイアクティブズ広島'],
 };
+const PRO_LEAGUES: Record<string, { country: string; teams: string[]; matches: number; tier: 1 | 2 | 3 }> = {
+  'リーグワン': { country: '日本', tier: 1, matches: 18, teams: PRO_TEAMS[1] },
+  'リーグワンD2': { country: '日本', tier: 2, matches: 14, teams: PRO_TEAMS[2] },
+  'リーグワンD3': { country: '日本', tier: 3, matches: 15, teams: PRO_TEAMS[3] },
+  'イングランド・プレミアシップ': { country: 'イングランド', tier: 1, matches: 18, teams: ['Bath Rugby','Bristol Bears','Exeter Chiefs','Gloucester Rugby','Harlequins','Leicester Tigers','Newcastle Red Bulls','Northampton Saints','Sale Sharks','Saracens'] },
+  'フランス・トップ14': { country: 'フランス', tier: 1, matches: 26, teams: ['Stade Toulousain','Union Bordeaux Bègles','Stade Rochelais','RC Toulon','Racing 92','ASM Clermont Auvergne','Montpellier Hérault Rugby','Stade Français Paris','Section Paloise','Castres Olympique','Lyon OU','Aviron Bayonnais','USA Perpignan','US Montauban'] },
+  'フランス・プロD2': { country: 'フランス', tier: 2, matches: 30, teams: ['Provence Rugby','Grenoble','Brive','Oyonnax','Béziers','Colomiers','Biarritz Olympique','Agen','Valence Romans','Nevers','Aurillac','Mont-de-Marsan','Dax','Soyaux Angoulême','Carcassonne','Vannes'] },
+  'ユナイテッド・ラグビー・チャンピオンシップ': { country: '多国籍', tier: 1, matches: 18, teams: ['Leinster Rugby','Munster Rugby','Connacht Rugby','Ulster Rugby','Glasgow Warriors','Edinburgh Rugby','Cardiff Rugby','Ospreys','Scarlets','Dragons RFC','Benetton Rugby','Zebre Parma','DHL Stormers','Vodacom Bulls','Hollywoodbets Sharks','Emirates Lions'] },
+  'スーパーラグビー・パシフィック': { country: '南半球', tier: 1, matches: 14, teams: ['Blues','Brumbies','Chiefs','Crusaders','Fijian Drua','Highlanders','Hurricanes','Moana Pasifika','NSW Waratahs','Queensland Reds','Western Force'] },
+  'メジャーリーグラグビー': { country: '北米', tier: 2, matches: 16, teams: ['Chicago Hounds','Dallas Jackals','Houston SaberCats','Miami Sharks','New England Free Jacks','Old Glory DC','Rugby FC Los Angeles','San Diego Legion','Seattle Seawolves','Utah Warriors'] },
+  'カリーカップ': { country: '南アフリカ', tier: 2, matches: 14, teams: ['Blue Bulls','Cheetahs','Golden Lions','Griquas','Pumas','Sharks','Western Province','Boland Cavaliers'] },
+};
+const OVERSEAS_LEAGUE_NAMES = Object.keys(PRO_LEAGUES).filter((name) => !name.startsWith('リーグワン'));
+function leagueForClub(club: string): string {
+  for (const [league, data] of Object.entries(PRO_LEAGUES)) if (data.teams.includes(club)) return league;
+  return 'リーグワン';
+}
+function teamsForLeague(league: string): string[] { return PRO_LEAGUES[league]?.teams ?? PRO_TEAMS[1]; }
 const WORLD_OPPONENTS = ['オーストラリア','ウェールズ','フィジー'];
 const WORLD_CUP_TEAMS = ['日本','ニュージーランド','南アフリカ','アイルランド','フランス','イングランド','オーストラリア','アルゼンチン','スコットランド','ウェールズ','フィジー','イタリア','サモア','トンガ','ジョージア','アメリカ','カナダ','ウルグアイ','チリ','ポルトガル','スペイン','ルーマニア','ナミビア','ジンバブエ','香港','韓国','ブラジル','ケニア','オランダ','ベルギー','スイス','ドイツ'];
 const JAPAN_TEST_OPPONENTS = ['ニュージーランド','オーストラリア','イングランド'];
@@ -164,26 +183,21 @@ function assignUniversity(s: CareerState): void {
   s.phase = 'university'; s.stageYear = 1; s.age = 18; s.month = 4; s.currentSeason = newSeason(s);
 }
 function buildProSchedule(s: CareerState): CareerFixture[] {
-  const teams = PRO_TEAMS[s.proDivision]; const ownIndex = teams.indexOf(s.professionalTeam);
-  let opponents: string[] = [];
-  if (s.professionalTeam.startsWith('海外クラブ')) {
-    const overseas = ['Leicester Tigers','Saracens','Toulouse','La Rochelle','Munster','Leinster','Bordeaux Bègles','Bath Rugby','Harlequins'];
-    opponents = [...overseas, ...overseas].slice(0, 18);
-  } else if (s.proDivision === 2) { const once = teams.filter((x) => x !== s.professionalTeam); opponents = [...once, ...once]; }
-  else if (s.proDivision === 3) { const once = teams.filter((x) => x !== s.professionalTeam); opponents = [...once, ...once, ...once]; }
-  else {
-    const conference = ownIndex < 6 ? teams.slice(0, 6) : teams.slice(6);
-    const other = ownIndex < 6 ? teams.slice(6) : teams.slice(0, 6);
-    opponents = conference.filter((x) => x !== s.professionalTeam).flatMap((x) => [x, x]);
-    opponents.push(...other); opponents.push(pick(other), pick(other));
-  }
-  for (let i = opponents.length - 1; i > 0; i--) { const j = int(0, i); [opponents[i], opponents[j]] = [opponents[j], opponents[i]]; }
-  const count = s.proDivision === 1 ? 18 : s.proDivision === 2 ? 14 : 15;
-  const monthCounts = s.proDivision === 1 ? [3,3,3,3,3,3] : s.proDivision === 2 ? [2,2,2,3,3,2] : [2,2,3,3,3,2];
-  const months = [12,1,2,3,4,5]; let idx = 0;
-  return months.flatMap((month, mi) => Array.from({ length: monthCounts[mi] }, () => {
-    const round = idx++; return { date: `${month}月第${round + 1}節`, label: `リーグワンD${s.proDivision} 第${round + 1}節`, opponent: opponents[round % opponents.length], difficulty: 60 + rand() * 12, kind: 'professional-league' as const };
-  })).slice(0, count);
+  const league = s.professionalLeague || (s.proDivision === 1 ? 'リーグワン' : s.proDivision === 2 ? 'リーグワンD2' : 'リーグワンD3');
+  const competition = PRO_LEAGUES[league] ?? PRO_LEAGUES['リーグワン'];
+  const teams = teamsForLeague(league);
+  const opponents = teams.filter((x) => x !== s.professionalTeam);
+  const count = competition.matches;
+  const rounds: string[] = [];
+  for (let i = 0; i < count; i++) rounds.push(opponents[i % Math.max(1, opponents.length)]);
+  for (let i = rounds.length - 1; i > 0; i--) { const j = int(0, i); [rounds[i], rounds[j]] = [rounds[j], rounds[i]]; }
+  const months = league === 'フランス・トップ14' || league === 'フランス・プロD2'
+    ? [9,10,11,12,1,2,3,4,5,6]
+    : league === 'スーパーラグビー・パシフィック' ? [2,3,4,5,6] : [9,10,11,12,1,2,3,4,5,6];
+  return rounds.map((opponent, i) => {
+    const month = months[i % months.length];
+    return { date: `${month}月第${i + 1}節`, label: `${league} 第${i + 1}節`, opponent, difficulty: 75 + rand() * 45, kind: 'professional-league' as const };
+  });
 }
 function assignProfessional(s: CareerState): void {
   const universitySeasons = s.seasons.filter((x) => x.phase === 'university');
@@ -195,6 +209,7 @@ function assignProfessional(s: CareerState): void {
   const o = careerOverall(s);
   s.professionalStarterGuaranteed = o >= 70 && universityAppearances >= 22 && (universityTries >= 6 || universityAverageRating >= 7.0);
   s.proDivision = o >= 75 || wins >= 20 ? 1 : o >= 60 || wins >= 12 ? 2 : 3;
+  s.professionalLeague = s.proDivision === 1 ? 'リーグワン' : s.proDivision === 2 ? 'リーグワンD2' : 'リーグワンD3';
   s.professionalTeam = pick(PRO_TEAMS[s.proDivision]); s.retirementAge = int(35, 38); s.proMatchIndex = 0;
   s.proContractYears = 3;
   s.proSalary = Math.round((s.proDivision === 1 ? 1800 : s.proDivision === 2 ? 900 : 500) + o * 18);
@@ -232,7 +247,7 @@ export function newCareer(name: string, pos: Pos, prefIndex = 26, schoolName?: s
   const s: CareerState = {
     v: 1 as const, phase: 'highschool' as CareerPhase, age: 15, month: 4, stageYear: 1,
     elapsedMonths: 0, prefIndex: clamp(Math.round(prefIndex), 0, PREFS.length - 1), experiencePoints: 0, qualified: false, universityTournamentFinalist: false, training: 'tec' as StatKey, player, highSchool: schoolName || schoolsOf(clamp(Math.round(prefIndex), 0, PREFS.length - 1))[1].name,
-    university: '', universityTier: '', professionalTeam: '', retirementAge: 36,
+    university: '', universityTier: '', professionalTeam: '', professionalLeague: 'リーグワンD3', retirementAge: 36,
     seasons: [] as CareerSeason[], currentSeason: {} as CareerSeason,
     matchHistory: [] as CareerMatch[], highSchoolAppearances: 0, highSchoolTries: 0, highSchoolRatingTotal: 0, highSchoolRatingCount: 0, nationalCandidate: false, worldTournamentWins: 0, japanNationalTeamSelected: false, japanNationalTeamCaps: 0, japanNationalTeamWins: 0, professionalStarterGuaranteed: false,
     fatigue: 0, injuryMonths: 0, morale: 60, trainingPlan: 'バランス' as CareerTrainingPlan, proContractYears: 2, proSalary: 0, transferHistory: [], rivals: [], awards: [],
@@ -279,7 +294,7 @@ function createCareerRivals(s: CareerState): CareerRival[] {
 export function resolveCareerTransfer(s: CareerState, offerIndex: number): void {
   const offer = s.pendingTransfer?.offers[offerIndex]; if (!offer) return;
   const previous = s.professionalTeam;
-  s.professionalTeam = offer.team; s.proDivision = offer.division; s.proSalary = offer.salary; s.proContractYears = int(2, 3);
+  s.professionalTeam = offer.team; s.proDivision = offer.division; s.professionalLeague = offer.league || leagueForClub(offer.team); s.proSalary = offer.salary; s.proContractYears = int(2, 3);
   s.transferHistory.unshift(`${s.age}歳：${previous}から${offer.team}へ${offer.overseas ? '海外移籍' : '移籍'}。年俸${offer.salary}万円、契約${s.proContractYears}年。`);
   s.history.unshift(s.transferHistory[0]);
   s.pendingTransfer = undefined; s.proMatchIndex = 0; s.proSchedule = buildProSchedule(s); s.currentSeason.team = s.professionalTeam; s.morale = clamp(s.morale + 8, 0, 100);
@@ -646,7 +661,7 @@ function finishSeason(s: CareerState): void {
     s.pendingTransfer = { age: s.age, offers: [
       { team: s.professionalTeam, division: s.proDivision, salary: baseSalary(s.proDivision), overseas: false },
       { team: newDomestic || domestic, division: nextDivision, salary: baseSalary(nextDivision) + 150, overseas: false },
-      { team: '海外クラブ（欧州リーグ）', division: careerOverall(s) >= 65 ? 1 : 2, salary: baseSalary(careerOverall(s) >= 65 ? 1 : 2) + 250, overseas: true },
+      (() => { const league = pick(OVERSEAS_LEAGUE_NAMES); const team = pick(teamsForLeague(league)); const division = PRO_LEAGUES[league].tier; return { team, division, salary: baseSalary(division) + 250, overseas: true, league }; })(),
     ] };
   }
 }
@@ -793,7 +808,8 @@ export function loadCareer(): CareerState | null {
       if (typeof r.leagueDraws !== 'number') r.leagueDraws = 0;
     }
     if (s.phase === 'professional') {
-      if (!PRO_TEAMS[s.proDivision].includes(s.professionalTeam)) s.professionalTeam = pick(PRO_TEAMS[s.proDivision]);
+      if (!s.professionalLeague) s.professionalLeague = PRO_TEAMS[s.proDivision].includes(s.professionalTeam) ? (s.proDivision === 1 ? 'リーグワン' : s.proDivision === 2 ? 'リーグワンD2' : 'リーグワンD3') : leagueForClub(s.professionalTeam);
+      if (!teamsForLeague(s.professionalLeague).includes(s.professionalTeam)) s.professionalTeam = pick(teamsForLeague(s.professionalLeague));
       if (!s.proSchedule.length) s.proSchedule = buildProSchedule(s);
     }
     return s;
