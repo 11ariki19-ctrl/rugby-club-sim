@@ -351,7 +351,7 @@ const TOP_SCHOOLS = allSchools().filter((school) => school.power >= 5).map((scho
 const UNI_STRENGTH: Record<string, number> = { '帝京大学': 98, '明治大学': 97, '早稲田大学': 97, '京都産業大学': 94, '天理大学': 93, '東海大学': 93, '筑波大学': 91, '関西学院大学': 90, '同志社大学': 89, '慶應義塾大学': 89, '東洋大学': 88, '立命館大学': 87, '大東文化大学': 86, '日本大学': 85, '関東学院大学': 84, '近畿大学': 84, '流通経済大学': 83, '福岡工業大学': 82, '青山学院大学': 82, '法政大学': 82, '日本体育大学': 82, '立教大学': 80, '武蔵大学': 74, '明治学院大学': 75, '成蹊大学': 73, '東京大学': 70, '一橋大学': 69, '成城大学': 68, '上智大学': 71, '学習院大学': 69, '山梨学院大学': 81, '中央大学': 80, '専修大学': 79, '國學院大學': 78, '拓殖大学': 76, '朝鮮大学校': 75, '白鷗大学': 72, '新潟食料農業大学': 71, '大阪体育大学': 79, '大阪大学': 72, '大阪公立大学': 73, '龍谷大学': 76, '京都大学': 70, '大阪工業大学': 71, '大阪経済大学': 72, '花園大学': 69 };
 export function careerTeamStrengthProfile(phase: CareerPhase, team: string): { center: number; min: number; max: number } {
   if (phase === 'highschool') {
-    const realSchool = allSchools().find((school) => school.name === team);
+    const realSchool = allSchools().find((school) => school.name === team || school.name.includes(team) || team.includes(school.name.replace(/高等学校|高等部/g, '')));
     const schoolPower = realSchool?.power ?? (TOP_SCHOOLS.includes(team) ? 5 : 2);
     const center = schoolPower <= 2 ? 41 : schoolPower === 3 ? 47 : schoolPower === 4 ? 54 : 62;
     return { center, min: 28, max: schoolPower <= 2 ? 54 : schoolPower === 3 ? 61 : schoolPower === 4 ? 68 : 76 };
