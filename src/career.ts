@@ -686,7 +686,7 @@ function updateRivals(s: CareerState): void {
     r.phase = r.age < 18 ? 'highschool' : r.age < 22 ? 'university' : r.age <= 37 ? 'professional' : 'retired';
     if (r.phase === 'professional' && r.country && r.country !== '日本' && !r.league) r.league = pick(OVERSEAS_LEAGUE_NAMES);
     if (r.phase !== previousPhase && r.phase === 'university') r.team = pick(Object.values(UNIVERSITY_GROUPS).flatMap((x) => [...x]));
-    else if (r.phase !== previousPhase && r.phase === 'professional') r.team = pick(PRO_TEAMS[careerOverall(s) >= 75 ? 1 : careerOverall(s) >= 60 ? 2 : 3]);
+    else if (r.phase !== previousPhase && r.phase === 'professional') { if (r.country && r.country !== '日本') { r.league = r.league || pick(OVERSEAS_LEAGUE_NAMES); r.team = pick(teamsForLeague(r.league)); } else r.team = pick(PRO_TEAMS[careerOverall(s) >= 75 ? 1 : careerOverall(s) >= 60 ? 2 : 3]); }
     if (r.phase === 'retired') r.retired = true;
     if (r.pos === s.player.pos && !r.retired && r.overall > careerOverall(s)) s.currentSeason.notes.push(`ポジション争い：${r.name}（総合値${Math.round(r.overall)}）が競争相手として台頭。`);
   }
