@@ -2,7 +2,7 @@ import { careerTeamStrengthProfile } from './career';
 import {
   advanceCareerMonth, careerOverall, currentTeam, newCareer, setCareerTraining, setCareerTrainingPlan, playCareerMatchAction,
   resolveCareerTransfer, careerHallOfFame, careerLegacyScore,
-  CAREER_POSITIONS, CAREER_STAT_KEYS, CAREER_STAT_LABEL, CAREER_TALENTS, hasCareerSave, loadCareer, saveCareer, setCareerSaveSlot, careerSaveSummary, careerHallOfFame,
+  CAREER_POSITIONS, CAREER_STAT_KEYS, CAREER_STAT_LABEL, CAREER_TALENTS, hasCareerSave, loadCareer, saveCareer, setCareerSaveSlot, careerSaveSummary,
 } from './career';
 import type { CareerState, CareerPhase, CareerTrainingPlan, CareerMatchAction } from './career';
 import { STAT_LABEL } from './game';
