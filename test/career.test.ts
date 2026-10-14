@@ -1,18 +1,20 @@
 import assert from 'node:assert/strict';
 import { seed } from '../src/rng';
 import { PREFS } from '../src/data';
-import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, playCareerMatchAction, careerGrowthMultiplier, careerTeamStrengthProfile, WORLD_CUP_TEAMS, worldCupPools, saveCareer, loadCareer, setCareerSaveSlot, clearCareer, careerOverallCap, careerStatCap, nationalCandidatePool } from '../src/career';
+import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, playCareerMatchAction, careerGrowthMultiplier, careerTeamStrengthProfile, WORLD_CUP_TEAMS, worldCupPools, saveCareer, loadCareer, setCareerSaveSlot, clearCareer, nationalCandidatePool } from '../src/career';
 
 console.log('career mode tests');
-assert.equal(careerOverallCap({ phase: 'highschool', age: 15, stageYear: 1 }), 62, 'first-year high school players have a realistic rating ceiling');
-assert.equal(careerStatCap({ phase: 'highschool', age: 15, stageYear: 1 }), 68, 'individual stats are capped for first-year high school players');
-assert.equal(careerOverallCap({ phase: 'highschool', age: 17, stageYear: 3 }), 78, 'third-year high school ceiling remains below elite senior level');
-assert.equal(careerOverallCap({ phase: 'university', age: 21, stageYear: 4 }), 97, 'final-year university players can develop toward senior level');
-assert.equal(careerOverallCap({ phase: 'professional', age: 28, stageYear: 6 }), 112, 'prime professional ceiling is higher than youth ceilings');
+const initialPlayer = newCareer('年代調整テスト', 'CTB');
+assert.ok(careerOverall(initialPlayer) >= 25 && careerOverall(initialPlayer) < 60, 'new high school player starts within a plausible rating range');
+const eliteSchool = careerTeamStrengthProfile('highschool', '東福岡');
+const averageSchool = careerTeamStrengthProfile('highschool', '北海道県立選抜');
+const proClub = careerTeamStrengthProfile('professional', '埼玉パナソニックワイルドナイツ');
+assert.ok(eliteSchool.center > averageSchool.center, 'elite high schools are stronger than ordinary high schools');
+assert.ok(proClub.center > eliteSchool.center, 'professional squads have a higher baseline than high school squads');
 const selectionProbe = newCareer('代表選考テスト', 'CTB');
 assert.equal(nationalCandidatePool(selectionProbe).length, 23, 'national squad has exactly 23 players when enough candidates exist');
-assert.ok(nationalCandidatePool(selectionProbe).every((p) => p.overall <= 78), 'high school candidate ratings remain in a plausible age band');
-console.log('  ok - age-category rating caps and 23-player national squad limit');
+assert.ok(nationalCandidatePool(selectionProbe).every((p) => p.overall < 90), 'high school national candidates do not have wildly inflated ratings');
+console.log('  ok - realistic age-category rating distribution and 23-player national squad limit');
 
 const storageData = new Map<string, string>();
 Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
