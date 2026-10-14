@@ -873,11 +873,20 @@ function monthlyFixtures(s: CareerState): CareerFixture[] {
     }
     if (s.month === 8 && s.japanNationalTeamSelected) return JAPAN_TEST_OPPONENTS.map((opponent, i) => ({ date: `8月・日本代表戦${i + 1}`, label: `日本代表テストマッチ 第${i + 1}戦`, opponent, difficulty: 72 + i * 2, kind: 'japan-test' as const }));
     if ([12,1,2,3,4,5].includes(s.month)) return s.proSchedule.filter((f, i) => i >= s.proMatchIndex && f.date.startsWith(`${s.month}月`));
-    if (s.month === 6 && s.proDivision === 1 && s.currentSeason.leagueWins >= 11) return [
-      { date: '5/23・プレーオフ', label: 'リーグワンD1 プレーオフ準々決勝', opponent: pick(PRO_TEAMS[1].filter((x) => x !== s.professionalTeam)), difficulty: 70, kind: 'professional-playoff' },
-      { date: '5/30・プレーオフ', label: 'リーグワンD1 プレーオフ準決勝', opponent: pick(PRO_TEAMS[1].filter((x) => x !== s.professionalTeam)), difficulty: 74, kind: 'professional-playoff' },
-      { date: '6/7・プレーオフ', label: 'リーグワンD1 プレーオフ決勝', opponent: pick(PRO_TEAMS[1].filter((x) => x !== s.professionalTeam)), difficulty: 77, kind: 'professional-playoff' },
-    ];
+    if (s.month === 6 && s.proDivision === 1 && s.currentSeason.leaguePlayed >= 18 && proPosition() <= 6) {
+      const opponent = () => pick(PRO_TEAMS[1].filter((x) => x !== s.professionalTeam));
+      const fixtures: CareerFixture[] = proPosition() <= 2
+        ? [
+            { date: '5月・プレーオフ準決勝', label: 'リーグワンD1 プレーオフ準決勝', opponent: opponent(), difficulty: 74, kind: 'professional-playoff' },
+            { date: '6月・プレーオフ決勝', label: 'リーグワンD1 プレーオフ決勝', opponent: opponent(), difficulty: 77, kind: 'professional-playoff' },
+          ]
+        : [
+            { date: '5月・プレーオフ準々決勝', label: 'リーグワンD1 プレーオフ準々決勝', opponent: opponent(), difficulty: 70, kind: 'professional-playoff' },
+            { date: '5月・プレーオフ準決勝', label: 'リーグワンD1 プレーオフ準決勝', opponent: opponent(), difficulty: 74, kind: 'professional-playoff' },
+            { date: '6月・プレーオフ決勝', label: 'リーグワンD1 プレーオフ決勝', opponent: opponent(), difficulty: 77, kind: 'professional-playoff' },
+          ];
+      return fixtures;
+    }
     if (s.month === 6 && s.proDivision === 2 && s.currentSeason.leaguePlayed >= 14 && proPosition() <= 2) {
       const opponent = pick(PRO_TEAMS[1]);
       return [
