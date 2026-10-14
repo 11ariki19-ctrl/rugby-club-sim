@@ -113,6 +113,10 @@ export interface CareerState {
   finalSummary?: string;
 }
 const KEY = 'rugby-club-sim:career:v1';
+let activeCareerSlot: 1 | 2 = 1;
+export function setCareerSaveSlot(slot: 1 | 2): void { activeCareerSlot = slot; }
+export function getCareerSaveSlot(): 1 | 2 { return activeCareerSlot; }
+function slotKey(slot: 1 | 2): string { return `${KEY}:slot${slot}`; }
 const POSITIONS: Pos[] = ['PR', 'HO', 'LO', 'FL', 'N8', 'SH', 'SO', 'CTB', 'WTB', 'FB'];
 const BODY: Record<Pos, [number, number]> = {
   PR: [172, 92], HO: [172, 86], LO: [183, 90], FL: [177, 82], N8: [180, 88],
@@ -142,7 +146,13 @@ function leagueForClub(club: string): string {
 }
 function teamsForLeague(league: string): string[] { return PRO_LEAGUES[league]?.teams ?? PRO_TEAMS[1]; }
 const WORLD_OPPONENTS = ['オーストラリア','ウェールズ','フィジー'];
-const WORLD_CUP_TEAMS = ['日本','ニュージーランド','南アフリカ','アイルランド','フランス','イングランド','オーストラリア','アルゼンチン','スコットランド','ウェールズ','フィジー','イタリア','サモア','トンガ','ジョージア','ルーマニア','ナミビア','ウルグアイ','チリ','ポルトガル'];
+export const WORLD_CUP_TEAMS = ['日本','ニュージーランド','南アフリカ','アイルランド','フランス','イングランド','オーストラリア','アルゼンチン','スコットランド','ウェールズ','フィジー','イタリア','サモア','トンガ','ジョージア','ルーマニア','ナミビア','ウルグアイ','チリ','ポルトガル','スペイン','アメリカ合衆国','カナダ','香港','韓国','ロシア','ジンバブエ','ケニア','ブラジル','パラグアイ','オランダ','ベルギー'];
+export function worldCupPools(teams: readonly string[] = WORLD_CUP_TEAMS): string[][] {
+  if (teams.length !== 32 || new Set(teams).size !== 32) throw new Error('ワールドカップは重複のない32か国が必要です');
+  const shuffled = [...teams];
+  for (let i = shuffled.length - 1; i > 0; i--) { const j = int(0, i); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
+  return Array.from({ length: 8 }, (_, i) => shuffled.slice(i * 4, i * 4 + 4));
+}
 const JAPAN_TEST_OPPONENTS = ['ニュージーランド','オーストラリア','イングランド'];
 const PHASE_LABEL: Record<CareerPhase, string> = {
   highschool: '高校生', university: '大学生', professional: '社会人', retired: '引退',
@@ -714,9 +724,7 @@ function monthlyFixtures(s: CareerState): CareerFixture[] {
   if (s.phase === 'professional') {
     const worldCupYear = 2023 + Math.max(0, Math.floor((s.age - 23) / 4)) * 4;
     if (s.japanNationalTeamSelected && s.month === 9 && (s.age - 23) % 4 === 0 && (!s.worldCup || (s.worldCup.completed && s.worldCup.year < worldCupYear))) {
-      const shuffled = [...WORLD_CUP_TEAMS];
-      for (let i = shuffled.length - 1; i > 0; i--) { const j = int(0, i); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
-      const pools = [shuffled.slice(0,5), shuffled.slice(5,10), shuffled.slice(10,15), shuffled.slice(15,20)];
+      const pools = worldCupPools();
       const pool = pools.find((p) => p.includes('日本')) ?? pools[0];
       const opponents = pool.filter((x) => x !== '日本');
       s.worldCup = { year: worldCupYear, pool: String.fromCharCode(65 + pools.indexOf(pool)), poolOpponents: opponents, poolRivalWins: opponents.map(() => int(0, 4)), poolPlayed: 0, poolWins: 0, qualified: false, knockoutStage: 0, completed: false };
@@ -761,20 +769,19 @@ function playNextFixture(s: CareerState, interactive = false): void {
   if (fixture.kind === 'world-cup' && s.worldCup) {
     s.worldCup.poolPlayed++;
     if (m.win) s.worldCup.poolWins++;
-    if (s.worldCup.poolPlayed === 4) {
+    if (s.worldCup.poolPlayed === 3) {
       const table = [{ team: '日本', wins: s.worldCup!.poolWins, tie: rand() }, ...s.worldCup!.poolOpponents.map((team, i) => ({ team, wins: s.worldCup!.poolRivalWins[i] ?? int(0,4), tie: rand() }))].sort((a,b) => b.wins - a.wins || b.tie - a.tie);
       s.worldCup.qualified = table.findIndex((row) => row.team === '日本') < 2;
       if (s.worldCup.qualified) s.pendingFixtures = [
-        { date: '10月・準々決勝', label: 'ラグビーワールドカップ 準々決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本' && !s.worldCup!.poolOpponents.includes(x))), difficulty: 82, kind: 'world-cup' },
-        { date: '10月・準決勝', label: 'ラグビーワールドカップ 準決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), difficulty: 86, kind: 'world-cup' },
-        { date: '10月・決勝', label: 'ラグビーワールドカップ 決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), difficulty: 90, kind: 'world-cup' },
+        { date: '10月・ラウンド16', label: 'ラグビーワールドカップ ラウンド16', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本' && !s.worldCup!.poolOpponents.includes(x))), difficulty: 79, kind: 'world-cup' },
       ];
       else s.worldCup.completed = true;
-    } else if (s.worldCup.poolPlayed > 4) {
+    } else if (s.worldCup.poolPlayed > 3) {
       s.worldCup.knockoutStage++;
       if (!m.win || s.worldCup.knockoutStage >= 3) { s.worldCup.completed = true; s.pendingFixtures = []; }
-      else if (s.worldCup.knockoutStage === 1 && (s.pendingFixtures?.length ?? 0) === 0) s.pendingFixtures = [{ date: '10月・準決勝', label: 'ラグビーワールドカップ 準決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), difficulty: 86, kind: 'world-cup' }];
-      else if (s.worldCup.knockoutStage === 2 && (s.pendingFixtures?.length ?? 0) === 0) s.pendingFixtures = [{ date: '10月・決勝', label: 'ラグビーワールドカップ 決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), difficulty: 90, kind: 'world-cup' }];
+      else if (s.worldCup.knockoutStage === 1 && (s.pendingFixtures?.length ?? 0) === 0) s.pendingFixtures = [{ date: '10月・準々決勝', label: 'ラグビーワールドカップ 準々決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), difficulty: 82, kind: 'world-cup' }];
+      else if (s.worldCup.knockoutStage === 2 && (s.pendingFixtures?.length ?? 0) === 0) s.pendingFixtures = [{ date: '10月・準決勝', label: 'ラグビーワールドカップ 準決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), difficulty: 86, kind: 'world-cup' }];
+      else if (s.worldCup.knockoutStage === 3 && (s.pendingFixtures?.length ?? 0) === 0) s.pendingFixtures = [{ date: '10月・決勝', label: 'ラグビーワールドカップ 決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), difficulty: 90, kind: 'world-cup' }];
     }
   }
   if (fixture.kind === 'university-league' && s.currentSeason.leaguePlayed >= 7) {
@@ -940,11 +947,11 @@ export function advanceCareerMonth(s: CareerState, interactive = false): CareerS
   advanceCalendar(s); saveCareer(s); return s;
 }
 export function saveCareer(s: CareerState): void {
-  try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* local storage may be unavailable */ }
+  try { const raw = JSON.stringify(s); localStorage.setItem(slotKey(activeCareerSlot), raw); localStorage.setItem(KEY, raw); } catch { /* local storage may be unavailable */ }
 }
-export function loadCareer(): CareerState | null {
+export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(slotKey(slot)) ?? (slot === 1 ? localStorage.getItem(KEY) : null);
     if (!raw) return null;
     const s = JSON.parse(raw) as CareerState;
     if (s?.v !== 1 || !s.player?.stats || !Array.isArray(s.seasons)) return null;
@@ -963,6 +970,7 @@ export function loadCareer(): CareerState | null {
     if (typeof s.nationalCandidate !== 'boolean') s.nationalCandidate = false;
     if (typeof s.worldTournamentWins !== 'number') s.worldTournamentWins = 0;
     if (s.worldCup && (!Array.isArray(s.worldCup.poolOpponents) || typeof s.worldCup.poolPlayed !== 'number')) s.worldCup = undefined;
+    if (s.worldCup && s.worldCup.poolOpponents.length > 3) { s.worldCup.poolOpponents = s.worldCup.poolOpponents.slice(0, 3); s.worldCup.poolRivalWins = s.worldCup.poolRivalWins.slice(0, 3); s.worldCup.poolPlayed = Math.min(3, s.worldCup.poolPlayed); }
     if (s.worldCup && !Array.isArray(s.worldCup.poolRivalWins)) s.worldCup.poolRivalWins = s.worldCup.poolOpponents.map(() => 2);
     if (!s.player.talentType || !CAREER_TALENTS.some((x) => x.id === s.player.talentType)) s.player.talentType = '凡人';
     if (typeof s.japanNationalTeamSelected !== 'boolean') s.japanNationalTeamSelected = false;
@@ -1007,8 +1015,11 @@ export function loadCareer(): CareerState | null {
     return s;
   } catch { return null; }
 }
-export function hasCareerSave(): boolean { return loadCareer() !== null; }
-export function clearCareer(): void { try { localStorage.removeItem(KEY); } catch { /* ignore */ } }
+export function hasCareerSave(slot: 1 | 2 = activeCareerSlot): boolean { return loadCareer(slot) !== null; }
+export function clearCareer(slot: 1 | 2 = activeCareerSlot): void { try { localStorage.removeItem(slotKey(slot)); if (slot === 1) localStorage.removeItem(KEY); } catch { /* ignore */ } }
+export function careerSaveSummary(slot: 1 | 2): { exists: boolean; name?: string; age?: number; team?: string; pos?: Pos; overall?: number; years?: number } {
+  const s = loadCareer(slot); return s ? { exists: true, name: s.player.name, age: s.age, team: currentTeam(s), pos: s.player.pos, overall: careerOverall(s), years: s.seasons.length + 1 } : { exists: false };
+}
 export const CAREER_POSITIONS: { id: Pos; label: string }[] = POSITIONS.map((id) => ({ id, label: POS_LABEL[id] }));
 export const CAREER_STAT_LABEL: Record<StatKey, string> = STAT_LABEL;
 export const CAREER_STAT_KEYS: readonly StatKey[] = STAT_KEYS;
