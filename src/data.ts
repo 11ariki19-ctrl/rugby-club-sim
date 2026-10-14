@@ -87,16 +87,49 @@ export const SCHOOL_DATABASE: Record<string, [string, number][]> = {
   '沖縄県': [['コザ高等学校',4],['名護高等学校',4],['読谷高等学校',3],['美里工業高等学校',2]],
 };
 
+/** 花園決勝の実績（年度は大会開催年）。2016〜2025年度の直近10大会の相対評価に使用。 */
+export const HANAZONO_FINALS_LAST_10 = [
+  { year: 2016, champion: '東福岡高等学校', runnerUp: '東海大学付属大阪仰星高等学校' },
+  { year: 2017, champion: '東海大学付属大阪仰星高等学校', runnerUp: '大阪桐蔭高等学校' },
+  { year: 2018, champion: '大阪桐蔭高等学校', runnerUp: '桐蔭学園高等学校' },
+  { year: 2019, champion: '桐蔭学園高等学校', runnerUp: '奈良県立御所実業高等学校' },
+  { year: 2020, champion: '桐蔭学園高等学校', runnerUp: '京都成章高等学校' },
+  { year: 2021, champion: '東海大学付属大阪仰星高等学校', runnerUp: '國學院大學栃木高等学校' },
+  { year: 2022, champion: '東福岡高等学校', runnerUp: '報徳学園高等学校' },
+  { year: 2023, champion: '桐蔭学園高等学校', runnerUp: '東福岡高等学校' },
+  { year: 2024, champion: '桐蔭学園高等学校', runnerUp: '東海大学付属大阪仰星高等学校' },
+  { year: 2025, champion: '桐蔭学園高等学校', runnerUp: '京都成章高等学校' },
+] as const;
+function canonicalSchoolName(name: string): string {
+  if (name.includes('桐蔭学園')) return '桐蔭学園高等学校';
+  if (name.includes('東福岡')) return '東福岡高等学校';
+  if (name.includes('東海大大阪仰星') || name.includes('東海大学付属大阪仰星') || name.includes('東海大仰星')) return '東海大学付属大阪仰星高等学校';
+  if (name.includes('大阪桐蔭')) return '大阪桐蔭高等学校';
+  if (name.includes('京都成章')) return '京都成章高等学校';
+  if (name.includes('御所実業')) return '奈良県立御所実業高等学校';
+  if (name.includes('國學院栃木')) return '國學院大學栃木高等学校';
+  if (name.includes('報徳学園')) return '報徳学園高等学校';
+  return name;
+}
+export function historicalSchoolPower(name: string, baseline: number): number {
+  const canonical = canonicalSchoolName(name);
+  const titles = HANAZONO_FINALS_LAST_10.filter((x) => x.champion === canonical).length;
+  const finals = HANAZONO_FINALS_LAST_10.filter((x) => x.champion === canonical || x.runnerUp === canonical).length;
+  if (titles >= 1) return 5;
+  if (finals >= 1) return Math.max(4, baseline);
+  return baseline;
+}
+
 export function allSchools(): School[] {
-  return PREFS.flatMap((pref, prefIndex) => (SCHOOL_DATABASE[pref.name] ?? []).map(([name, power], index) => ({
-    id: `${prefIndex}-${index}`, name, power,
+  return PREFS.flatMap((pref, prefIndex) => (SCHOOL_DATABASE[pref.name] ?? []).map(([name, baseline], index) => ({
+    id: `${prefIndex}-${index}`, name, power: historicalSchoolPower(name, baseline),
     desc: power >= 5 ? '過去10年の花園実績を参考にした全国上位クラス' : power >= 4 ? '県予選上位・花園出場実績を持つ強豪' : power >= 3 ? '県内予選で競争力のある実在校' : '実在校。地域内の競争力を反映',
   })));
 }
 export function schoolsOf(i: number): School[] {
   const pf = PREFS[i];
-  return (SCHOOL_DATABASE[pf.name] ?? []).map(([name, power], index) => ({
-    id: `${i}-${index}`, name, power,
+  return (SCHOOL_DATABASE[pf.name] ?? []).map(([name, baseline], index) => ({
+    id: `${i}-${index}`, name, power: historicalSchoolPower(name, baseline),
     desc: power >= 5 ? '過去10年の花園実績を参考にした全国上位クラス' : power >= 4 ? '県予選上位・花園出場実績を持つ強豪' : power >= 3 ? '県内予選で競争力のある実在校' : '実在校。地域内の競争力を反映',
   }));
 }
