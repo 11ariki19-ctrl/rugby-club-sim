@@ -205,6 +205,9 @@ function liveMatchScreen(s: CareerState): string {
       { id: 'jackal', label: 'ジャッカルを狙う', detail: '成功すればターンオーバー。リスクも高い' },
     ];
   const rosterDetail = selectedRosterMember ? playerDetail(selectedRosterMember) : '';
+  const representativeSquad = (g.fixture.kind === 'japan-test' || g.fixture.kind === 'world-cup') && s.nationalSquad?.length
+    ? '<section class="card national-squad-card"><h3>日本代表メンバー（' + Math.min(23, s.nationalSquad.length) + '名）</h3><ol class="national-squad-list">' + s.nationalSquad.slice(0, 23).map((p,i) => '<li><span class="squad-rank">' + (i+1) + '</span><span class="squad-main"><b>' + esc(p.name) + '</b><small>' + p.pos + ' ／ ' + esc(p.team) + '</small></span><strong>' + p.overall + '</strong></li>').join('') + '</ol></section>'
+    : '';
   return `<main class="page">
     ${rosterDetail}
     <header class="hd"><div class="school">🏉 ライブマッチ</div><div class="date">${g.elapsed}' / 80'・${s.phase === 'highschool' ? '高校' : s.phase === 'university' ? '大学' : '社会人'}</div></header>
@@ -215,6 +218,7 @@ function liveMatchScreen(s: CareerState): string {
       <div class="bar"><span>前進位置</span><div class="track"><i style="width:${g.fieldPosition}%"></i></div><b>${g.fieldPosition}m</b></div>
       <div class="match-event"><b>直近のプレー</b><p>${esc(g.lastEvent)}</p></div>
     </div>
+    ${representativeSquad}
     <div class="lineup-grid">${lineupCard(s, currentTeam(s), true)}${lineupCard(s, g.fixture.opponent, false)}</div>
     <h3>${g.possession === '自チーム' ? '攻撃を選択' : '守備を選択'}</h3>
     <p class="note">1回の選択で時計が5分進みます。80分までプレーして勝利を目指しましょう。能力・疲労・選択した戦術でプレーの成功率が変わります。</p>
