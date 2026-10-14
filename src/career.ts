@@ -1,4 +1,5 @@
 import { PREFS, SUFFIX, schoolsOf } from './data';
+import { generateUniqueJapaneseName } from './names';
 import { rand, int, pick, gauss, clamp } from './rng';
 import { POS_LABEL, STAT_KEYS, STAT_LABEL, overallAt, rankOf } from './game';
 import type { Pos, StatKey, Stats } from './game';
@@ -317,17 +318,6 @@ function saveCareerLegacy(s: CareerState): void {
     localStorage.setItem(LEGACY_KEY, JSON.stringify(rows.sort((a,b)=>b.score-a.score).slice(0,10)));
   } catch { /* local storage may be unavailable */ }
 }
-const RIVAL_NAME_POOLS: Record<string, string[]> = {
-  日本: ['高橋 悠','山本 海斗','田中 陸','中村 翔','伊藤 大和','小林 蒼','加藤 蓮','吉田 湊','佐藤 大地','渡辺 颯'],
-  NZ: ['Ardie Savea','Beauden Barrett','Will Jordan','Caleb Clarke','Rieko Ioane','Damian McKenzie','Tamaiti Williams','Cam Roigard'],
-  SouthAfrica: ['Siya Kolisi','Cheslin Kolbe','Damian de Allende','Eben Etzebeth','Kurt-Lee Arendse','Manie Libbok'],
-  England: ['Maro Itoje','Marcus Smith','Tommy Freeman','Ellis Genge','Henry Arundell','Fin Smith'],
-  France: ['Antoine Dupont','Damian Penaud','Louis Bielle-Biarrey','Gregory Alldritt','Matthieu Jalibert','Thomas Ramos'],
-  Ireland: ['Caelan Doris','Jamison Gibson-Park','James Lowe','Bundee Aki','Dan Sheehan'],
-  Australia: ['Harry Wilson','Joseph-Aukuso Suaalii','Len Ikitau','Tom Wright','Fraser McReight'],
-  Fiji: ['Semi Radradra','Waisea Nayacalevu','Josua Tuisova','Levani Botia'],
-  Argentina: ['Pablo Matera','Juan Cruz Mallia','Emiliano Boffelli','Santiago Carreras'],
-};
 const RIVAL_COUNTRIES = ['日本','NZ','SouthAfrica','England','France','Ireland','Australia','Fiji','Argentina'];
 function addPhaseRivals(s: CareerState): void {
   const existing = new Set(s.rivals.map((r) => r.name + '|' + r.team));
@@ -362,7 +352,7 @@ function createCareerRivals(s: CareerState): CareerRival[] {
   const high = s.phase === 'highschool', uni = s.phase === 'university';
   const playerOverall = careerOverall(s);
   const candidates: CareerRival[] = [];
-  const names = RIVAL_NAME_POOLS.日本;
+  const usedNames = new Set<string>([s.player.name, ...s.rivals.map((r) => r.name), ...s.matchHistory.flatMap((m) => (m.scoreEvents ?? []).map((e) => e.scorer))]);
   const schools = [...TOP_SCHOOLS, ...PREFS.map((p) => `${p.name.replace(/県|府|都|道/g, '')}県立選抜`)];
   const universities = [...new Set(Object.values(UNIVERSITY_GROUPS).flatMap((x) => [...x]))];
   const proClubs = [...new Set(Object.values(PRO_LEAGUES).flatMap((x) => x.teams))];
@@ -373,7 +363,7 @@ function createCareerRivals(s: CareerState): CareerRival[] {
     for (let j = 0; j < countPerTeam; j++) {
       const teamIndex = Math.floor(n / countPerTeam);
       const pos = POSITIONS[(teamIndex * countPerTeam + j * 3) % POSITIONS.length];
-      const name = names[(n + j * 3) % names.length];
+      const name = generateUniqueJapaneseName(usedNames, rand);
       const profile = careerTeamStrengthProfile(s.phase, team);
       const growthAdjustment = Math.max(-8, Math.min(8, playerOverall - (high ? 44 : uni ? 62 : 78))) * 0.18;
       const age = high ? 15 + (n % 3) : uni ? 18 + (n % 4) : 21 + (n % 14);
@@ -415,9 +405,8 @@ function createCareerRivals(s: CareerState): CareerRival[] {
       const team = pick(teamsForLeague(league));
       const rank = NATIONAL_COUNTRY_RANK[country] ?? 72;
       const pos = POSITIONS[(i * 3 + 2) % POSITIONS.length];
-      const pool = foreignNames[country] ?? RIVAL_NAME_POOLS.NZ;
       const overall = clamp((uni ? 112 : 142) + (rank - 85) * 1.35 + int(-5, 16), uni ? 92 : 115, uni ? 185 : 200);
-      candidates.push({ name: pool[i % pool.length], pos, age: uni ? 18 + i % 4 : 22 + i % 12, overall, phase: s.phase, team, country: COUNTRY_LABEL[country] ?? country, league, appearances: 0, tries: 0, retired: false });
+      candidates.push({ name: generateUniqueJapaneseName(usedNames, rand), pos, age: uni ? 18 + i % 4 : 22 + i % 12, overall, phase: s.phase, team, country: COUNTRY_LABEL[country] ?? country, league, appearances: 0, tries: 0, retired: false });
     }
   }
   return candidates;
