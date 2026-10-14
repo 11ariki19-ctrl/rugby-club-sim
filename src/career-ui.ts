@@ -8,7 +8,7 @@ import type { CareerState, CareerPhase, CareerTrainingPlan } from './career';
 import { STAT_LABEL } from './game';
 import type { Pos, StatKey } from './game';
 import { PREFS, schoolsOf } from './data';
-import { generateUniqueJapaneseName } from './names';
+import { generateUniquePlayerName, inferPlayerCountry } from './names';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 let root: HTMLElement | null = null;
@@ -159,6 +159,8 @@ function stableHash(text: string): number { let h = 2166136261; for (const ch of
 function teamRoster(team: string, s: CareerState, own: boolean): RosterMember[] {
   const seed = stableHash(`${s.phase}|${team}`);
   const usedNames = new Set<string>([s.player.name, ...s.rivals.map((r) => r.name), ...s.matchHistory.flatMap((m) => (m.scoreEvents ?? []).map((e) => e.scorer))]);
+  const knownCountry = s.rivals.find((r) => r.team === team && r.country && r.country !== '日本')?.country;
+  const rosterCountry = inferPlayerCountry(knownCountry || team);
   return rosterPositions.map((pos, i) => {
     const isUser = own && pos === s.player.pos && i === rosterPositions.findIndex((p) => p === s.player.pos);
     const stats = {} as Record<StatKey, number>;
@@ -174,7 +176,7 @@ function teamRoster(team: string, s: CareerState, own: boolean): RosterMember[] 
     if (isUser) for (const key of CAREER_STAT_KEYS) stats[key] = Math.round(s.player.stats[key]);
     const overall = Math.round(CAREER_STAT_KEYS.reduce((sum, key) => sum + stats[key], 0) / CAREER_STAT_KEYS.length);
     let nameSeed = (seed + (i + 1) * 2654435761) >>> 0;
-    const generatedName = isUser ? s.player.name : generateUniqueJapaneseName(usedNames, () => {
+    const generatedName = isUser ? s.player.name : generateUniquePlayerName(usedNames, rosterCountry, () => {
       nameSeed = (Math.imul(nameSeed, 1664525) + 1013904223) >>> 0;
       return nameSeed / 4294967296;
     });
