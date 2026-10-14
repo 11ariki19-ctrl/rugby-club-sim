@@ -60,7 +60,7 @@ export function generateUniquePlayerName(usedNames: Set<string>, country = 'æ—¥æ
   const givenNames = pool?.given ?? GIVEN;
   const normalize = (name: string) => name.normalize('NFKC').toLocaleLowerCase();
   for (let attempt = 0; attempt < 1200; attempt++) {
-    const name = `${choose(surnames, random)} ${choose(givenNames, random)}`;
+    const name = pool ? `${choose(givenNames, random)} ${choose(surnames, random)}` : `${choose(surnames, random)} ${choose(givenNames, random)}`;
     const key = normalize(name);
     if (!usedNames.has(key) && !usedNames.has(name)) {
       usedNames.add(key);
@@ -70,7 +70,7 @@ export function generateUniquePlayerName(usedNames: Set<string>, country = 'æ—¥æ
   }
   for (const surname of surnames) {
     for (const given of givenNames) {
-      const name = `${surname} ${given}`;
+      const name = pool ? `${given} ${surname}` : `${surname} ${given}`;
       const key = normalize(name);
       if (!usedNames.has(key) && !usedNames.has(name)) {
         usedNames.add(key);
@@ -82,7 +82,7 @@ export function generateUniquePlayerName(usedNames: Set<string>, country = 'æ—¥æ
   for (const surname of surnames) {
     for (const first of givenNames) {
       for (const second of givenNames) {
-        const name = `${surname} ${first} ${second}`;
+        const name = pool ? `${first} ${second} ${surname}` : `${surname} ${first}${second}`;
         const key = normalize(name);
         if (!usedNames.has(key) && !usedNames.has(name)) {
           usedNames.add(key);
