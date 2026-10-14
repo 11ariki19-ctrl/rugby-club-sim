@@ -261,7 +261,7 @@ export function newCareer(name: string, pos: Pos, prefIndex = 26, schoolName?: s
     university: '', universityTier: '', professionalTeam: '', professionalLeague: 'リーグワンD3', retirementAge: 36,
     seasons: [] as CareerSeason[], currentSeason: {} as CareerSeason,
     matchHistory: [] as CareerMatch[], highSchoolAppearances: 0, highSchoolTries: 0, highSchoolRatingTotal: 0, highSchoolRatingCount: 0, nationalCandidate: false, worldTournamentWins: 0, japanNationalTeamSelected: false, japanNationalTeamCaps: 0, japanNationalTeamWins: 0, professionalStarterGuaranteed: false,
-    fatigue: 0, injuryMonths: 0, morale: 60, trainingPlan: 'バランス' as CareerTrainingPlan, proContractYears: 2, proSalary: 0, transferHistory: [], rivals: [], awards: [],
+    fatigue: 0, injuryMonths: 0, morale: 60, trainingPlan: 'バランス' as CareerTrainingPlan, proContractYears: 2, proSalary: 0, transferHistory: [], rivals: [], nationalSquad: [], awards: [],
     universityGroup: '関東大学対抗戦A' as CareerState['universityGroup'], universityQualified: false, universityTournamentAlive: false, proDivision: 3 as 1 | 2 | 3, proMatchIndex: 0, proSchedule: [],
     history: ['15歳で高校ラグビー生活がスタート。3年間の成長と活躍を目指す。'],
   };
@@ -849,9 +849,44 @@ function applyCareerDevelopment(s: CareerState): void {
   else if (s.fatigue < 35) s.morale = clamp(s.morale + 1, 0, 100);
   s.player.peak = Math.max(s.player.peak, careerOverall(s)); s.elapsedMonths++;
 }
+function nationalCandidatePool(s: CareerState): { name: string; pos: Pos; overall: number; team: string; year?: string; country?: string }[] {
+  const eligible = s.rivals.filter((r) => !r.retired && r.country === '日本' && (s.phase === 'highschool' ? r.phase === 'highschool' : s.phase === 'university' ? r.phase === 'university' : r.phase === 'professional'));
+  const ownTeam = s.phase === 'highschool' ? s.highSchool : s.phase === 'university' ? s.university : s.professionalTeam;
+  const ownOverall = careerOverall(s);
+  const ownEligible = ownOverall >= (s.phase === 'highschool' ? 70 : s.phase === 'university' ? 85 : 100);
+  const pool = eligible.map((r) => ({ name: r.name, pos: r.pos, overall: Math.round(r.overall), team: r.team, year: s.phase === 'highschool' ? `${Math.max(1, Math.min(3, s.stageYear))}年` : s.phase === 'university' ? `${Math.max(1, Math.min(4, s.stageYear))}年` : undefined, country: r.country }));
+  if (ownEligible) pool.push({ name: s.player.name, pos: s.player.pos, overall: Math.round(ownOverall), team: ownTeam, year: s.phase === 'highschool' ? `${s.stageYear}年` : s.phase === 'university' ? `${s.stageYear}年` : undefined, country: '日本' });
+  const thresholds = s.phase === 'highschool' ? 80 : s.phase === 'university' ? 94 : 115;
+  const selected: typeof pool = [];
+  const positionSlots: [Pos, number][] = [['PR',2],['HO',1],['LO',2],['FL',2],['N8',1],['SH',1],['SO',1],['CTB',2],['WTB',2],['FB',1]];
+  for (const [pos, slots] of positionSlots) {
+    const top = pool.filter((p) => p.pos === pos && p.overall >= thresholds).sort((a,b) => b.overall-a.overall).slice(0, slots);
+    selected.push(...top);
+  }
+  return selected.sort((a,b) => b.overall-a.overall);
+}
+function refreshNationalSelection(s: CareerState): void {
+  if (s.phase === 'retired') return;
+  if (s.phase === 'highschool') {
+    // 高校日本代表候補は3年生限定にせず、学年ごとの能力で選考。
+    const pool = nationalCandidatePool(s);
+    const own = pool.some((p) => p.name === s.player.name);
+    s.nationalCandidate = own && s.highSchoolAppearances >= 2;
+    if (s.nationalCandidate) s.history.unshift(`高校日本代表候補に選出（${s.stageYear}年生）。ポジション適性と全国候補の総合力で選考。`);
+  } else if (s.phase === 'university' || s.phase === 'professional') {
+    const pool = nationalCandidatePool(s);
+    const own = pool.some((p) => p.name === s.player.name);
+    if (own !== s.japanNationalTeamSelected) {
+      s.japanNationalTeamSelected = own;
+      s.history.unshift(own ? `日本代表に選出。全国の候補からポジション別・総合力順で選考（${s.phase === 'university' ? `${s.stageYear}年生` : s.professionalTeam}）。` : '日本代表から落選。全国の選手の成長とポジション別競争を反映して再選考。');
+    }
+    s.nationalSquad = pool.map((p) => ({ ...p }));
+  }
+}
 export function advanceCareerMonth(s: CareerState, interactive = false): CareerState {
   if (s.phase === 'retired' || s.liveMatch) return s;
   // UIから次へ進めた場合、提示中の契約オファーは現所属で更新してから進行する。
+  refreshNationalSelection(s);
   if (s.pendingTransfer) { s.pendingTransfer = undefined; s.proContractYears = Math.max(2, s.proContractYears); s.history.unshift(`${s.age}歳：契約オファーを見送り、現所属で契約を更新。年俸${s.proSalary}万円でプレーを続ける。`); }
   if (s.phase === 'university' && s.month === 5) {
     const form = [...s.seasons].reverse().find((r) => r.phase === 'university');
