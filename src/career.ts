@@ -158,6 +158,12 @@ const PHASE_LABEL: Record<CareerPhase, string> = {
   highschool: '高校生', university: '大学生', professional: '社会人', retired: '引退',
 };
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
+export function careerStatCap(s: Pick<CareerState, 'phase' | 'age' | 'stageYear'>): number {
+  if (s.phase === 'highschool') return [0, 68, 76, 84][Math.max(1, Math.min(3, s.stageYear))];
+  if (s.phase === 'university') return [0, 88, 94, 100, 106][Math.max(1, Math.min(4, s.stageYear))];
+  if (s.phase === 'professional') return s.age <= 22 ? 112 : s.age <= 27 ? 122 : s.age <= 31 ? 118 : 110;
+  return 110;
+}
 export function careerOverallCap(s: Pick<CareerState, 'phase' | 'age' | 'stageYear'>): number {
   if (s.phase === 'highschool') return [0, 62, 70, 78][Math.max(1, Math.min(3, s.stageYear))];
   if (s.phase === 'university') return [0, 82, 87, 92, 97][Math.max(1, Math.min(4, s.stageYear))];
@@ -380,7 +386,10 @@ function createCareerRivals(s: CareerState): CareerRival[] {
       const name = names[(n + j * 3) % names.length];
       const profile = careerTeamStrengthProfile(s.phase, team);
       const growthAdjustment = Math.max(-6, Math.min(14, playerOverall - (high ? 48 : uni ? 70 : 90))) * 0.12;
-      const overall = clamp(profile.center + int(-8, 8) + growthAdjustment, profile.min, profile.max);
+      const rawOverall = clamp(profile.center + int(-8, 8) + growthAdjustment, profile.min, profile.max);
+      const rivalAge = high ? 15 + (n % 3) : uni ? 18 + (n % 4) : 21 + (n % 14);
+      const rivalCap = high ? ([62,70,78][rivalAge - 15] ?? 78) : uni ? ([82,87,92,97][rivalAge - 18] ?? 97) : rivalAge <= 22 ? 100 : rivalAge <= 25 ? 108 : rivalAge <= 29 ? 112 : rivalAge <= 32 ? 108 : 100;
+      const overall = Math.min(rawOverall, rivalCap);
       candidates.push({ name: `${name}${j ? 'Jr.' : ''}`, pos, age: high ? 15 + (n % 3) : uni ? 18 + (n % 4) : 21 + (n % 14), overall, phase: s.phase, team, country: '日本', league: high ? '高校ラグビー' : uni ? '大学リーグ' : leagueForClub(team), appearances: 0, tries: 0, retired: false });
       n++;
     }
@@ -907,7 +916,7 @@ function applyCareerDevelopment(s: CareerState): void {
   const baseStage = s.phase === 'highschool' ? 1.15 * 1.45 : s.phase === 'university' ? 0.95 * 1.30 : 0.55;
   const ageFactor = s.age < 22 ? 1 : s.age < 27 ? 0.72 : s.age < 31 ? 0.42 : s.age < 34 ? 0.18 : 0.05;
   const planFactor: Record<CareerTrainingPlan, number> = { 'バランス': 1, '筋力': 0.9, '技術': 1.05, '持久力': 0.88, '回復': 0.68 };
-  const statCap = s.phase === 'highschool' ? [0, 68, 76, 84][Math.max(1, Math.min(3, s.stageYear))] : s.phase === 'university' ? [0, 88, 94, 100, 106][Math.max(1, Math.min(4, s.stageYear))] : s.phase === 'professional' ? (s.age <= 22 ? 112 : s.age <= 27 ? 122 : s.age <= 31 ? 118 : 110) : 110;
+  const statCap = careerStatCap(s);
   for (const k of STAT_KEYS) {
     const focus = k === s.training ? (s.trainingPlan === 'バランス' ? 1.35 : s.trainingPlan === '筋力' && ['pow','sta'].includes(k) ? 1.8 : s.trainingPlan === '技術' && ['tec','men'].includes(k) ? 1.8 : s.trainingPlan === '持久力' && ['sta','spd'].includes(k) ? 1.8 : 1.08) : 0.1;
     const inc = s.player.talent * careerGrowthMultiplier(s) * baseStage * Math.max(0.04, ageFactor) * planFactor[s.trainingPlan] * focus * Math.max(0.08, 1 - s.player.stats[k] / 220) * (0.85 + rand() * 0.3);
@@ -1032,6 +1041,7 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
     if (!Array.isArray(s.rivals)) s.rivals = createCareerRivals(s);
     if (s.phase !== 'highschool' && !s.rivals.some((r) => r.country && r.country !== '日本')) addPhaseRivals(s);
     if (!Array.isArray(s.awards)) s.awards = [];
+    for (const k of STAT_KEYS) s.player.stats[k] = clamp(Number(s.player.stats[k]) || 0, 0, careerStatCap(s));
     for (const r of [...s.seasons, s.currentSeason]) { if (!r) continue; if (typeof r.starts !== 'number') r.starts = r.appearances || 0; if (typeof r.substituteApps !== 'number') r.substituteApps = 0; if (typeof r.bench !== 'number') r.bench = 0; if (typeof r.notSelected !== 'number') r.notSelected = Math.max(0, (r.played || 0) - (r.appearances || 0)); if (!Array.isArray(r.awards)) r.awards = []; }
     for (const m of s.matchHistory) if (!m.role) m.role = m.appeared ? '先発' : 'メンバー外';
     if (!s.universityGroup) s.universityGroup = groupForUniversity(s.university || '');
