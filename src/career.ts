@@ -55,7 +55,7 @@ export interface CareerMatch {
 }
 export interface CareerFixture {
   date: string; label: string; opponent: string; difficulty: number;
-  kind: 'university-league' | 'university-spring' | 'university-championship' | 'professional-league' | 'professional-playoff' | 'japan-test' | 'world-cup' | 'highschool' | 'world';
+  kind: 'university-league' | 'university-spring' | 'university-championship' | 'university-playoff' | 'professional-league' | 'professional-playoff' | 'japan-test' | 'world-cup' | 'highschool' | 'world';
 }
 export type CareerMatchAction = 'carry' | 'pass' | 'kick' | 'goal' | 'scrum' | 'lineout' | 'rush' | 'drift' | 'jackal';
 export interface CareerLiveMatch {
@@ -104,7 +104,7 @@ export interface CareerState {
   generatedNameVersion?: number;
   legacyScore?: number;
   awards: string[];
-  universityGroup: '関東大学対抗戦A' | '関東大学リーグ戦1部' | '関西大学Aリーグ';
+  universityGroup: '関東大学対抗戦A' | '関東大学対抗戦B' | '関東大学リーグ戦1部' | '関東大学リーグ戦2部' | '関西大学Aリーグ' | '関西大学Bリーグ';
   universityQualified: boolean; universityTournamentAlive: boolean;
   proDivision: 1 | 2 | 3; proMatchIndex: number; proSchedule: CareerFixture[]; proStandings?: { team: string; wins: number }[];
   tournamentCompletedMonth?: number;
@@ -185,20 +185,37 @@ export function universityTierFor(o: number): string {
   if (o >= 55) return '中位';
   return '育成枠';
 }
-const UNIVERSITY_GROUPS = {
-  '関東大学対抗戦A': ['明治大学','筑波大学','早稲田大学','帝京大学','慶應義塾大学','日本体育大学','青山学院大学','立教大学'],
-  '関東大学リーグ戦1部': ['東海大学','東洋大学','関東学院大学','流通経済大学','立正大学','法政大学','大東文化大学','日本大学'],
-  '関西大学Aリーグ': ['関西学院大学','立命館大学','近畿大学','同志社大学','摂南大学','京都産業大学','関西大学','天理大学'],
-} as const;
-function groupForUniversity(name: string): CareerState['universityGroup'] {
-  for (const [group, teams] of Object.entries(UNIVERSITY_GROUPS)) if ((teams as readonly string[]).includes(name)) return group as CareerState['universityGroup'];
+export const UNIVERSITY_GROUPS: Record<CareerState['universityGroup'], string[]> = {
+  '関東大学対抗戦A': ['帝京大学','明治大学','早稲田大学','筑波大学','慶應義塾大学','青山学院大学','立教大学','日本体育大学'],
+  '関東大学対抗戦B': ['武蔵大学','明治学院大学','成蹊大学','東京大学','一橋大学','成城大学','上智大学','学習院大学'],
+  '関東大学リーグ戦1部': ['東海大学','東洋大学','流通経済大学','法政大学','日本大学','大東文化大学','関東学院大学','立正大学'],
+  '関東大学リーグ戦2部': ['山梨学院大学','中央大学','専修大学','國學院大學','拓殖大学','朝鮮大学校','白鷗大学','新潟食料農業大学'],
+  '関西大学Aリーグ': ['京都産業大学','天理大学','同志社大学','関西学院大学','立命館大学','近畿大学','関西大学','摂南大学'],
+  '関西大学Bリーグ': ['大阪体育大学','大阪大学','大阪公立大学','龍谷大学','京都大学','大阪工業大学','大阪経済大学','花園大学'],
+};
+export function groupForUniversity(name: string): CareerState['universityGroup'] {
+  for (const [group, teams] of Object.entries(UNIVERSITY_GROUPS)) if (teams.includes(name)) return group as CareerState['universityGroup'];
   return '関東大学対抗戦A';
+}
+export function selectCareerUniversity(s: CareerState, name: string): boolean {
+  if (s.phase !== 'university' || !Object.values(UNIVERSITY_GROUPS).some((teams) => teams.includes(name))) return false;
+  s.university = name;
+  s.universityGroup = groupForUniversity(name);
+  s.universityTier = universityTierFor(careerOverall(s));
+  s.universityQualified = false;
+  s.universityTournamentAlive = false;
+  s.proSchedule = [];
+  s.history.unshift(`進学先を${name}（${s.universityGroup}）に変更しました。`);
+  s.rivals = s.rivals.filter((r) => r.phase !== 'university' || r.team === name);
+  addPhaseRivals(s);
+  saveCareer(s);
+  return true;
 }
 function assignUniversity(s: CareerState): void {
   const o = careerOverall(s);
   const all = Object.values(UNIVERSITY_GROUPS).flatMap((x) => [...x]);
   const elite = ['帝京大学','明治大学','早稲田大学','東海大学','天理大学','京都産業大学','筑波大学','関西学院大学'];
-  const upper = ['慶應義塾大学','同志社大学','立命館大学','近畿大学','東洋大学','流通経済大学','法政大学','立正大学'];
+  const upper = ['慶應義塾大学','同志社大学','立命館大学','近畿大学','東洋大学','流通経済大学','法政大学','立正大学','日本大学','関東学院大学','青山学院大学','日本体育大学'];
   s.university = pick(o >= 75 ? elite : o >= 65 ? upper : all);
   s.universityTier = universityTierFor(o); s.universityGroup = groupForUniversity(s.university);
   s.universityQualified = false; s.universityTournamentAlive = false;
@@ -409,7 +426,7 @@ function opponentFor(s: CareerState, kind: CareerFixture['kind'] | 'highschool' 
   if (kind === 'japan-test') return JAPAN_TEST_OPPONENTS[round % JAPAN_TEST_OPPONENTS.length];
   if (kind === 'highschool') return `${PREFS[s.prefIndex].short}${pick(SUFFIX)}高校`;
   if (kind === 'university-league' || kind === 'university-spring' || kind === 'university-championship') {
-    const list = UNIVERSITY_GROUPS[s.universityGroup] as readonly string[]; return pick(list.filter((x) => x !== s.university));
+    const list = UNIVERSITY_GROUPS[s.universityGroup]; return pick(list.filter((x) => x !== s.university));
   }
   return pick(PRO_TEAMS[s.proDivision].filter((x) => x !== s.professionalTeam));
 }
@@ -697,7 +714,7 @@ function finishCareerLiveMatch(s: CareerState): void {
         );
       }
     }
-    if (kind === 'university-championship' && !m.win) { s.universityTournamentAlive = false; s.pendingFixtures = []; }
+    if ((kind === 'university-championship' || kind === 'university-playoff') && !m.win) { if (kind === 'university-championship') s.universityTournamentAlive = false; s.pendingFixtures = []; }
     if (kind === 'professional-playoff' && !m.win) s.pendingFixtures = [];
     if (!s.pendingFixtures?.length) s.tournamentCompletedMonth = s.month;
   }
@@ -797,8 +814,8 @@ function monthlyFixtures(s: CareerState): CareerFixture[] {
       });
     }
     if (s.month === 12 && s.universityTournamentAlive) return [
-      { date: '12/14・3回戦', label: '全国大学選手権 3回戦', opponent: opponentFor(s, 'university-championship'), difficulty: 62, kind: 'university-championship' },
-      { date: '12/20・準々決勝', label: '全国大学選手権 準々決勝', opponent: opponentFor(s, 'university-championship'), difficulty: 66, kind: 'university-championship' },
+      { date: '12月・3回戦', label: '全国大学選手権 3回戦', opponent: opponentFor(s, 'university-championship'), difficulty: 62, kind: 'university-championship' },
+      { date: '12月・準々決勝', label: '全国大学選手権 準々決勝', opponent: opponentFor(s, 'university-championship'), difficulty: 66, kind: 'university-championship' },
     ];
     if (s.month === 1 && s.universityTournamentAlive) return [
       { date: '1/2・準決勝', label: '全国大学選手権 準決勝', opponent: opponentFor(s, 'university-championship'), difficulty: 70, kind: 'university-championship' },
@@ -1117,9 +1134,9 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
     }
     for (const r of [...s.seasons, s.currentSeason]) { if (!r) continue; if (typeof r.starts !== 'number') r.starts = r.appearances || 0; if (typeof r.substituteApps !== 'number') r.substituteApps = 0; if (typeof r.bench !== 'number') r.bench = 0; if (typeof r.notSelected !== 'number') r.notSelected = Math.max(0, (r.played || 0) - (r.appearances || 0)); if (!Array.isArray(r.awards)) r.awards = []; }
     for (const m of s.matchHistory) if (!m.role) m.role = m.appeared ? '先発' : 'メンバー外';
-    if (!s.universityGroup) s.universityGroup = groupForUniversity(s.university || '');
-    if (s.university && !(UNIVERSITY_GROUPS[s.universityGroup] as readonly string[]).includes(s.university)) {
-      s.university = pick(UNIVERSITY_GROUPS[s.universityGroup] as unknown as string[]);
+    if (!s.universityGroup || !UNIVERSITY_GROUPS[s.universityGroup]) s.universityGroup = groupForUniversity(s.university || '');
+    if (s.university && !UNIVERSITY_GROUPS[s.universityGroup].includes(s.university)) {
+      s.university = pick(UNIVERSITY_GROUPS[s.universityGroup]);
     }
     if (typeof s.universityQualified !== 'boolean') s.universityQualified = false;
     if (typeof s.universityTournamentAlive !== 'boolean') s.universityTournamentAlive = false;
