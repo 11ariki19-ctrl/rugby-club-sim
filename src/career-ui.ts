@@ -55,7 +55,6 @@ function titleScreen(): string {
       : `<p>データはありません。</p><button class="btn primary" data-career="new-slot" data-v="${slot}">この枠で新規開始</button>`}</section>`;
   }).join('');
   const hall = careerHallOfFame().slice(0, 10).map((p, i) => `<li>${i + 1}位 ${esc(p.name)} — ${p.score}点／${p.appearances}試合・${p.tries}トライ</li>`).join('');
-  const rivalModal = selectedRivalIndex !== null && s.rivals[selectedRivalIndex] ? rivalDetail(s, s.rivals[selectedRivalIndex]) : '';
   return `<main class="page career-pennant-shell"><div class="career-pennant-ribbon"><span>RUGBY PENNANT</span><span>PLAYER CAREER</span></div><header class="hd"><div class="school">🏉 ラグビー人生キャリア</div><div class="date">高校入学から引退まで、一人の選手の物語</div></header><div class="card"><h2>キャリアを選ぶ</h2><p>新しい選手を作るか、2つの独立したセーブデータから再開できます。</p>${slots}</div><div class="card"><h3>歴代選手殿堂</h3><ol class="news">${hall || '<li>引退した選手がここに登録されます。</li>'}</ol></div><p class="note">データはこの端末・ブラウザ内に保存されます。ブラウザのデータ消去や端末変更で失われる場合があります。</p></main>`;
 }
 function createScreen(): string {
@@ -115,6 +114,7 @@ function homeScreen(s: CareerState): string {
   const topRivals = (sameGenerationRivals.length >= 5 ? sameGenerationRivals : sameCategoryRivals).sort((a,b) => b.overall-a.overall || Math.abs(a.age-s.age)-Math.abs(b.age-s.age)).slice(0,5);
   const rivals = topRivals.map((r,i) => `<button class="row roster-player rival-player" data-career="rival-player" data-v="${s.rivals.indexOf(r)}"><span class="pos">${i+1}</span><span class="nm">${esc(r.name)}<small>${r.age}歳・${esc(r.team)}${r.league ? `・${esc(r.league)}` : ''}</small></span><span class="ov">${Math.round(r.overall)}</span><span aria-hidden="true">›</span></button>`).join('');
   const hall = careerHallOfFame().slice(0,5).map((r,i) => `<li>${i+1}位 ${esc(r.name)}：スコア${r.score}／出場${r.appearances}・${r.tries}トライ</li>`).join('');
+  const rivalModal = selectedRivalIndex !== null && s.rivals[selectedRivalIndex] ? rivalDetail(s, s.rivals[selectedRivalIndex]) : '';
   const rivalModal = selectedRivalIndex !== null && s.rivals[selectedRivalIndex] ? rivalDetail(s, s.rivals[selectedRivalIndex]) : '';
   return `<main class="page career-pennant-shell"><div class="career-pennant-ribbon"><span>RUGBY PENNANT</span><span>${esc(team)} ・ SEASON ${s.currentSeason.year}</span></div><header class="hd career-pennant-header"><div class="school">🏉 ラグビー人生キャリア</div><div class="date">${s.age}歳・${monthLabel(s.month)} ／ ${labels[s.phase]} ${s.phase === 'retired' ? '' : s.stageYear + '年目'}</div></header>
     <div class="career-sticky-progress"><div class="career-sticky-progress-meta"><b>${monthLabel(s.month)}</b><span>${labels[s.phase]}・${s.age}歳</span></div><button class="btn primary career-sticky-progress-button" data-career="advance">${advanceLabel}</button></div>
