@@ -210,7 +210,7 @@ export function newCareer(name: string, pos: Pos, prefIndex = 26, schoolName?: s
   const selectedTalent: CareerTalentType = CAREER_TALENTS.some((x) => x.id === talentType) ? talentType : '凡人';
   if (selectedTalent === '秀才' || selectedTalent === '天才') {
     const bonus = selectedTalent === '秀才' ? 10 : 15;
-    for (const k of STAT_KEYS) stats[k] = clamp(stats[k] + bonus, 0, 99);
+    for (const k of STAT_KEYS) stats[k] = clamp(stats[k] + bonus, 0, 200);
   } else if (selectedTalent === '一芸') {
     const lowKey = pick([...STAT_KEYS]);
     const highKey = pick(STAT_KEYS.filter((k) => k !== lowKey));
@@ -274,7 +274,7 @@ function saveCareerLegacy(s: CareerState): void {
 }
 function createCareerRivals(s: CareerState): CareerRival[] {
   const names = ['高橋 悠','山本 海斗','田中 陸','中村 翔','伊藤 大和','小林 蒼','加藤 蓮','吉田 湊'];
-  return names.slice(0, 5).map((name, i) => ({ name, pos: i < 3 ? s.player.pos : POSITIONS[(POSITIONS.indexOf(s.player.pos) + i) % POSITIONS.length], age: s.age, overall: clamp(careerOverall(s) + int(-8, 8) + i - 2, 20, 80), phase: s.phase, team: `${['東','西','北','南','中央'][i]}地区ライバル校`, appearances: 0, tries: 0, retired: false }));
+  return names.slice(0, 5).map((name, i) => ({ name, pos: i < 3 ? s.player.pos : POSITIONS[(POSITIONS.indexOf(s.player.pos) + i) % POSITIONS.length], age: s.age, overall: clamp(careerOverall(s) + (s.phase === 'highschool' ? 0 : s.phase === 'university' ? 28 : 48) + int(-12, 12) + i - 2, 25, 195), phase: s.phase, team: `${['東','西','北','南','中央'][i]}地区ライバル校`, appearances: 0, tries: 0, retired: false }));
 }
 export function resolveCareerTransfer(s: CareerState, offerIndex: number): void {
   const offer = s.pendingTransfer?.offers[offerIndex]; if (!offer) return;
@@ -618,7 +618,7 @@ function updateRivals(s: CareerState): void {
     r.age++;
     const previousPhase = r.phase;
     const growth = r.age < 23 ? 1.2 : r.age < 28 ? 0.55 : r.age < 32 ? 0.1 : -0.7;
-    r.overall = clamp(r.overall + gauss(growth, 1.8), 20, 99);
+    r.overall = clamp(r.overall + gauss(growth, 2.5), 20, 200);
     r.phase = r.age < 18 ? 'highschool' : r.age < 22 ? 'university' : r.age <= 37 ? 'professional' : 'retired';
     if (r.phase !== previousPhase && r.phase === 'university') r.team = pick(Object.values(UNIVERSITY_GROUPS).flatMap((x) => [...x]));
     else if (r.phase !== previousPhase && r.phase === 'professional') r.team = pick(PRO_TEAMS[careerOverall(s) >= 75 ? 1 : careerOverall(s) >= 60 ? 2 : 3]);
@@ -637,7 +637,7 @@ function finishSeason(s: CareerState): void {
   updateRivals(s);
   const total = r.wins + r.losses + r.draws;
   s.history.unshift(`${r.age}歳・${r.team} ${r.year}年目：${r.wins}勝${r.losses}敗${r.draws}分、公式リーグ戦${r.leaguePlayed}試合（${r.leagueWins}勝${r.leagueLosses}敗${r.leagueDraws}分）、先発${r.starts}・途中出場${r.substituteApps}・控え${r.bench}・メンバー外${r.notSelected}、出場${r.appearances}試合、${r.tries}トライ。`);
-  if (total > 0 && r.wins / total >= 0.65) { for (const k of STAT_KEYS) s.player.stats[k] = clamp(s.player.stats[k] + 0.25, 0, 99); s.history.unshift('好成績による自信で、全能力が少し成長した。'); }
+  if (total > 0 && r.wins / total >= 0.65) { for (const k of STAT_KEYS) s.player.stats[k] = clamp(s.player.stats[k] + 0.25, 0, 200); s.history.unshift('好成績による自信で、全能力が少し成長した。'); }
   if (s.phase === 'professional' && s.age < s.retirementAge) {
     const domestic = pick(PRO_TEAMS[s.proDivision].filter((x) => x !== s.professionalTeam));
     const nextDivision = careerOverall(s) >= 72 ? 1 : careerOverall(s) >= 57 ? 2 : 3;
@@ -686,9 +686,9 @@ function applyCareerDevelopment(s: CareerState): void {
   const planFactor: Record<CareerTrainingPlan, number> = { 'バランス': 1, '筋力': 0.9, '技術': 1.05, '持久力': 0.88, '回復': 0.68 };
   for (const k of STAT_KEYS) {
     const focus = k === s.training ? (s.trainingPlan === 'バランス' ? 1.35 : s.trainingPlan === '筋力' && ['pow','sta'].includes(k) ? 1.8 : s.trainingPlan === '技術' && ['tec','men'].includes(k) ? 1.8 : s.trainingPlan === '持久力' && ['sta','spd'].includes(k) ? 1.8 : 1.08) : 0.1;
-    const inc = s.player.talent * careerGrowthMultiplier(s) * baseStage * Math.max(0.04, ageFactor) * planFactor[s.trainingPlan] * focus * (1 - s.player.stats[k] / 125) * (0.85 + rand() * 0.3);
-    s.player.stats[k] = clamp(s.player.stats[k] + inc, 0, 99);
-    if (s.age >= 31 && rand() < (s.age >= 35 ? 0.12 : 0.045)) s.player.stats[k] = clamp(s.player.stats[k] - (s.age >= 35 ? 0.18 : 0.08), 0, 99);
+    const inc = s.player.talent * careerGrowthMultiplier(s) * baseStage * Math.max(0.04, ageFactor) * planFactor[s.trainingPlan] * focus * Math.max(0.08, 1 - s.player.stats[k] / 220) * (0.85 + rand() * 0.3);
+    s.player.stats[k] = clamp(s.player.stats[k] + inc, 0, 200);
+    if (s.age >= 31 && rand() < (s.age >= 35 ? 0.12 : 0.045)) s.player.stats[k] = clamp(s.player.stats[k] - (s.age >= 35 ? 0.18 : 0.08), 0, 200);
   }
   if (s.trainingPlan === '筋力') s.fatigue = clamp(s.fatigue + 5, 0, 100);
   else if (s.trainingPlan === '持久力') s.fatigue = clamp(s.fatigue + 2, 0, 100);
