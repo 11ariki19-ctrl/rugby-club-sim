@@ -510,11 +510,31 @@ export function careerAppearanceProbability(s: CareerState): number {
   const fatigueAdjustment = -clamp(s.fatigue / 500, 0, 0.18);
   return clamp(chance + abilityAdjustment + talentAdjustment + rivalAdjustment + fatigueAdjustment, 0.08, s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed ? 0.99 : 0.92);
 }
+const CAREER_STARTER_SLOTS: Record<Pos, number> = {
+  PR: 2, HO: 1, LO: 2, FL: 2, N8: 1, SH: 1, SO: 1, CTB: 2, WTB: 2, FB: 1,
+};
+
+/** 代表選出済み選手は所属クラブの順位ではなく、代表23名内のポジション順位で起用する。 */
+export function nationalMatchRole(s: CareerState, kind: CareerFixture['kind'] | 'highschool' | 'world'): CareerRole | undefined {
+  if (kind !== 'japan-test' && kind !== 'world-cup') return undefined;
+  if (s.phase === 'highschool' || !s.japanNationalTeamSelected) return undefined;
+  const selected = s.nationalSquad?.find((p) => p.name === s.player.name);
+  if (!selected) return undefined;
+  const peers = s.nationalSquad!.filter((p) => p.pos === s.player.pos).sort((a, b) => b.overall - a.overall);
+  const rank = peers.findIndex((p) => p.name === s.player.name) + 1;
+  if (rank <= 0) return undefined;
+  if (rank <= (CAREER_STARTER_SLOTS[s.player.pos] ?? 1)) return '先発';
+  // 代表23名に選ばれた選手は、クラブでの序列に関係なく代表戦では途中出場枠に入れる。
+  return '途中出場';
+}
+
 function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, opponent?: string, date?: string, kind: CareerFixture['kind'] | 'highschool' | 'world' = 'university-league', difficulty?: number, live?: CareerLiveMatch): { my: number; their: number; win: boolean; exp: number; match: CareerMatch } {
   const o = careerOverall(s), expected = s.phase === 'highschool' ? 43 : s.phase === 'university' ? 59 : 66;
   const selectionChance = careerAppearanceProbability(s);
   let role: CareerRole = live?.role ?? 'メンバー外';
-  if (!live && s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed) role = '先発';
+  const representativeRole = !live ? nationalMatchRole(s, kind) : undefined;
+  if (!live && representativeRole) role = representativeRole;
+  else if (!live && s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed) role = '先発';
   else if (!live && rand() < selectionChance) role = careerRoleByPositionalRank(s, o);
   else if (!live) role = rand() < 0.58 ? '控え' : 'メンバー外';
   const appeared = role === '先発' || role === '途中出場';
