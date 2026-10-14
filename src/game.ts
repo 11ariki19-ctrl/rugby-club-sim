@@ -1,4 +1,4 @@
-import { PREFS, SURNAMES, GIVEN, MIDDLE, SUFFIX, UNIVS, schoolsOf } from './data';
+import { PREFS, MIDDLE, SUFFIX, UNIVS, schoolsOf } from './data';
 import { rand, int, pick, gauss, clamp } from './rng';
 import { generateUniqueJapaneseName } from './names';
 
@@ -125,6 +125,8 @@ export interface GameState {
   month: number;
   reputation: number;
   players: Player[];
+  /** Generated player names retained even when a scouted prospect is rejected. */
+  generatedNames?: string[];
   nextId: number;
   scoutedThisMonth: boolean;
   qualified: boolean;
@@ -211,9 +213,18 @@ function makePlayer(s: GameState, o: MakeOpts): Player {
   const [h, wt] = BODY[o.pos];
   let stars = starsOf(o.talent);
   if (o.fuzz && rand() < 0.25) stars = clamp(stars + (rand() < 0.5 ? -1 : 1), 1, 5);
+  const usedNames = new Set<string>([
+    ...(s.generatedNames ?? []),
+    ...s.players.map((player) => player.name),
+    ...s.grads.map((grad) => grad.name),
+    ...s.scoutLog.map((entry) => entry.name),
+  ]);
+  const generatedName = generateUniqueJapaneseName(usedNames, rand);
+  s.generatedNames ??= [];
+  s.generatedNames.push(generatedName);
   const p: Player = {
     id: s.nextId++,
-    name: generateUniqueJapaneseName(new Set([...s.players.map((player) => player.name), ...s.grads.map((grad) => grad.name), ...s.scoutLog.map((entry) => entry.name)]), rand),
+    name: generatedName,
     pos: o.pos,
     status: o.status,
     grade: o.grade,
@@ -243,6 +254,7 @@ export function newGame(prefIdx: number, type: number): GameState {
     month: 4,
     reputation: 20 + sc.power * 8,
     players: [],
+    generatedNames: [],
     nextId: 1,
     scoutedThisMonth: false,
     qualified: false,
