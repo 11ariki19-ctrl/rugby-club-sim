@@ -1,4 +1,4 @@
-import { PREFS, SUFFIX, schoolsOf } from './data';
+import { PREFS, SUFFIX, SURNAMES, schoolsOf } from './data';
 import { generateUniqueJapaneseName } from './names';
 import { rand, int, pick, gauss, clamp } from './rng';
 import { POS_LABEL, STAT_KEYS, STAT_LABEL, overallAt, rankOf } from './game';
@@ -101,6 +101,7 @@ export interface CareerState {
   pendingTransfer?: { offers: { team: string; division: 1 | 2 | 3; salary: number; overseas: boolean; league?: string }[]; age: number };
   transferHistory: string[];
   rivals: CareerRival[];
+  generatedNameVersion?: number;
   legacyScore?: number;
   awards: string[];
   universityGroup: '関東大学対抗戦A' | '関東大学リーグ戦1部' | '関西大学Aリーグ';
@@ -281,7 +282,7 @@ export function newCareer(name: string, pos: Pos, prefIndex = 26, schoolName?: s
     university: '', universityTier: '', professionalTeam: '', professionalLeague: 'リーグワンD3', retirementAge: 36,
     seasons: [] as CareerSeason[], currentSeason: {} as CareerSeason,
     matchHistory: [] as CareerMatch[], highSchoolAppearances: 0, highSchoolTries: 0, highSchoolRatingTotal: 0, highSchoolRatingCount: 0, nationalCandidate: false, worldTournamentWins: 0, japanNationalTeamSelected: false, japanNationalTeamCaps: 0, japanNationalTeamWins: 0, professionalStarterGuaranteed: false,
-    fatigue: 0, injuryMonths: 0, morale: 60, trainingPlan: 'バランス' as CareerTrainingPlan, proContractYears: 2, proSalary: 0, transferHistory: [], rivals: [], nationalSquad: [], awards: [],
+    fatigue: 0, injuryMonths: 0, morale: 60, trainingPlan: 'バランス' as CareerTrainingPlan, proContractYears: 2, proSalary: 0, transferHistory: [], rivals: [], generatedNameVersion: 1, nationalSquad: [], awards: [],
     universityGroup: '関東大学対抗戦A' as CareerState['universityGroup'], universityQualified: false, universityTournamentAlive: false, proDivision: 3 as 1 | 2 | 3, proMatchIndex: 0, proSchedule: [],
     history: ['15歳で高校ラグビー生活がスタート。3年間の成長と活躍を目指す。'],
   };
@@ -1069,6 +1070,39 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
     if (!Array.isArray(s.transferHistory)) s.transferHistory = [];
     if (!Array.isArray(s.rivals)) s.rivals = createCareerRivals(s);
     if (s.phase !== 'highschool' && !s.rivals.some((r) => r.country && r.country !== '日本')) addPhaseRivals(s);
+    if (s.generatedNameVersion !== 1) {
+      const usedNames = new Set<string>([s.player.name]);
+      const renameMap = new Map<string, string>();
+      for (const rival of s.rivals) {
+        const oldName = rival.name;
+        const newName = generateUniqueJapaneseName(usedNames, rand);
+        rival.name = newName;
+        if (!renameMap.has(oldName)) renameMap.set(oldName, newName);
+      }
+      for (const squadMember of s.nationalSquad ?? []) {
+        const replacement = renameMap.get(squadMember.name);
+        if (replacement) squadMember.name = replacement;
+      }
+      for (const match of s.matchHistory) {
+        for (const event of match.scoreEvents ?? []) {
+          const replacement = renameMap.get(event.scorer);
+          if (replacement) event.scorer = replacement;
+        }
+        match.scenes = match.scenes.map((scene) => {
+          let updated = scene;
+          for (const [oldName, newName] of renameMap) if (oldName) updated = updated.split(oldName).join(newName);
+          return updated;
+        });
+      }
+      s.generatedNameVersion = 1;
+      s.history.unshift('架空選手の氏名を重複のないランダムなフルネームに更新しました。');
+    }
+    const uniqueRivalNames = new Set<string>([s.player.name]);
+    for (const rival of s.rivals) {
+      if (uniqueRivalNames.has(rival.name) || !SURNAMES.includes(rival.name.split(' ')[0] as never)) {
+        rival.name = generateUniqueJapaneseName(uniqueRivalNames, rand);
+      } else uniqueRivalNames.add(rival.name);
+    }
     if (!Array.isArray(s.awards)) s.awards = [];
     for (const k of STAT_KEYS) s.player.stats[k] = clamp(Number(s.player.stats[k]) || 0, 0, 200);
     // One-time compatibility correction for legacy saves whose ratings were far outside their age group.
