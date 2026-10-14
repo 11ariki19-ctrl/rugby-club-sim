@@ -295,6 +295,7 @@ export function newCareer(name: string, pos: Pos, prefIndex = 26, schoolName?: s
     universityGroup: '関東大学対抗戦A' as CareerState['universityGroup'], universityQualified: false, universityTournamentAlive: false, proDivision: 3 as 1 | 2 | 3, proMatchIndex: 0, proSchedule: [],
     history: ['15歳で高校ラグビー生活がスタート。3年間の成長と活躍を目指す。'],
   };
+  for (const k of STAT_KEYS) player.stats[k] = clamp(player.stats[k], 0, careerStatCap(s));
   player.peak = careerOverall(s);
   s.currentSeason = newSeason(s);
   s.rivals = createCareerRivals(s);
