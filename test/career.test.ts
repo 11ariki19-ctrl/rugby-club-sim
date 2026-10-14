@@ -88,7 +88,7 @@ console.log('  ok - match report includes scenes, individual performance, and ex
 seed(903);
 const candidate = newCareer('代表候補テスト', 'WTB', 26, '大阪学院高校');
 candidate.stageYear = 3; candidate.month = 2;
-for (const key of Object.keys(candidate.player.stats) as (keyof typeof candidate.player.stats)[]) candidate.player.stats[key] = 70;
+for (const key of Object.keys(candidate.player.stats) as (keyof typeof candidate.player.stats)[]) candidate.player.stats[key] = 90;
 candidate.highSchoolAppearances = 6; candidate.highSchoolTries = 3;
 candidate.highSchoolRatingTotal = 42; candidate.highSchoolRatingCount = 6;
 advanceCareerMonth(candidate);
@@ -100,9 +100,10 @@ console.log('  ok - pro career uses league-specific regular-season match counts'
 seed(906);
 const national = newCareer('日本代表テスト', 'SO', 26, '大阪学院高校', '天才');
 national.phase = 'university'; national.age = 19; national.stageYear = 2; national.month = 5;
-for (const key of Object.keys(national.player.stats) as (keyof typeof national.player.stats)[]) national.player.stats[key] = 70;
+for (const key of Object.keys(national.player.stats) as (keyof typeof national.player.stats)[]) national.player.stats[key] = 120;
 advanceCareerMonth(national);
-assert.equal(national.japanNationalTeamSelected, true, 'university standout should be selected for Japan');
+assert.equal(national.japanNationalTeamSelected, true, 'university standout should be selected for Japan by positional ranking');
+assert.ok((national.nationalSquad ?? []).some((p) => p.name === national.player.name && p.year === '2年'), 'university representative roster should show school year');
 let internationalGuard = 0;
 while (national.japanNationalTeamCaps === 0 && internationalGuard < 30) { advanceCareerMonth(national); internationalGuard++; }
 assert.ok(national.japanNationalTeamCaps > 0, 'university Japan selection should play international tests');
