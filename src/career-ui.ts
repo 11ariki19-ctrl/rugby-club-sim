@@ -55,6 +55,7 @@ function titleScreen(): string {
       : `<p>データはありません。</p><button class="btn primary" data-career="new-slot" data-v="${slot}">この枠で新規開始</button>`}</section>`;
   }).join('');
   const hall = careerHallOfFame().slice(0, 10).map((p, i) => `<li>${i + 1}位 ${esc(p.name)} — ${p.score}点／${p.appearances}試合・${p.tries}トライ</li>`).join('');
+  const rivalModal = selectedRivalIndex !== null && s.rivals[selectedRivalIndex] ? rivalDetail(s, s.rivals[selectedRivalIndex]) : '';
   return `<main class="page career-pennant-shell"><div class="career-pennant-ribbon"><span>RUGBY PENNANT</span><span>PLAYER CAREER</span></div><header class="hd"><div class="school">🏉 ラグビー人生キャリア</div><div class="date">高校入学から引退まで、一人の選手の物語</div></header><div class="card"><h2>キャリアを選ぶ</h2><p>新しい選手を作るか、2つの独立したセーブデータから再開できます。</p>${slots}</div><div class="card"><h3>歴代選手殿堂</h3><ol class="news">${hall || '<li>引退した選手がここに登録されます。</li>'}</ol></div><p class="note">データはこの端末・ブラウザ内に保存されます。ブラウザのデータ消去や端末変更で失われる場合があります。</p></main>`;
 }
 function createScreen(): string {
@@ -109,7 +110,10 @@ function homeScreen(s: CareerState): string {
   const advanceLabel = s.pendingTransfer ? '契約を更新して進む' : s.pendingTournament ? `試合開始（${s.pendingTournament.name}・${s.pendingTournament.rounds + 1}試合目）` : s.pendingFixtures?.length ? `試合開始（${s.pendingFixtures[0].label}）` : s.tournamentCompletedMonth === s.month ? `試合終了：${monthLabel(s.month)}を終えて次の月へ` : (s.phase === 'professional' && [12,1,2,3,4,5,6,8,9].includes(s.month)) || (s.phase === 'university' && [5,6,9,10,11,12,1].includes(s.month)) || (s.phase === 'highschool' && [2,7,11,12].includes(s.month)) ? `試合開始（${monthLabel(s.month)}）` : `${monthLabel(s.month)}を進める`;
   const plans: CareerTrainingPlan[] = ['バランス','筋力','技術','持久力'];
   const planButtons = plans.map((p) => `<button class="btn mode ${s.trainingPlan === p ? 'primary' : ''}" data-career="plan" data-v="${p}"><b>${p}</b><span>${s.trainingPlan === p ? '選択中' : ({'バランス':'能力全体をバランスよく育成','筋力':'パワー系能力を重点育成','技術':'技術系能力を重点育成','持久力':'スタミナとスピードを重点育成'} as Record<CareerTrainingPlan,string>)[p]}</span></button>`).join('');
-  const rivals = s.rivals.filter((r) => !r.retired).slice().sort((a,b) => b.overall-a.overall).slice(0,5).map((r) => `<li>${esc(r.name)}（${r.country && r.country !== '日本' ? `${esc(r.country)}・` : ''}${r.pos}・総合値${Math.round(r.overall)}）／${esc(r.team)}${r.league ? `・${esc(r.league)}` : ''} ${r.pos === s.player.pos ? '・同ポジションのライバル' : ''}</li>`).join('');
+  const sameCategoryRivals = s.rivals.filter((r) => !r.retired && r.phase === s.phase && r.pos === s.player.pos).sort((a,b) => Math.abs(a.age-s.age)-Math.abs(b.age-s.age) || b.overall-a.overall);
+  const sameGenerationRivals = sameCategoryRivals.filter((r) => Math.abs(r.age-s.age) <= 2);
+  const topRivals = (sameGenerationRivals.length >= 5 ? sameGenerationRivals : sameCategoryRivals).sort((a,b) => b.overall-a.overall || Math.abs(a.age-s.age)-Math.abs(b.age-s.age)).slice(0,5);
+  const rivals = topRivals.map((r,i) => `<button class="row roster-player rival-player" data-career="rival-player" data-v="${s.rivals.indexOf(r)}"><span class="pos">${i+1}</span><span class="nm">${esc(r.name)}<small>${r.age}歳・${esc(r.team)}${r.league ? `・${esc(r.league)}` : ''}</small></span><span class="ov">${Math.round(r.overall)}</span><span aria-hidden="true">›</span></button>`).join('');
   const hall = careerHallOfFame().slice(0,5).map((r,i) => `<li>${i+1}位 ${esc(r.name)}：スコア${r.score}／出場${r.appearances}・${r.tries}トライ</li>`).join('');
   return `<main class="page career-pennant-shell"><div class="career-pennant-ribbon"><span>RUGBY PENNANT</span><span>${esc(team)} ・ SEASON ${s.currentSeason.year}</span></div><header class="hd career-pennant-header"><div class="school">🏉 ラグビー人生キャリア</div><div class="date">${s.age}歳・${monthLabel(s.month)} ／ ${labels[s.phase]} ${s.phase === 'retired' ? '' : s.stageYear + '年目'}</div></header>
     <div class="career-sticky-progress"><div class="career-sticky-progress-meta"><b>${monthLabel(s.month)}</b><span>${labels[s.phase]}・${s.age}歳</span></div><button class="btn primary career-sticky-progress-button" data-career="advance">${advanceLabel}</button></div>
@@ -136,16 +140,17 @@ function homeScreen(s: CareerState): string {
     ${s.phase !== 'retired' ? `<section class="career-command-panel"><div class="career-section-heading"><span class="career-section-no">01</span><div><h3>今月の育成方針</h3><p class="note">能力別トレーニングに加えて育成プランを選択。年齢によって成長が緩やかになり、ベテラン期は能力低下も起こります。</p></div></div><div class="career-training-grid">${training}</div><h4 class="career-subheading">育成プラン</h4><div class="career-plan-grid">${planButtons}</div>
     <button class="btn primary big career-advance-button" data-career="advance">${advanceLabel}</button></section>` : `<div class="panel"><h3>現役引退</h3><p>${esc(s.finalSummary ?? '')}</p><p>通算リーグ出場：${s.seasons.reduce((n, r) => n + r.appearances, 0)}試合 ／ 通算トライ：${s.seasons.reduce((n, r) => n + r.tries, 0)}</p></div>`}
     ${seasonCard(s)}<div class="card"><h3>契約・キャリア実績</h3><p>契約残り：${s.proContractYears}年 ／ 年俸：${s.proSalary ? `${s.proSalary}万円` : '未設定'} ／ レガシースコア：${s.legacyScore ?? careerLegacyScore(s)}</p>${s.transferHistory.length ? `<ul class="news">${s.transferHistory.slice(0,5).map(esc).map(x=>`<li>${x}</li>`).join('')}</ul>` : '<p class="small">プロ入り後、シーズン終了時に契約更新・国内移籍・海外挑戦の選択肢が提示されます。</p>'}</div>
-    <div class="card"><h3>ライバル・ポジション争い</h3><p class="small">ライバルは年齢に応じて成長・衰退します。試合の起用は所属チーム内の同ポジション総合値順位で決まります。</p><ul class="news">${rivals || '<li>現役ライバルはいません。</li>'}</ul></div>
+    <div class="card"><h3>同年代・同カテゴリーのポジションランキング</h3><p class="small">${s.age}歳・${labels[s.phase]}・${s.player.pos}の選手を総合値順に表示。上位5名をタップすると能力詳細を確認できます。</p><div class="roster-list">${rivals || '<p class="note">該当するライバルがいません。</p>'}</div></div>
     <div class="card"><h3>通算記録・殿堂ランキング</h3><p>通算出場：${s.seasons.reduce((n,r)=>n+r.appearances,0)+s.currentSeason.appearances}試合 ／ トライ：${s.seasons.reduce((n,r)=>n+r.tries,0)+s.currentSeason.tries} ／ 代表：${s.japanNationalTeamCaps}キャップ ／ 表彰：${s.awards.length}件</p><p>現在のレガシースコア：${careerLegacyScore(s)}</p><ul class="news">${hall || '<li>殿堂入り記録は選手が引退すると登録されます。</li>'}</ul></div>
     <h3>キャリア年表</h3><ul class="news">${history}</ul>
     <h3>シーズン記録・年鑑</h3>${seasons || '<p class="note">シーズン終了後に記録が追加されます。</p>'}
     <button class="btn" data-career="title">タイトルへ戻る</button><p class="note">このモードのセーブは監督モードとは独立しています。</p>
-    </section></main>`;
+    </section>${rivalModal}</main>`;
 }
 
 type RosterMember = { name: string; pos: Pos; number: number; role: string; stats: Record<StatKey, number>; overall: number; isUser?: boolean };
 let selectedRosterMember: RosterMember | null = null;
+let selectedRivalIndex: number | null = null;
 let showMatchResult = false;
 let activeCareerTab = 'player';
 const rosterPositions: Pos[] = ['PR','HO','PR','LO','LO','FL','FL','N8','SH','SO','WTB','CTB','CTB','WTB','FB','PR','HO','LO','FL','N8','SH','SO','CTB'];
@@ -185,6 +190,16 @@ function playerDetail(member: RosterMember): string {
   const weight = member.isUser && state ? state.player.weight : (['PR','HO','LO','N8'].includes(member.pos) ? 94 : 78);
   return `<div class="modal" data-career="roster-close"><section class="sheet" role="dialog" aria-modal="true" aria-label="選手詳細" data-roster-sheet><button class="link" data-career="roster-close">← メンバー表へ戻る</button><h2>${esc(member.name)}</h2><div class="panel">背番号 ${member.number} ／ ${member.pos} ／ ${member.role}<br>総合値 <b>${member.overall}</b>${member.isUser ? '<br>あなたが操作する選手' : ''}</div><div class="card"><h3>能力ステータス</h3>${bars}</div><div class="cards"><div class="card stat"><span class="k">身長</span><b>${height}cm</b></div><div class="card stat"><span class="k">体重</span><b>${weight}kg</b></div></div><button class="btn primary" data-career="roster-close">閉じる</button></section></div>`;
 }
+function rivalDetail(s: CareerState, rival: CareerState['rivals'][number]): string {
+  const seed = stableHash(\`\${rival.name}|\${rival.team}|\${rival.pos}\`);
+  const stats = {} as Record<StatKey, number>;
+  for (const [i, key] of CAREER_STAT_KEYS.entries()) {
+    const variation = ((seed >>> ((i * 3) % 24)) + i * 11) % 17 - 8;
+    stats[key] = Math.max(15, Math.min(200, Math.round(rival.overall + variation)));
+  }
+  const bars = CAREER_STAT_KEYS.map((key) => \`<div class="bar"><span>\${CAREER_STAT_LABEL[key]}</span><div class="track"><i style="width:\${Math.round(Math.min(200,stats[key])/2)}%"></i></div><b>\${stats[key]}</b></div>\`).join('');
+  return \`<div class="modal" data-career="rival-close"><section class="sheet" role="dialog" aria-modal="true" aria-label="ライバル選手詳細" data-rival-sheet><button class="link" data-career="rival-close">← ランキングへ戻る</button><h2>\${esc(rival.name)}</h2><div class="panel">\${esc(rival.team)}\${rival.league ? \`・\${esc(rival.league)}\` : ''}<br>\${labels[rival.phase]}・\${rival.age}歳・\${rival.pos}<br>総合値 <b>\${Math.round(rival.overall)}</b>\${rival.country && rival.country !== '日本' ? \`<br>国籍：\${esc(rival.country)}\` : ''}</div><div class="card"><h3>能力ステータス</h3>\${bars}<p class="small">能力値はゲーム内総合値を基準にしたライバル選手のステータスです。</p></div><div class="cards"><div class="card stat"><span class="k">出場</span><b>\${rival.appearances}</b></div><div class="card stat"><span class="k">トライ</span><b>\${rival.tries}</b></div></div><button class="btn primary" data-career="rival-close">閉じる</button></section></div>\`;
+}
 function lineupCard(s: CareerState, team: string, own: boolean): string {
   const roster = teamRoster(team, s, own);
   return `<section class="card"><h3>${own ? '自チームのメンバー表' : '対戦相手のメンバー表'}</h3><p class="note">23名登録・ポジション順。先発／控えは同ポジション内の総合力で判定。選手をタップすると能力詳細を確認できます。</p><div class="roster-list">${roster.map((p) => `<button class="row roster-player" data-career="roster-player" data-v="${own ? 'own' : 'opponent'}:${p.number}"><span class="pos">${p.number}</span><span class="nm">${esc(p.name)}${p.isUser ? '（あなた）' : ''}<small>${p.pos}・${p.role}</small></span><span class="ov">${p.overall}</span><span aria-hidden="true">›</span></button>`).join('')}</div></section>`;
@@ -213,7 +228,7 @@ function render(): void {
 }
 function act(action: string, value = ''): void {
   if (!root) return;
-  if (action === 'title') { titleMenu = true; creating = false; showMatchResult = false; selectedRosterMember = null; render(); return; }
+  if (action === 'title') { titleMenu = true; creating = false; showMatchResult = false; selectedRosterMember = null; selectedRivalIndex = null; render(); return; }
   if (action === 'new-slot') {
     selectedSaveSlot = value === '2' ? 2 : 1; setCareerSaveSlot(selectedSaveSlot);
     if (hasCareerSave(selectedSaveSlot) && !confirm(`セーブスロット${selectedSaveSlot}を上書きしますか？`)) return;
@@ -223,6 +238,8 @@ function act(action: string, value = ''): void {
     selectedSaveSlot = value === '2' ? 2 : 1; setCareerSaveSlot(selectedSaveSlot);
     state = loadCareer(selectedSaveSlot); creating = !state; titleMenu = !state; showMatchResult = false; render(); return;
   }
+  if (action === 'rival-close') { selectedRivalIndex = null; render(); return; }
+  if (action === 'rival-player' && state) { const index = Number(value); if (Number.isInteger(index) && index >= 0 && index < state.rivals.length) selectedRivalIndex = index; render(); return; }
   if (action === 'roster-close') { selectedRosterMember = null; render(); return; }
   if (action === 'roster-player' && state) {
     const [side, rawNumber] = value.split(':');
