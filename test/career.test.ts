@@ -68,6 +68,13 @@ setCareerSaveSlot(2); assert.equal(loadCareer(2), null, 'clearing slot two leave
 setCareerSaveSlot(1); assert.equal(loadCareer(1)?.player.name, 'スロット1', 'clearing slot two does not delete slot one');
 setCareerSaveSlot(1);
 console.log('  ok - independent local save slots and slot-specific clearing');
+const legacySchoolSave = newCareer('旧高校データ移行', 'CTB', 26, '大阪学院高校');
+legacySchoolSave.rivals[0].team = '大阪府立選抜';
+setCareerSaveSlot(1); saveCareer(legacySchoolSave);
+const migratedSchoolSave = loadCareer(1)!;
+assert.ok(allSchools().some((school) => school.name === migratedSchoolSave.highSchool), 'legacy fictional high-school names migrate to real schools');
+assert.ok(migratedSchoolSave.rivals.filter((r) => r.phase === 'highschool').every((r) => allSchools().some((school) => school.name === r.team)), 'legacy high-school opponents migrate to real schools');
+console.log('  ok - existing high-school saves migrate to real school names');
 
 assert.equal(WORLD_CUP_TEAMS.length, 32, 'World Cup roster contains 32 nations');
 assert.equal(new Set(WORLD_CUP_TEAMS).size, 32, 'World Cup nations are unique');
