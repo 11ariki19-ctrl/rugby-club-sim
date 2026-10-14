@@ -158,26 +158,8 @@ const PHASE_LABEL: Record<CareerPhase, string> = {
   highschool: '高校生', university: '大学生', professional: '社会人', retired: '引退',
 };
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
-export function careerStatCap(s: Pick<CareerState, 'phase' | 'age' | 'stageYear'>): number {
-  if (s.phase === 'highschool') return [0, 68, 76, 84][Math.max(1, Math.min(3, s.stageYear))];
-  if (s.phase === 'university') return [0, 88, 94, 100, 106][Math.max(1, Math.min(4, s.stageYear))];
-  if (s.phase === 'professional') return s.age <= 22 ? 112 : s.age <= 27 ? 122 : s.age <= 31 ? 118 : 110;
-  return 110;
-}
-export function careerOverallCap(s: Pick<CareerState, 'phase' | 'age' | 'stageYear'>): number {
-  if (s.phase === 'highschool') return [0, 62, 70, 78][Math.max(1, Math.min(3, s.stageYear))];
-  if (s.phase === 'university') return [0, 82, 87, 92, 97][Math.max(1, Math.min(4, s.stageYear))];
-  if (s.phase === 'professional') {
-    if (s.age <= 22) return 100;
-    if (s.age <= 25) return 108;
-    if (s.age <= 29) return 112;
-    if (s.age <= 32) return 108;
-    return 100;
-  }
-  return 100;
-}
 export function careerOverall(s: CareerState): number {
-  return Math.min(Math.round(overallAt({ pos: s.player.pos, stats: s.player.stats } as never)), careerOverallCap(s));
+  return Math.round(overallAt({ pos: s.player.pos, stats: s.player.stats } as never));
 }
 function newSeason(s: CareerState): CareerSeason {
   return { age: s.age, phase: s.phase === 'retired' ? 'professional' : s.phase, year: s.stageYear, team: currentTeam(s), league: s.phase === 'professional' ? s.professionalLeague : undefined, played: 0, leaguePlayed: 0, leagueWins: 0, leagueLosses: 0, leagueDraws: 0, wins: 0, losses: 0, draws: 0, pointsFor: 0, pointsAgainst: 0, appearances: 0, starts: 0, substituteApps: 0, bench: 0, notSelected: 0, tries: 0, awards: [], notes: [] };
@@ -295,7 +277,6 @@ export function newCareer(name: string, pos: Pos, prefIndex = 26, schoolName?: s
     universityGroup: '関東大学対抗戦A' as CareerState['universityGroup'], universityQualified: false, universityTournamentAlive: false, proDivision: 3 as 1 | 2 | 3, proMatchIndex: 0, proSchedule: [],
     history: ['15歳で高校ラグビー生活がスタート。3年間の成長と活躍を目指す。'],
   };
-  for (const k of STAT_KEYS) player.stats[k] = clamp(player.stats[k], 0, careerStatCap(s));
   player.peak = careerOverall(s);
   s.currentSeason = newSeason(s);
   s.rivals = createCareerRivals(s);
@@ -356,19 +337,19 @@ const UNI_STRENGTH: Record<string, number> = { '帝京大学': 98, '明治大学
 export function careerTeamStrengthProfile(phase: CareerPhase, team: string): { center: number; min: number; max: number } {
   if (phase === 'highschool') {
     const prefecturePower = PREFS.find((p) => team.startsWith(p.short))?.p ?? 2;
-    const schoolPower = TOP_SCHOOLS.includes(team) ? 5 : prefecturePower;
-    const center = schoolPower <= 2 ? 43 : schoolPower === 3 ? 52 : schoolPower === 4 ? 61 : 70;
     const elite = TOP_SCHOOLS.includes(team);
-    return { center: center + (elite ? 3 : 0), min: 25, max: schoolPower <= 2 ? 59 : schoolPower === 3 ? 68 : schoolPower === 4 ? 78 : 91 };
+    const schoolPower = elite ? 5 : prefecturePower;
+    const center = schoolPower <= 2 ? 41 : schoolPower === 3 ? 47 : schoolPower === 4 ? 54 : 62;
+    return { center, min: 28, max: schoolPower <= 2 ? 54 : schoolPower === 3 ? 61 : schoolPower === 4 ? 68 : 76 };
   }
   if (phase === 'university') {
     const strength = UNI_STRENGTH[team] ?? 72;
-    return { center: 52 + Math.round((strength - 65) * 0.62), min: 35, max: clamp(61 + Math.round((strength - 70) * 0.62), 63, 94) };
+    return { center: 50 + Math.round((strength - 65) * 0.46), min: 38, max: clamp(62 + Math.round((strength - 70) * 0.42), 64, 82) };
   }
   const league = leagueForClub(team);
   const eliteLeagues = ['リーグワン', 'イングランド・プレミアシップ', 'フランス・トップ14', 'ユナイテッド・ラグビー・チャンピオンシップ', 'スーパーラグビー・パシフィック'];
   const tier = eliteLeagues.includes(league) ? 5 : league.includes('D2') || ['メジャーリーグラグビー', 'カリーカップ'].includes(league) ? 3 : 2;
-  return { center: 58 + tier * 5, min: 45, max: tier === 5 ? 98 : tier === 3 ? 88 : 80 };
+  return { center: 63 + tier * 4.2, min: 48, max: tier === 5 ? 94 : tier === 3 ? 86 : 79 };
 }
 function createCareerRivals(s: CareerState): CareerRival[] {
   const high = s.phase === 'highschool', uni = s.phase === 'university';
@@ -387,12 +368,11 @@ function createCareerRivals(s: CareerState): CareerRival[] {
       const pos = POSITIONS[(teamIndex * countPerTeam + j * 3) % POSITIONS.length];
       const name = names[(n + j * 3) % names.length];
       const profile = careerTeamStrengthProfile(s.phase, team);
-      const growthAdjustment = Math.max(-6, Math.min(14, playerOverall - (high ? 48 : uni ? 70 : 90))) * 0.12;
-      const rawOverall = clamp(profile.center + int(-8, 8) + growthAdjustment, profile.min, profile.max);
-      const rivalAge = high ? 15 + (n % 3) : uni ? 18 + (n % 4) : 21 + (n % 14);
-      const rivalCap = high ? ([62,70,78][rivalAge - 15] ?? 78) : uni ? ([82,87,92,97][rivalAge - 18] ?? 97) : rivalAge <= 22 ? 100 : rivalAge <= 25 ? 108 : rivalAge <= 29 ? 112 : rivalAge <= 32 ? 108 : 100;
-      const overall = Math.min(rawOverall, rivalCap);
-      candidates.push({ name: `${name}${j ? 'Jr.' : ''}`, pos, age: high ? 15 + (n % 3) : uni ? 18 + (n % 4) : 21 + (n % 14), overall, phase: s.phase, team, country: '日本', league: high ? '高校ラグビー' : uni ? '大学リーグ' : leagueForClub(team), appearances: 0, tries: 0, retired: false });
+      const growthAdjustment = Math.max(-8, Math.min(8, playerOverall - (high ? 44 : uni ? 62 : 78))) * 0.18;
+      const age = high ? 15 + (n % 3) : uni ? 18 + (n % 4) : 21 + (n % 14);
+      const ageAdjustment = high ? (age - 15) * 2.5 : uni ? (age - 18) * 1.8 : age <= 22 ? -3 : age <= 25 ? 0 : age <= 29 ? 2 : age <= 32 ? 0 : -4;
+      const overall = Math.round(clamp(profile.center + int(-7, 7) + growthAdjustment + ageAdjustment, profile.min, profile.max));
+      candidates.push({ name: `${name}${j ? 'Jr.' : ''}`, pos, age, overall, phase: s.phase, team, country: '日本', league: high ? '高校ラグビー' : uni ? '大学リーグ' : leagueForClub(team), appearances: 0, tries: 0, retired: false });
       n++;
     }
   }
@@ -918,12 +898,11 @@ function applyCareerDevelopment(s: CareerState): void {
   const baseStage = s.phase === 'highschool' ? 1.15 * 1.45 : s.phase === 'university' ? 0.95 * 1.30 : 0.55;
   const ageFactor = s.age < 22 ? 1 : s.age < 27 ? 0.72 : s.age < 31 ? 0.42 : s.age < 34 ? 0.18 : 0.05;
   const planFactor: Record<CareerTrainingPlan, number> = { 'バランス': 1, '筋力': 0.9, '技術': 1.05, '持久力': 0.88, '回復': 0.68 };
-  const statCap = careerStatCap(s);
   for (const k of STAT_KEYS) {
     const focus = k === s.training ? (s.trainingPlan === 'バランス' ? 1.35 : s.trainingPlan === '筋力' && ['pow','sta'].includes(k) ? 1.8 : s.trainingPlan === '技術' && ['tec','men'].includes(k) ? 1.8 : s.trainingPlan === '持久力' && ['sta','spd'].includes(k) ? 1.8 : 1.08) : 0.1;
     const inc = s.player.talent * careerGrowthMultiplier(s) * baseStage * Math.max(0.04, ageFactor) * planFactor[s.trainingPlan] * focus * Math.max(0.08, 1 - s.player.stats[k] / 220) * (0.85 + rand() * 0.3);
-    s.player.stats[k] = clamp(s.player.stats[k] + inc, 0, statCap);
-    if (s.age >= 31 && rand() < (s.age >= 35 ? 0.12 : 0.045)) s.player.stats[k] = clamp(s.player.stats[k] - (s.age >= 35 ? 0.8 : 0.35), 0, statCap);
+    s.player.stats[k] = clamp(s.player.stats[k] + inc, 0, 200);
+    if (s.age >= 31 && rand() < (s.age >= 35 ? 0.12 : 0.045)) s.player.stats[k] = clamp(s.player.stats[k] - (s.age >= 35 ? 0.8 : 0.35), 0, 200);
   }
   if (s.trainingPlan === '筋力') s.fatigue = clamp(s.fatigue + 5, 0, 100);
   else if (s.trainingPlan === '持久力') s.fatigue = clamp(s.fatigue + 2, 0, 100);
