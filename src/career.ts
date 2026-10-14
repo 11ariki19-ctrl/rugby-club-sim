@@ -602,6 +602,31 @@ function finishCareerLiveMatch(s: CareerState): void {
     }
   } else {
     if (kind === 'professional-league') s.proMatchIndex++;
+    if (kind === 'world-cup' && s.worldCup) {
+      if (!s.worldCup.qualified && !s.worldCup.completed) {
+        s.worldCup.poolPlayed++;
+        if (m.win) s.worldCup.poolWins++;
+        if (s.worldCup.poolPlayed >= 3) {
+          const table = [{ team: '日本', wins: s.worldCup.poolWins, tie: rand() }, ...s.worldCup.poolOpponents.map((team, i) => ({ team, wins: s.worldCup!.poolRivalWins[i] ?? 0, tie: rand() }))].sort((a, b) => b.wins - a.wins || b.tie - a.tie);
+          s.worldCup.qualified = table.findIndex((row) => row.team === '日本') < 2;
+          s.pendingFixtures = [];
+          if (s.worldCup.qualified) s.pendingFixtures.push({ date: '10月・ラウンド16', label: 'ラグビーワールドカップ ラウンド16', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本' && !s.worldCup!.poolOpponents.includes(x))), difficulty: 79, kind: 'world-cup' });
+          else s.worldCup.completed = true;
+        }
+      } else {
+        s.worldCup.knockoutStage++;
+        if (!m.win || s.worldCup.knockoutStage >= 4) { s.worldCup.completed = true; s.pendingFixtures = []; }
+        else {
+          const stages = [
+            { date: '10月・準々決勝', label: 'ラグビーワールドカップ 準々決勝', difficulty: 82 },
+            { date: '10月・準決勝', label: 'ラグビーワールドカップ 準決勝', difficulty: 86 },
+            { date: '10月・決勝', label: 'ラグビーワールドカップ 決勝', difficulty: 90 },
+          ];
+          const next = stages[s.worldCup.knockoutStage - 1];
+          if (next) s.pendingFixtures = [{ ...next, opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), kind: 'world-cup' }];
+        }
+      }
+    }
     if (kind === 'university-league' && s.currentSeason.leaguePlayed >= 7) {
       s.universityQualified = s.currentSeason.leagueWins >= 4 || s.universityTier === '最上位';
       s.universityTournamentAlive = s.universityQualified;
