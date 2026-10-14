@@ -338,7 +338,7 @@ function createCareerRivals(s: CareerState): CareerRival[] {
       const pos = POSITIONS[(n * 7 + j * 3) % POSITIONS.length];
       const name = names[(n + j * 3) % names.length];
       const rankBoost = high ? (TOP_SCHOOLS.includes(team) ? 25 : 0) : uni ? (UNI_STRENGTH[team] ?? 74) - 75 : (team.includes('ワイルドナイツ') || team.includes('ブレイブルーパス') || team.includes('スピアーズ') || team.includes('サンゴリアス') || team.includes('神戸スティーラーズ') ? 22 : 0);
-      const phaseBase = high ? 65 : uni ? 88 : 108;
+      const phaseBase = high ? 82 : uni ? 103 : 124;
       const growthAdjustment = Math.max(-8, Math.min(16, playerOverall - phaseBase)) * 0.22;
       const overall = clamp(phaseBase + rankBoost + int(-8, 18) + growthAdjustment, high ? 55 : uni ? 70 : 85, high ? 155 : uni ? 175 : 195);
       candidates.push({ name: `${name}${j ? 'Jr.' : ''}`, pos, age: high ? 15 + (n % 3) : uni ? 18 + (n % 4) : 21 + (n % 14), overall, phase: s.phase, team, country: '日本', league: high ? '高校ラグビー' : uni ? '大学リーグ' : leagueForClub(team), appearances: 0, tries: 0, retired: false });
@@ -348,6 +348,19 @@ function createCareerRivals(s: CareerState): CareerRival[] {
   if (!high) {
     const countries = Object.keys(NATIONAL_COUNTRY_RANK).filter((x) => x !== 'Japan');
     const foreignNames: Record<string, string[]> = {
+      Scotland: ['Finn Russell','Sione Tuipulotu','Duhan van der Merwe','Huw Jones','Blair Kinghorn'],
+      Wales: ['Jac Morgan','Tommy Reffell','Louis Rees-Zammit','Gareth Anscombe','Dewi Lake'],
+      Italy: ['Michele Lamaro','Paolo Garbisi','Ange Capuozzo','Tommaso Menoncello','Lorenzo Cannone'],
+      Georgia: ['Beka Gorgadze','Giorgi Mamukashvili','Daviti Niniashvili','Tedo Abzhandadze','Beka Saginadze'],
+      USA: ['AJ MacGinty','Cameron Dolan','Luke Carty','Mitch Wilson','Greg Peterson'],
+      Portugal: ['Nicolas Martins','Raffaele Storti','Samuel Marques','Tomas Appleton','Rodrigo Marta'],
+      Samoa: ['Steven Luatua','Chris Vui','Tumua Manu','Seilala Mapusua','Dwayne Polataivao'],
+      Tonga: ['Ben Tameifuna','Charles Piutau','Vaea Fifita','Sonatane Takulua','Salesi Piutau'],
+      Uruguay: ['Santiago Arata','Felipe Berchesi','Manuel Ardao','Baltazar Amaya','Andrés Vilaseca'],
+      Chile: ['Rodrigo Fernández','Santiago Videla','Pablo Casas','Matías Garafulic','Iñaki Gurruchaga'],
+      Spain: ['Gonzalo López','Manuel Mora','John Wessel Bell','Gautier Gibouin','Jon Zabala'],
+      Canada: ['Brock Webster','DTH van der Merwe','Peter Nelson','Conor Trainor','Luke Campbell'],
+      Romania: ['Cristi Boboc','Hinckley Vaovasa','Mihai Macovei','Florin Surugiu','Gabriel Rupanu'],
       NZ: ['Ardie Savea','Beauden Barrett','Will Jordan','Caleb Clarke','Rieko Ioane','Damian McKenzie','Tamaiti Williams','Cam Roigard'],
       SouthAfrica: ['Siya Kolisi','Cheslin Kolbe','Damian de Allende','Eben Etzebeth','Kurt-Lee Arendse','Manie Libbok'],
       England: ['Maro Itoje','Marcus Smith','Tommy Freeman','Ellis Genge','Henry Arundell','Fin Smith'],
