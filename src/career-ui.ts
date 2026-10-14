@@ -92,6 +92,7 @@ function lastMatchCard(s: CareerState): string {
   return `<div class="card"><h3>直近の試合レポート</h3><p><b>${esc(m.competition)}</b> ／ ${esc(m.date)}</p>
     <p>${esc(m.competition.includes('日本代表') ? '日本代表' : currentTeam(s))} vs ${esc(m.opponent)}<br><strong class="big2">${m.my} - ${m.their}</strong>　${m.result}</p>
     <p>起用：<b>${esc(m.role ?? (m.appeared ? '先発' : 'メンバー外'))}</b> ／ ${m.appeared ? `選手評価：<b>${m.rating.toFixed(1)} / 10</b>` : '選手評価：出場機会なし'} ／ 経験点 <b>+${m.experience}</b></p>
+    <h4>得点経過</h4><ol class="news">${(m.scoreEvents ?? []).map(e => `<li>${e.minute}分 ${esc(e.side === '自チーム' ? (e.scorer === s.player.name ? e.scorer : e.scorer) : e.scorer)}：${esc(e.method)}（+${e.points}点）</li>`).join('') || '<li>得点経過データはありません（過去の試合記録）。</li>'}</ol>
     <div class="cards"><div class="card stat"><span class="k">トライ</span><b>${m.tries}</b></div><div class="card stat"><span class="k">キャリー</span><b>${m.carries}</b></div>
     <div class="card stat"><span class="k">タックル</span><b>${m.tackles}</b></div><div class="card stat"><span class="k">ラインブレイク</span><b>${m.lineBreaks}</b></div>
     <div class="card stat"><span class="k">キック</span><b>${m.kicks}</b></div><div class="card stat"><span class="k">ミス</span><b>${m.errors}</b></div></div>
@@ -198,6 +199,7 @@ function matchResultScreen(s: CareerState): string {
     <section class="card match-result-card"><h2>${esc(m.competition)}</h2><p>${esc(m.date)}</p>
       <div class="scoreboard"><div><span>${esc(m.competition.includes('日本代表') ? '日本代表' : currentTeam(s))}</span><strong>${m.my}</strong></div><div class="score-dash">—</div><div><span>${esc(m.opponent)}</span><strong>${m.their}</strong></div></div>
       <p><b>${m.result}</b> ／ 起用：${esc(m.role ?? (m.appeared ? '先発' : 'メンバー外'))} ／ ${m.appeared ? `評価 ${m.rating.toFixed(1)}/10` : '出場機会なし'}</p>
+      <h3>得点経過</h3><ol class="news">${(m.scoreEvents ?? []).map(e => `<li>${e.minute}分 ${esc(e.side === '自チーム' ? currentTeam(s) : m.opponent)}：${esc(e.scorer)} — ${esc(e.method)}（+${e.points}点）</li>`).join('') || '<li>得点経過データはありません（過去の試合記録）。</li>'}</ol>
       <div class="cards"><div class="card stat"><span class="k">トライ</span><b>${m.tries}</b></div><div class="card stat"><span class="k">キャリー</span><b>${m.carries}</b></div><div class="card stat"><span class="k">タックル</span><b>${m.tackles}</b></div><div class="card stat"><span class="k">突破</span><b>${m.lineBreaks}</b></div></div>
       <h3>試合レポート</h3><ul class="news">${m.scenes.map((scene) => `<li>${esc(scene)}</li>`).join('')}</ul>
     </section>
