@@ -191,7 +191,7 @@ export const UNIVERSITY_GROUPS: Record<CareerState['universityGroup'], string[]>
   '関東大学リーグ戦1部': ['東海大学','東洋大学','流通経済大学','法政大学','日本大学','大東文化大学','関東学院大学','立正大学'],
   '関東大学リーグ戦2部': ['山梨学院大学','中央大学','専修大学','國學院大學','拓殖大学','朝鮮大学校','白鷗大学','新潟食料農業大学'],
   '関西大学Aリーグ': ['京都産業大学','天理大学','同志社大学','関西学院大学','立命館大学','近畿大学','関西大学','摂南大学'],
-  '関西大学Bリーグ': ['大阪体育大学','大阪大学','大阪公立大学','龍谷大学','京都大学','大阪工業大学','大阪経済大学','花園大学'],
+  '関西大学Bリーグ': ['龍谷大学','大阪体育大学','甲南大学','追手門学院大学','大阪産業大学','大阪経済大学','京都大学','大阪国際大学','神戸大学','大阪大学','関西外国語大学','大阪教育大学'],
 };
 export function groupForUniversity(name: string): CareerState['universityGroup'] {
   for (const [group, teams] of Object.entries(UNIVERSITY_GROUPS)) if (teams.includes(name)) return group as CareerState['universityGroup'];
@@ -348,7 +348,7 @@ function addPhaseRivals(s: CareerState): void {
 const NATIONAL_COUNTRY_RANK: Record<string, number> = { SouthAfrica: 98, NZ: 97, Ireland: 94, France: 93, England: 92, Australia: 92, Scotland: 91, Argentina: 89, Japan: 87, Fiji: 86, Wales: 85, Italy: 84, Georgia: 81, USA: 79, Portugal: 78, Samoa: 77, Tonga: 76, Uruguay: 75, Chile: 74, Spain: 73, Canada: 72, Romania: 71 };
 const COUNTRY_LABEL: Record<string, string> = { SouthAfrica: '南アフリカ', NZ: 'ニュージーランド', Ireland: 'アイルランド', France: 'フランス', England: 'イングランド', Australia: 'オーストラリア', Scotland: 'スコットランド', Argentina: 'アルゼンチン', Japan: '日本', Fiji: 'フィジー', Wales: 'ウェールズ', Italy: 'イタリア', Georgia: 'ジョージア', USA: 'アメリカ', Portugal: 'ポルトガル', Samoa: 'サモア', Tonga: 'トンガ', Uruguay: 'ウルグアイ', Chile: 'チリ', Spain: 'スペイン', Canada: 'カナダ', Romania: 'ルーマニア' };
 const TOP_SCHOOLS = allSchools().filter((school) => school.power >= 5).map((school) => school.name);
-const UNI_STRENGTH: Record<string, number> = { '帝京大学': 98, '明治大学': 97, '早稲田大学': 97, '京都産業大学': 94, '天理大学': 93, '東海大学': 93, '筑波大学': 91, '関西学院大学': 90, '同志社大学': 89, '慶應義塾大学': 89, '東洋大学': 88, '立命館大学': 87, '大東文化大学': 86, '日本大学': 85, '関東学院大学': 84, '近畿大学': 84, '流通経済大学': 83, '福岡工業大学': 82, '青山学院大学': 82, '法政大学': 82, '日本体育大学': 82, '立教大学': 80, '武蔵大学': 74, '明治学院大学': 75, '成蹊大学': 73, '東京大学': 70, '一橋大学': 69, '成城大学': 68, '上智大学': 71, '学習院大学': 69, '山梨学院大学': 81, '中央大学': 80, '専修大学': 79, '國學院大學': 78, '拓殖大学': 76, '朝鮮大学校': 75, '白鷗大学': 72, '新潟食料農業大学': 71, '大阪体育大学': 79, '大阪大学': 72, '大阪公立大学': 73, '龍谷大学': 76, '京都大学': 70, '大阪工業大学': 71, '大阪経済大学': 72, '花園大学': 69 };
+const UNI_STRENGTH: Record<string, number> = { '帝京大学': 98, '明治大学': 97, '早稲田大学': 97, '京都産業大学': 94, '天理大学': 93, '東海大学': 93, '筑波大学': 91, '関西学院大学': 90, '同志社大学': 89, '慶應義塾大学': 89, '東洋大学': 88, '立命館大学': 87, '大東文化大学': 86, '日本大学': 85, '関東学院大学': 84, '近畿大学': 84, '流通経済大学': 83, '福岡工業大学': 82, '青山学院大学': 82, '法政大学': 82, '日本体育大学': 82, '立教大学': 80, '武蔵大学': 74, '明治学院大学': 75, '成蹊大学': 73, '東京大学': 70, '一橋大学': 69, '成城大学': 68, '上智大学': 71, '学習院大学': 69, '山梨学院大学': 81, '中央大学': 80, '専修大学': 79, '國學院大學': 78, '拓殖大学': 76, '朝鮮大学校': 75, '白鷗大学': 72, '新潟食料農業大学': 71, '大阪体育大学': 79, '大阪大学': 72, '大阪公立大学': 73, '龍谷大学': 76, '京都大学': 70, '大阪工業大学': 71, '大阪経済大学': 72, '花園大学': 69, '甲南大学': 74, '追手門学院大学': 73, '大阪産業大学': 74, '大阪国際大学': 70, '神戸大学': 71, '関西外国語大学': 69, '大阪教育大学': 70 };
 export function careerTeamStrengthProfile(phase: CareerPhase, team: string): { center: number; min: number; max: number } {
   if (phase === 'highschool') {
     const realSchool = allSchools().find((school) => school.name === team || school.name.includes(team) || team.includes(school.name.replace(/高等学校|高等部/g, '')));
