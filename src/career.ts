@@ -383,7 +383,8 @@ function createCareerRivals(s: CareerState): CareerRival[] {
   let n = 0;
   for (const team of domesticTeams) {
     for (let j = 0; j < countPerTeam; j++) {
-      const pos = POSITIONS[(n * 7 + j * 3) % POSITIONS.length];
+      const teamIndex = Math.floor(n / countPerTeam);
+      const pos = POSITIONS[(teamIndex * countPerTeam + j * 3) % POSITIONS.length];
       const name = names[(n + j * 3) % names.length];
       const profile = careerTeamStrengthProfile(s.phase, team);
       const growthAdjustment = Math.max(-6, Math.min(14, playerOverall - (high ? 48 : uni ? 70 : 90))) * 0.12;
