@@ -691,7 +691,7 @@ function playNextFixture(s: CareerState, interactive = false): void {
       s.worldCup.knockoutStage++;
       if (!m.win || s.worldCup.knockoutStage >= 3) { s.worldCup.completed = true; s.pendingFixtures = []; }
       else if (s.worldCup.knockoutStage === 1 && (s.pendingFixtures?.length ?? 0) === 0) s.pendingFixtures = [{ date: '10月・準決勝', label: 'ラグビーワールドカップ 準決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), difficulty: 86, kind: 'world-cup' }];
-      else if (s.worldCup.knockoutStage === 2 && s.pendingFixtures.length === 0) s.pendingFixtures = [{ date: '10月・決勝', label: 'ラグビーワールドカップ 決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), difficulty: 90, kind: 'world-cup' }];
+      else if (s.worldCup.knockoutStage === 2 && (s.pendingFixtures?.length ?? 0) === 0) s.pendingFixtures = [{ date: '10月・決勝', label: 'ラグビーワールドカップ 決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), difficulty: 90, kind: 'world-cup' }];
     }
   }
   if (fixture.kind === 'university-league' && s.currentSeason.leaguePlayed >= 7) {
