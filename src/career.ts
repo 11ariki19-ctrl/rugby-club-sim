@@ -802,10 +802,6 @@ function finishSeason(s: CareerState): void {
     ] };
   }
 }
-function evaluateHighSchoolCandidate(s: CareerState): boolean {
-  const avg = s.highSchoolRatingCount ? s.highSchoolRatingTotal / s.highSchoolRatingCount : 0;
-  return careerOverall(s) >= 52 && s.highSchoolAppearances >= 4 && (s.highSchoolTries >= 2 || avg >= 6.5);
-}
 function advanceCalendar(s: CareerState): void {
   s.fatigue = clamp(s.fatigue - (s.trainingPlan === '回復' ? 30 : s.trainingPlan === '持久力' ? 22 : 16), 0, 100);
   const seasonEnd = s.phase === 'professional' ? s.month === 6 : s.month === 3;
