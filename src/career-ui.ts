@@ -1,3 +1,4 @@
+import { careerTeamStrengthProfile } from './career';
 import {
   advanceCareerMonth, careerOverall, currentTeam, newCareer, setCareerTraining, setCareerTrainingPlan,
   resolveCareerTransfer, careerHallOfFame, careerLegacyScore,
@@ -144,7 +145,9 @@ function teamRoster(team: string, s: CareerState, own: boolean): RosterMember[] 
       const variation = ((seed >>> ((i + j) % 24)) + i * 13 + j * 7) % 19 - 9;
       const hsPenalty = !own && s.phase === 'highschool' ? 10 + ((seed + i * 7 + j * 3) % 6) : 0;
       const phaseBaseline = s.phase === 'highschool' ? 52 : s.phase === 'university' ? 82 : 112;
-      const base = own ? (s.player.stats[key] * 0.68 + 34 + variation) : (phaseBaseline + variation + (s.phase === 'professional' ? 8 : 0) - hsPenalty);
+      const teamName = s.phase === 'highschool' ? s.highSchool : s.phase === 'university' ? s.university : s.professionalTeam;
+      const profile = careerTeamStrengthProfile(s.phase, teamName || team);
+      const base = own ? (profile.center + variation) : (phaseBaseline + variation + (s.phase === 'professional' ? 8 : 0) - hsPenalty);
       stats[key] = Math.max(15, Math.min(200, Math.round(isUser ? s.player.stats[key] : base)));
     }
     if (isUser) for (const key of CAREER_STAT_KEYS) stats[key] = Math.round(s.player.stats[key]);
