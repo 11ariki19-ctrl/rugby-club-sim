@@ -668,12 +668,27 @@ function monthlyFixtures(s: CareerState): CareerFixture[] {
       { date: '5/30・プレーオフ', label: 'リーグワンD1 プレーオフ準決勝', opponent: pick(PRO_TEAMS[1].filter((x) => x !== s.professionalTeam)), difficulty: 74, kind: 'professional-playoff' },
       { date: '6/7・プレーオフ', label: 'リーグワンD1 プレーオフ決勝', opponent: pick(PRO_TEAMS[1].filter((x) => x !== s.professionalTeam)), difficulty: 77, kind: 'professional-playoff' },
     ];
-    if (s.month === 6 && s.proDivision === 2 && s.currentSeason.leagueWins >= 10) return [
-      { date: '5月下旬・入替戦', label: 'リーグワンD1/D2入替戦', opponent: pick(PRO_TEAMS[1]), difficulty: 72, kind: 'professional-playoff' },
-    ];
-    if (s.month === 6 && s.proDivision === 3 && s.currentSeason.leagueWins >= 10) return [
-      { date: '5月下旬・入替戦', label: 'リーグワンD2/D3入替戦', opponent: pick(PRO_TEAMS[2]), difficulty: 65, kind: 'professional-playoff' },
-    ];
+    if (s.month === 6 && s.proDivision === 2 && s.currentSeason.leagueWins >= 10) {
+      const opponent = pick(PRO_TEAMS[1]);
+      return [
+        { date: '5/23・入替戦第1戦', label: 'リーグワンD1/D2入替戦 第1戦', opponent, difficulty: 72, kind: 'professional-playoff' },
+        { date: '5/30・入替戦第2戦', label: 'リーグワンD1/D2入替戦 第2戦', opponent, difficulty: 74, kind: 'professional-playoff' },
+      ];
+    }
+    if (s.month === 6 && s.proDivision === 2 && s.currentSeason.leagueWins <= 3) {
+      const opponent = pick(PRO_TEAMS[3]);
+      return [
+        { date: '5/23・入替戦第1戦', label: 'リーグワンD2/D3入替戦 第1戦', opponent, difficulty: 64, kind: 'professional-playoff' },
+        { date: '5/30・入替戦第2戦', label: 'リーグワンD2/D3入替戦 第2戦', opponent, difficulty: 66, kind: 'professional-playoff' },
+      ];
+    }
+    if (s.month === 6 && s.proDivision === 3 && s.currentSeason.leagueWins >= 10) {
+      const opponent = pick(PRO_TEAMS[2]);
+      return [
+        { date: '5/23・入替戦第1戦', label: 'リーグワンD2/D3入替戦 第1戦', opponent, difficulty: 65, kind: 'professional-playoff' },
+        { date: '5/30・入替戦第2戦', label: 'リーグワンD2/D3入替戦 第2戦', opponent, difficulty: 67, kind: 'professional-playoff' },
+      ];
+    }
   }
   return [];
 }
@@ -713,7 +728,7 @@ function playNextFixture(s: CareerState, interactive = false): void {
     }
   }
   if (fixture.kind === 'university-championship' && !m.win) { s.universityTournamentAlive = false; s.pendingFixtures = []; }
-  if (fixture.kind === 'professional-playoff' && !m.win) s.pendingFixtures = [];
+  if (fixture.kind === 'professional-playoff' && !m.win && !fixture.label.includes('入替戦')) s.pendingFixtures = [];
   if (!s.pendingFixtures?.length) s.tournamentCompletedMonth = s.month;
 }
 function updateRivals(s: CareerState): void {
