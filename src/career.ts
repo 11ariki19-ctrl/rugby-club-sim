@@ -180,7 +180,8 @@ function assignUniversity(s: CareerState): void {
   s.universityTier = universityTierFor(o); s.universityGroup = groupForUniversity(s.university);
   s.universityQualified = false; s.universityTournamentAlive = false;
   s.history.unshift(`高校卒業。総合値${o}・${rankOf(o)}ランクの評価で、${s.university}（${s.universityGroup}）へ進学。`);
-  s.phase = 'university'; s.stageYear = 1; s.age = 18; s.month = 4; s.currentSeason = newSeason(s);\n  addPhaseRivals(s);
+  s.phase = 'university'; s.stageYear = 1; s.age = 18; s.month = 4; s.currentSeason = newSeason(s);
+  addPhaseRivals(s);
 }
 function buildProSchedule(s: CareerState): CareerFixture[] {
   const league = s.professionalLeague || (s.proDivision === 1 ? 'リーグワン' : s.proDivision === 2 ? 'リーグワンD2' : 'リーグワンD3');
