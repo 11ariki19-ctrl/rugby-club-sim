@@ -425,10 +425,22 @@ function opponentFor(s: CareerState, kind: CareerFixture['kind'] | 'highschool' 
   if (kind === 'japan-test') return JAPAN_TEST_OPPONENTS[round % JAPAN_TEST_OPPONENTS.length];
   if (kind === 'highschool') return pick(schoolsOf(s.prefIndex).map((school) => school.name).filter((name) => name !== s.highSchool)) ?? '対戦校';
   if (kind === 'university-league') {
-    const list = UNIVERSITY_GROUPS[s.universityGroup].filter((x) => x !== s.university);
     const played = s.currentSeason.leaguePlayed ?? 0;
+    if (s.universityGroup === '関西大学Bリーグ') {
+      const b1 = ['大阪体育大学','甲南大学','大阪産業大学','大阪教育大学','神戸大学','関西外国語大学'];
+      const b2 = ['龍谷大学','追手門学院大学','大阪経済大学','大阪国際大学','京都大学','大阪大学'];
+      const ownPool = b1.includes(s.university) ? b1 : b2;
+      const otherPool = b1.includes(s.university) ? b2 : b1;
+      const ownIndex = Math.max(0, ownPool.indexOf(s.university));
+      if (played < 5) {
+        const roundRobin = ownPool.filter((x) => x !== s.university);
+        return roundRobin[played % roundRobin.length] ?? roundRobin[0] ?? '大学選抜';
+      }
+      return otherPool[(ownIndex + played - 5) % otherPool.length] ?? otherPool[0] ?? '大学選抜';
+    }
+    const list = UNIVERSITY_GROUPS[s.universityGroup].filter((x) => x !== s.university);
     const ownIndex = Math.max(0, UNIVERSITY_GROUPS[s.universityGroup].indexOf(s.university));
-    return list[(played + ownIndex) % Math.max(1, list.length)] ?? list[0] ?? '大学選抜';
+    return list[played % Math.max(1, list.length)] ?? list[0] ?? '大学選抜';
   }
   if (kind === 'university-spring' || kind === 'university-championship' || kind === 'university-playoff') {
     const groups = kind === 'university-playoff' && s.universityPlayoff ? UNIVERSITY_GROUPS[s.universityPlayoff.targetGroup] : UNIVERSITY_GROUPS[s.universityGroup];
@@ -722,7 +734,7 @@ function finishCareerLiveMatch(s: CareerState): void {
     }
     if (kind === 'university-league' && s.currentSeason.leaguePlayed >= 7) {
       const isAGroup = ['関東大学対抗戦A','関東大学リーグ戦1部','関西大学Aリーグ'].includes(s.universityGroup);
-      s.universityQualified = isAGroup && (s.currentSeason.leagueWins >= 4 || s.universityTier === '最上位');
+      s.universityQualified = isAGroup && (s.currentSeason.leagueWins >= 5 || (s.currentSeason.leagueWins === 4 && s.universityTier === '最上位'));
       s.universityTournamentAlive = s.universityQualified;
       const promotionTarget: Partial<Record<CareerState['universityGroup'], CareerState['universityGroup']>> = {
         '関東大学対抗戦B': '関東大学対抗戦A',
