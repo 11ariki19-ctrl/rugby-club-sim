@@ -180,7 +180,7 @@ function assignUniversity(s: CareerState): void {
   s.universityTier = universityTierFor(o); s.universityGroup = groupForUniversity(s.university);
   s.universityQualified = false; s.universityTournamentAlive = false;
   s.history.unshift(`高校卒業。総合値${o}・${rankOf(o)}ランクの評価で、${s.university}（${s.universityGroup}）へ進学。`);
-  s.phase = 'university'; s.stageYear = 1; s.age = 18; s.month = 4; s.currentSeason = newSeason(s);
+  s.phase = 'university'; s.stageYear = 1; s.age = 18; s.month = 4; s.currentSeason = newSeason(s);\n  addPhaseRivals(s);
 }
 function buildProSchedule(s: CareerState): CareerFixture[] {
   const league = s.professionalLeague || (s.proDivision === 1 ? 'リーグワン' : s.proDivision === 2 ? 'リーグワンD2' : 'リーグワンD3');
@@ -191,9 +191,7 @@ function buildProSchedule(s: CareerState): CareerFixture[] {
   const rounds: string[] = [];
   for (let i = 0; i < count; i++) rounds.push(opponents[i % Math.max(1, opponents.length)]);
   for (let i = rounds.length - 1; i > 0; i--) { const j = int(0, i); [rounds[i], rounds[j]] = [rounds[j], rounds[i]]; }
-  const months = league === 'フランス・トップ14' || league === 'フランス・プロD2'
-    ? [9,10,11,12,1,2,3,4,5,6]
-    : league === 'スーパーラグビー・パシフィック' ? [2,3,4,5,6] : [9,10,11,12,1,2,3,4,5,6];
+  const months = league === 'スーパーラグビー・パシフィック' ? [12,1,2,3,4,5] : [12,1,2,3,4,5];
   return rounds.map((opponent, i) => {
     const month = months[i % months.length];
     return { date: `${month}月第${i + 1}節`, label: `${league} 第${i + 1}節`, opponent, difficulty: 75 + rand() * 45, kind: 'professional-league' as const };
@@ -215,7 +213,7 @@ function assignProfessional(s: CareerState): void {
   s.proSalary = Math.round((s.proDivision === 1 ? 1800 : s.proDivision === 2 ? 900 : 500) + o * 18);
   const role = s.professionalStarterGuaranteed ? '大学時代のスター選手として、加入時から先発起用を約束された。' : 'まずは控えからプロキャリアをスタートする。';
   s.history.unshift(`大学卒業。大学リーグでの勝利${wins}勝・総合値${o}を評価され、リーグワン ディビジョン${s.proDivision}の${s.professionalTeam}に加入。${role}`);
-  s.phase = 'professional'; s.stageYear = 1; s.age = 22; s.month = 7; s.currentSeason = newSeason(s); s.proSchedule = buildProSchedule(s);
+  s.phase = 'professional'; s.stageYear = 1; s.age = 22; s.month = 7; s.currentSeason = newSeason(s); s.proSchedule = buildProSchedule(s);\n  addPhaseRivals(s);
 }
 export function newCareer(name: string, pos: Pos, prefIndex = 26, schoolName?: string, talentType: CareerTalentType = '凡人'): CareerState {
   const p = POSITIONS.includes(pos) ? pos : 'CTB';
@@ -299,6 +297,13 @@ const RIVAL_NAME_POOLS: Record<string, string[]> = {
   Argentina: ['Pablo Matera','Juan Cruz Mallia','Emiliano Boffelli','Santiago Carreras'],
 };
 const RIVAL_COUNTRIES = ['日本','NZ','SouthAfrica','England','France','Ireland','Australia','Fiji','Argentina'];
+function addPhaseRivals(s: CareerState): void {
+  const existing = new Set(s.rivals.map((r) => r.name + '|' + r.team));
+  for (const rival of createCareerRivals(s)) {
+    if (rival.country && rival.country !== '日本' && !existing.has(rival.name + '|' + rival.team)) s.rivals.push(rival);
+  }
+  if (s.rivals.length > 24) s.rivals = s.rivals.slice(-24);
+}
 function createCareerRivals(s: CareerState): CareerRival[] {
   const names = RIVAL_NAME_POOLS.日本;
   const high = s.phase === 'highschool';
@@ -676,7 +681,8 @@ function updateRivals(s: CareerState): void {
     const previousPhase = r.phase;
     const growth = r.age < 23 ? 1.2 : r.age < 28 ? 0.55 : r.age < 32 ? 0.1 : -0.7;
     r.overall = clamp(r.overall + gauss(growth, 2.5), 20, 200);
-    r.phase = r.age < 18 ? 'highschool' : r.age < 22 ? 'university' : r.age <= 37 ? 'professional' : 'retired';\n    if (r.phase === 'professional' && r.country && r.country !== '日本' && !r.league) r.league = pick(OVERSEAS_LEAGUE_NAMES);
+    r.phase = r.age < 18 ? 'highschool' : r.age < 22 ? 'university' : r.age <= 37 ? 'professional' : 'retired';
+    if (r.phase === 'professional' && r.country && r.country !== '日本' && !r.league) r.league = pick(OVERSEAS_LEAGUE_NAMES);
     if (r.phase !== previousPhase && r.phase === 'university') r.team = pick(Object.values(UNIVERSITY_GROUPS).flatMap((x) => [...x]));
     else if (r.phase !== previousPhase && r.phase === 'professional') r.team = pick(PRO_TEAMS[careerOverall(s) >= 75 ? 1 : careerOverall(s) >= 60 ? 2 : 3]);
     if (r.phase === 'retired') r.retired = true;
