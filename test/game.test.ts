@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { PREFS, schoolsOf } from '../src/data';
+import { PREFS, SURNAMES, schoolsOf } from '../src/data';
 import { seed } from '../src/rng';
 import {
   newGame, advanceMonth, scout, pickStarters, teamStrength, overall, overallAt, careerFor,
@@ -27,6 +27,16 @@ function run(prefIdx: number, type: number, months: number, doScout: boolean): G
 }
 
 console.log('game tests');
+
+t('all generated players have unique full names from the top-300 surname pool', () => {
+  seed(58123);
+  const s = newGame(26, 1);
+  scout(s, 'local');
+  const generated = s.generatedNames ?? [];
+  assert.ok(generated.length >= s.players.length, 'name history includes players and generated scouting prospects');
+  assert.equal(new Set(generated).size, generated.length, 'all generated names stay unique, including rejected prospects');
+  assert.ok(generated.every((name) => SURNAMES.includes(name.split(' ')[0] as never) && name.split(' ').length === 2), 'every generated name uses a top-300 surname and a given name');
+});
 
 t('47都道府県と、それぞれ3校がある', () => {
   assert.equal(PREFS.length, 47);
