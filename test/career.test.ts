@@ -12,7 +12,8 @@ assert.ok(PREFS.every((pref, i) => schoolsOf(i).length >= 2), 'all 47 prefecture
 assert.equal(HANAZONO_FINALS_LAST_10.length, 10, 'last ten Hanazono finals are stored');
 assert.ok(HANAZONO_FINALS_LAST_10.filter((x) => x.champion === '桐蔭学園高等学校').length >= 4, 'recent repeated Hanazono champion receives top rank');
 assert.equal(Object.keys(UNIVERSITY_GROUPS).length, 6, 'three university competitions each include A and B groups');
-assert.ok(Object.values(UNIVERSITY_GROUPS).every((teams) => teams.length === 8), 'each included university group has eight teams');
+assert.ok(Object.entries(UNIVERSITY_GROUPS).filter(([group]) => group !== '関西大学Bリーグ').every(([, teams]) => teams.length === 8), 'Kanto A/B and Kansai A groups contain eight teams');
+assert.equal(UNIVERSITY_GROUPS['関西大学Bリーグ'].length, 12, 'Kansai B League includes all twelve 2025 teams');
 const selectableUniversity = newCareer('大学選択テスト', 'FL');
 selectableUniversity.phase = 'university';
 selectableUniversity.university = '帝京大学';
