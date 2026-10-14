@@ -96,6 +96,12 @@ function homeScreen(s: CareerState): string {
   const rivals = s.rivals.filter((r) => !r.retired).slice().sort((a,b) => b.overall-a.overall).slice(0,5).map((r) => `<li>${esc(r.name)}（${r.country && r.country !== '日本' ? `${esc(r.country)}・` : ''}${r.pos}・総合値${Math.round(r.overall)}）／${esc(r.team)}${r.league ? `・${esc(r.league)}` : ''} ${r.pos === s.player.pos ? '・同ポジションのライバル' : ''}</li>`).join('');
   const hall = careerHallOfFame().slice(0,5).map((r,i) => `<li>${i+1}位 ${esc(r.name)}：スコア${r.score}／出場${r.appearances}・${r.tries}トライ</li>`).join('');
   return `<main class="page career-pennant-shell"><div class="career-pennant-ribbon"><span>RUGBY PENNANT</span><span>${esc(team)} ・ SEASON ${s.currentSeason.year}</span></div><header class="hd career-pennant-header"><div class="school">🏉 ラグビー人生キャリア</div><div class="date">${s.age}歳・${monthLabel(s.month)} ／ ${labels[s.phase]} ${s.phase === 'retired' ? '' : s.stageYear + '年目'}</div></header>
+    <nav class="career-tabs" role="tablist" aria-label="キャリア情報">
+      <button class="career-tab ${activeCareerTab === 'player' ? 'active' : ''}" role="tab" aria-selected="${activeCareerTab === 'player'}" data-career="career-tab" data-v="player">選手情報</button>
+      <button class="career-tab ${activeCareerTab === 'roster' ? 'active' : ''}" role="tab" aria-selected="${activeCareerTab === 'roster'}" data-career="career-tab" data-v="roster">メンバー</button>
+      <button class="career-tab ${activeCareerTab === 'records' ? 'active' : ''}" role="tab" aria-selected="${activeCareerTab === 'records'}" data-career="career-tab" data-v="records">戦績・記録</button>
+    </nav>
+    <section class="career-tab-panel ${activeCareerTab === 'player' ? 'active' : ''}" data-tab-panel="player">
     <div class="panel career-player-hero"><div class="profile-hero">${careerPortrait(s.player.name,s.player.pos)}<div><span class="profile-kicker">PLAYER CAREER</span><b class="career-player-name">${esc(s.player.name)}</b><p>${s.player.pos} ／ 総合値 ${o}（${o >= 160 ? 'S' : o >= 135 ? 'A' : o >= 110 ? 'B' : o >= 85 ? 'C' : o >= 60 ? 'D' : 'E'}ランク）</p><span class="small">${esc(team)} ・ ${s.player.height}cm / ${s.player.weight}kg</span></div></div><p>${phaseDescription(s)}</p><div class="career-kit-radar">${careerUniform(team)}<div class="radar-wrap"><h3>能力バランス</h3>${careerRadar(s.player.stats as unknown as Record<string,number>)}</div></div></div>
     ${s.university ? `<div class="card"><b>進学先</b><p>${esc(s.university)}（${esc(s.universityTier)}）</p></div>` : ''}
     ${s.professionalTeam ? `<div class="card"><b>所属社会人チーム</b><p>${esc(s.professionalTeam)}（${esc(s.professionalLeague || `リーグワンD${s.proDivision}`)}）</p></div>` : ''}
@@ -103,8 +109,12 @@ function homeScreen(s: CareerState): string {
     <div class="card"><b>コンディション</b><p>疲労：${Math.round(s.fatigue)} / 100　／　士気：${Math.round(s.morale)} / 100</p><div class="bar"><span>疲労</span><div class="track"><i style="width:${Math.round(s.fatigue)}%"></i></div><b>${Math.round(s.fatigue)}%</b></div><p class="small">負傷による長期離脱はありません。疲労は月ごとの回復と育成プランで管理します。</p></div>
     ${s.japanNationalTeamSelected ? `<div class="card"><b>日本代表</b><p>選出中 ／ 国際試合 ${s.japanNationalTeamCaps}キャップ・${s.japanNationalTeamWins}勝</p><p class="small">代表選考はクラブ成績・能力・コンディションで変動し、落選後の再招集もあります。</p></div>` : `<div class="card"><b>日本代表</b><p>現在は未選出 ／ 通算 ${s.japanNationalTeamCaps}キャップ・${s.japanNationalTeamWins}勝</p></div>`}
     <div class="card"><h3>選手能力</h3>${bars}<p class="small">能力上限：200 ／ 最高総合値：${Math.round(s.player.peak)} ／ 成長タイプ：${s.player.talentType}（成長係数 ${s.player.talent.toFixed(2)}）</p></div>
-    ${lastMatchCard(s)}
+    </section>
+    <section class="career-tab-panel ${activeCareerTab === 'roster' ? 'active' : ''}" data-tab-panel="roster">
     <section class="career-roster-panel"><h3>チーム登録メンバー（23名）</h3><div class="lineup-grid">${lineupCard(s, currentTeam(s), true)}</div></section>
+    </section>
+    <section class="career-tab-panel ${activeCareerTab === 'records' ? 'active' : ''}" data-tab-panel="records">
+    ${lastMatchCard(s)}
     ${s.pendingTransfer ? `<div class="card"><h3>契約・移籍オファー</h3><p>シーズン終了。契約を選べます。選ばずに進行すると現所属で更新します。</p>${s.pendingTransfer.offers.map((o,i)=>`<button class="btn mode" data-career="transfer" data-v="${i}"><b>${esc(o.team)}（${o.overseas ? `海外・${o.league || '海外リーグ'}` : `国内D${o.division}`}）</b><span>年俸目安 ${o.salary}万円／契約 ${o.team === s.professionalTeam ? Math.max(1,s.proContractYears) : '2〜3'}年</span></button>`).join('')}</div>` : ''}
     ${s.phase !== 'retired' ? `<section class="career-command-panel"><div class="career-section-heading"><span class="career-section-no">01</span><div><h3>今月の育成方針</h3><p class="note">能力別トレーニングに加えて育成プランを選択。年齢によって成長が緩やかになり、ベテラン期は能力低下も起こります。</p></div></div><div class="career-training-grid">${training}</div><h4 class="career-subheading">育成プラン</h4><div class="career-plan-grid">${planButtons}</div>
     <button class="btn primary big career-advance-button" data-career="advance">${s.pendingTransfer ? '契約を更新して進む' : s.pendingTournament ? `試合開始（${s.pendingTournament.name}・${s.pendingTournament.rounds + 1}試合目）` : s.pendingFixtures?.length ? `試合開始（${s.pendingFixtures[0].label}）` : s.tournamentCompletedMonth === s.month ? `試合終了：${monthLabel(s.month)}を終えて次の月へ` : (s.phase === 'professional' && [12,1,2,3,4,5,6,8,9].includes(s.month)) || (s.phase === 'university' && [5,6,9,10,11,12,1].includes(s.month)) || (s.phase === 'highschool' && [2,7,11,12].includes(s.month)) ? `試合開始（${monthLabel(s.month)}）` : `${monthLabel(s.month)}を進める`}</button></section>` : `<div class="panel"><h3>現役引退</h3><p>${esc(s.finalSummary ?? '')}</p><p>通算リーグ出場：${s.seasons.reduce((n, r) => n + r.appearances, 0)}試合 ／ 通算トライ：${s.seasons.reduce((n, r) => n + r.tries, 0)}</p></div>`}
@@ -113,12 +123,14 @@ function homeScreen(s: CareerState): string {
     <div class="card"><h3>通算記録・殿堂ランキング</h3><p>通算出場：${s.seasons.reduce((n,r)=>n+r.appearances,0)+s.currentSeason.appearances}試合 ／ トライ：${s.seasons.reduce((n,r)=>n+r.tries,0)+s.currentSeason.tries} ／ 代表：${s.japanNationalTeamCaps}キャップ ／ 表彰：${s.awards.length}件</p><p>現在のレガシースコア：${careerLegacyScore(s)}</p><ul class="news">${hall || '<li>殿堂入り記録は選手が引退すると登録されます。</li>'}</ul></div>
     <h3>キャリア年表</h3><ul class="news">${history}</ul>
     <h3>シーズン記録・年鑑</h3>${seasons || '<p class="note">シーズン終了後に記録が追加されます。</p>'}
-    <button class="btn" data-career="title">タイトルへ戻る</button><p class="note">このモードのセーブは監督モードとは独立しています。</p></main>`;
+    <button class="btn" data-career="title">タイトルへ戻る</button><p class="note">このモードのセーブは監督モードとは独立しています。</p>
+    </section></main>`;
 }
 
 type RosterMember = { name: string; pos: Pos; number: number; role: string; stats: Record<StatKey, number>; overall: number; isUser?: boolean };
 let selectedRosterMember: RosterMember | null = null;
 let showMatchResult = false;
+let activeCareerTab = 'player';
 const rosterPositions: Pos[] = ['PR','HO','PR','LO','LO','FL','FL','N8','SH','SO','WTB','CTB','CTB','WTB','FB','PR','HO','LO','FL','N8','SH','SO','CTB'];
 const rosterNames = ['佐々木','田中','山本','中村','小林','加藤','吉田','山田','佐藤','松本','井上','木村','林','清水','山口','森','池田','橋本','阿部','石川','前田','藤田','岡田'];
 function stableHash(text: string): number { let h = 2166136261; for (const ch of text) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; }
@@ -228,7 +240,14 @@ function act(action: string, value = ''): void {
     selectedRosterMember = teamRoster(team, state, side === 'own').find((p) => p.number === Number(rawNumber)) ?? null;
     render(); return;
   }
-  if (action === 'result-continue' && state) { showMatchResult = false; selectedRosterMember = null; render(); return; }
+  if (action === 'career-tab' && state) {
+    activeCareerTab = value;
+    render();
+    const panel = root?.querySelector<HTMLElement>(`[data-tab-panel="${value}"]`);
+    panel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  if (action === 'result-continue' && state) { showMatchResult = false; selectedRosterMember = null; activeCareerTab = 'player'; render(); return; }
   if (action === 'start') {
     const name = root.querySelector<HTMLInputElement>('#career-name')?.value ?? '';
     const pos = (root.querySelector<HTMLSelectElement>('#career-pos')?.value ?? 'CTB') as Pos;
