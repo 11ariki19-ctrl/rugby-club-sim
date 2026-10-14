@@ -104,6 +104,7 @@ function homeScreen(s: CareerState): string {
     ${s.japanNationalTeamSelected ? `<div class="card"><b>日本代表</b><p>選出中 ／ 国際試合 ${s.japanNationalTeamCaps}キャップ・${s.japanNationalTeamWins}勝</p><p class="small">代表選考はクラブ成績・能力・コンディションで変動し、落選後の再招集もあります。</p></div>` : `<div class="card"><b>日本代表</b><p>現在は未選出 ／ 通算 ${s.japanNationalTeamCaps}キャップ・${s.japanNationalTeamWins}勝</p></div>`}
     <div class="card"><h3>選手能力</h3>${bars}<p class="small">能力上限：200 ／ 最高総合値：${Math.round(s.player.peak)} ／ 成長タイプ：${s.player.talentType}（成長係数 ${s.player.talent.toFixed(2)}）</p></div>
     ${lastMatchCard(s)}
+    <section class="career-roster-panel"><h3>チーム登録メンバー（23名）</h3><div class="lineup-grid">${lineupCard(s, currentTeam(s), true)}</div></section>
     ${s.pendingTransfer ? `<div class="card"><h3>契約・移籍オファー</h3><p>シーズン終了。契約を選べます。選ばずに進行すると現所属で更新します。</p>${s.pendingTransfer.offers.map((o,i)=>`<button class="btn mode" data-career="transfer" data-v="${i}"><b>${esc(o.team)}（${o.overseas ? `海外・${o.league || '海外リーグ'}` : `国内D${o.division}`}）</b><span>年俸目安 ${o.salary}万円／契約 ${o.team === s.professionalTeam ? Math.max(1,s.proContractYears) : '2〜3'}年</span></button>`).join('')}</div>` : ''}
     ${s.phase !== 'retired' ? `<section class="career-command-panel"><div class="career-section-heading"><span class="career-section-no">01</span><div><h3>今月の育成方針</h3><p class="note">能力別トレーニングに加えて育成プランを選択。年齢によって成長が緩やかになり、ベテラン期は能力低下も起こります。</p></div></div><div class="career-training-grid">${training}</div><h4 class="career-subheading">育成プラン</h4><div class="career-plan-grid">${planButtons}</div>
     <button class="btn primary big career-advance-button" data-career="advance">${s.pendingTransfer ? '契約を更新して進む' : s.pendingTournament ? `次の試合へ（${s.pendingTournament.name} ${s.pendingTournament.rounds + 1}試合目）` : s.pendingFixtures?.length ? `次の試合へ（${s.pendingFixtures[0].label}）` : s.tournamentCompletedMonth === s.month ? `試合終了：${monthLabel(s.month)}を終えて次の月へ` : `${monthLabel(s.month)}を進める`}</button></section>` : `<div class="panel"><h3>現役引退</h3><p>${esc(s.finalSummary ?? '')}</p><p>通算リーグ出場：${s.seasons.reduce((n, r) => n + r.appearances, 0)}試合 ／ 通算トライ：${s.seasons.reduce((n, r) => n + r.tries, 0)}</p></div>`}
@@ -117,6 +118,7 @@ function homeScreen(s: CareerState): string {
 
 type RosterMember = { name: string; pos: Pos; number: number; role: string; stats: Record<StatKey, number>; overall: number; isUser?: boolean };
 let selectedRosterMember: RosterMember | null = null;
+let showMatchResult = false;
 const rosterPositions: Pos[] = ['PR','HO','PR','LO','LO','FL','FL','N8','SH','SO','WTB','CTB','CTB','WTB','FB','PR','HO','LO','FL','N8','SH','SO','CTB'];
 const rosterNames = ['佐々木','田中','山本','中村','小林','加藤','吉田','山田','佐藤','松本','井上','木村','林','清水','山口','森','池田','橋本','阿部','石川','前田','藤田','岡田'];
 function stableHash(text: string): number { let h = 2166136261; for (const ch of text) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; }
@@ -138,8 +140,13 @@ function teamRoster(team: string, s: CareerState, own: boolean): RosterMember[] 
     const internationalNames: Record<string, string[]> = { 'ニュージーランド':['Liam','Noah','Oliver','Jack','Lucas','Mason'], '南アフリカ':['Mandla','Thabo','Johan','Sipho','Pieter','Nkosi'], 'オーストラリア':['Jack','Oliver','Charlie','Lachlan','Cooper','Thomas'], 'イングランド':['Harry','George','James','Arthur','Freddie','Theo'], 'アイルランド':['Cian','Sean','Conor','Oisin','Ronan','Eoin'], 'フランス':['Hugo','Louis','Gabriel','Jules','Antoine','Mathis'], 'ウェールズ':['Dylan','Rhys','Morgan','Evan','Owen','Gareth'], 'スコットランド':['Callum','Ewan','Finlay','Hamish','Jamie','Fraser'], 'フィジー':['Semi','Josua','Peni','Viliame','Manasa','Tevita'], 'トンガ':['Sione','Viliami','Manu','Latu','Pita','Tupou'], 'サモア':['Tuala','Mika','Levi','Toa','Matai','Laki'], 'アルゼンチン':['Mateo','Santiago','Joaquín','Thiago','Lautaro','Tomás'], 'イタリア':['Luca','Matteo','Leonardo','Alessandro','Marco','Lorenzo'], 'ジョージア':['Giorgi','Nika','Luka','Davit','Saba','Levan'], 'アメリカ':['Jack','Logan','Wyatt','Carter','Owen','Ryan'], 'カナダ':['Liam','Benjamin','Ethan','Logan','Jacob','Noah'] };
     const intlNames = international ? internationalNames[international[0]] : undefined;
     const generatedName = intlNames ? `${intlNames[(i + seed) % intlNames.length]} ${['Smith','Jones','Brown','Taylor','Wilson','Martin'][(i * 3 + seed) % 6]}` : `${rosterNames[(i + seed) % rosterNames.length]} ${['蓮','大翔','悠真','健太','湊','翔太','陸','陽向'][(i * 3 + seed) % 8]}`;
-    return { name: isUser ? s.player.name : generatedName, pos, number: i + 1, role: isUser && s.liveMatch ? s.liveMatch.role : i < 15 ? '先発' : '控え', stats, overall, isUser };
-  });
+    return { name: isUser ? s.player.name : generatedName, pos, number: i + 1, role: i < 15 ? '先発' : '控え', stats, overall, isUser };
+  }).map((member, index, all) => {
+    const startsByPos: Partial<Record<Pos, number>> = { PR: 2, HO: 1, LO: 2, FL: 2, N8: 1, SH: 1, SO: 1, WTB: 2, CTB: 2, FB: 1 };
+    const samePos = all.filter((candidate) => candidate.pos === member.pos).sort((a,b) => b.overall - a.overall || a.number - b.number);
+    const role = samePos.findIndex((candidate) => candidate.number === member.number) < (startsByPos[member.pos] ?? 1) ? '先発' : '控え';
+    return { ...member, role: member.isUser && s.liveMatch ? s.liveMatch.role : role };
+  }).sort((a,b) => a.number - b.number);
 }
 function playerDetail(member: RosterMember): string {
   const bars = CAREER_STAT_KEYS.map((key) => `<div class="bar"><span>${CAREER_STAT_LABEL[key]}</span><div class="track"><i style="width:${Math.round(Math.min(200,member.stats[key])/2)}%"></i></div><b>${member.stats[key]}</b></div>`).join('');
@@ -148,8 +155,8 @@ function playerDetail(member: RosterMember): string {
   return `<div class="modal" data-career="roster-close"><section class="sheet" role="dialog" aria-modal="true" aria-label="選手詳細" data-roster-sheet><button class="link" data-career="roster-close">← メンバー表へ戻る</button><h2>${esc(member.name)}</h2><div class="panel">背番号 ${member.number} ／ ${member.pos} ／ ${member.role}<br>総合値 <b>${member.overall}</b>${member.isUser ? '<br>あなたが操作する選手' : ''}</div><div class="card"><h3>能力ステータス</h3>${bars}</div><div class="cards"><div class="card stat"><span class="k">身長</span><b>${height}cm</b></div><div class="card stat"><span class="k">体重</span><b>${weight}kg</b></div></div><button class="btn primary" data-career="roster-close">閉じる</button></section></div>`;
 }
 function lineupCard(s: CareerState, team: string, own: boolean): string {
-  const roster = teamRoster(team, s, own).filter((p) => !own || !p.isUser || (p.role === '先発' || p.role === '途中出場'));
-  return `<section class="card"><h3>${own ? '自チームのメンバー表' : '対戦相手のメンバー表'}</h3><p class="note">選手をタップすると能力の詳細を確認できます。背番号1〜15は先発、16〜23は控えです。</p><div class="roster-list">${roster.map((p) => `<button class="row roster-player" data-career="roster-player" data-v="${own ? 'own' : 'opponent'}:${p.number}"><span class="pos">${p.number}</span><span class="nm">${esc(p.name)}${p.isUser ? '（あなた）' : ''}<small>${p.pos}・${p.role}</small></span><span class="ov">${p.overall}</span><span aria-hidden="true">›</span></button>`).join('')}</div></section>`;
+  const roster = teamRoster(team, s, own);
+  return `<section class="card"><h3>${own ? '自チームのメンバー表' : '対戦相手のメンバー表'}</h3><p class="note">23名登録・ポジション順。先発／控えは同ポジション内の総合力で判定。選手をタップすると能力詳細を確認できます。</p><div class="roster-list">${roster.map((p) => `<button class="row roster-player" data-career="roster-player" data-v="${own ? 'own' : 'opponent'}:${p.number}"><span class="pos">${p.number}</span><span class="nm">${esc(p.name)}${p.isUser ? '（あなた）' : ''}<small>${p.pos}・${p.role}</small></span><span class="ov">${p.overall}</span><span aria-hidden="true">›</span></button>`).join('')}</div></section>`;
 }
 
 function liveMatchScreen(s: CareerState): string {
@@ -190,21 +197,38 @@ function liveMatchScreen(s: CareerState): string {
   </main>`;
 }
 
+function matchResultScreen(s: CareerState): string {
+  const m = s.lastMatch;
+  if (!m) return homeScreen(s);
+  const detail = selectedRosterMember ? playerDetail(selectedRosterMember) : '';
+  return `<main class="page"><header class="hd"><div class="school">🏉 試合結果</div><div class="date">${esc(m.date)} ／ ${esc(m.competition)}</div></header>
+    ${detail}
+    <section class="card match-result-card"><h2>${esc(m.competition)}</h2><p>${esc(m.date)}</p>
+      <div class="scoreboard"><div><span>${esc(m.competition.includes('日本代表') ? '日本代表' : currentTeam(s))}</span><strong>${m.my}</strong></div><div class="score-dash">—</div><div><span>${esc(m.opponent)}</span><strong>${m.their}</strong></div></div>
+      <p><b>${m.result}</b> ／ 起用：${esc(m.role ?? (m.appeared ? '先発' : 'メンバー外'))} ／ ${m.appeared ? `評価 ${m.rating.toFixed(1)}/10` : '出場機会なし'}</p>
+      <div class="cards"><div class="card stat"><span class="k">トライ</span><b>${m.tries}</b></div><div class="card stat"><span class="k">キャリー</span><b>${m.carries}</b></div><div class="card stat"><span class="k">タックル</span><b>${m.tackles}</b></div><div class="card stat"><span class="k">突破</span><b>${m.lineBreaks}</b></div></div>
+      <h3>試合レポート</h3><ul class="news">${m.scenes.map((scene) => `<li>${esc(scene)}</li>`).join('')}</ul>
+    </section>
+    <div class="lineup-grid">${lineupCard(s, currentTeam(s), true)}${lineupCard(s, m.opponent, false)}</div>
+    <button class="btn primary big" data-career="result-continue">キャリアへ戻る</button></main>`;
+}
 function render(): void {
   if (!root) return;
   if (state?.liveMatch) state.liveMatch = undefined;
-  root.innerHTML = creating || !state ? createScreen() : homeScreen(state);
+  root.innerHTML = creating || !state ? createScreen() : showMatchResult ? matchResultScreen(state) : homeScreen(state);
 }
 function act(action: string, value = ''): void {
   if (!root) return;
   if (action === 'title') { window.location.reload(); return; }
   if (action === 'roster-close') { selectedRosterMember = null; render(); return; }
-  if (action === 'roster-player' && state?.liveMatch) {
+  if (action === 'roster-player' && state) {
     const [side, rawNumber] = value.split(':');
-    const team = side === 'own' ? currentTeam(state) : state.liveMatch.fixture.opponent;
+    const opponent = state.liveMatch?.fixture.opponent ?? state.lastMatch?.opponent ?? '対戦相手';
+    const team = side === 'own' ? currentTeam(state) : opponent;
     selectedRosterMember = teamRoster(team, state, side === 'own').find((p) => p.number === Number(rawNumber)) ?? null;
     render(); return;
   }
+  if (action === 'result-continue' && state) { showMatchResult = false; selectedRosterMember = null; render(); return; }
   if (action === 'start') {
     const name = root.querySelector<HTMLInputElement>('#career-name')?.value ?? '';
     const pos = (root.querySelector<HTMLSelectElement>('#career-pos')?.value ?? 'CTB') as Pos;
@@ -222,9 +246,11 @@ function act(action: string, value = ''): void {
   } else if (action === 'transfer' && state) {
     resolveCareerTransfer(state, Number(value));
   } else if (action === 'advance' && state) {
-    // キャリアモードは試合を自動シミュレーションし、結果・個人成績のみ表示する。
+    const previousMatchCount = state.matchHistory.length;
     state.liveMatch = undefined;
     advanceCareerMonth(state, false);
+    showMatchResult = state.matchHistory.length > previousMatchCount;
+    selectedRosterMember = null;
   }
   render();
 }
@@ -233,6 +259,7 @@ export function openCareerMode(el: HTMLElement, resume: boolean): void {
   state = resume ? loadCareer() : null;
   creating = !resume || !state;
   if (creating) { createPrefIndex = 26; createSchoolIndex = 1; createTalentType = '凡人'; }
+  showMatchResult = false; selectedRosterMember = null;
   if (!bound) {
     root.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
