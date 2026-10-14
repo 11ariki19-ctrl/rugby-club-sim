@@ -901,7 +901,7 @@ export function advanceCareerMonth(s: CareerState, interactive = false): CareerS
     if (s.month === 7) event = { kind: 'summer', name: `${PREFS[s.prefIndex].name}夏季県大会`, rounds: 4 };
     else if (s.month === 11) event = { kind: 'pref', name: `${PREFS[s.prefIndex].name}花園予選`, rounds: 4 };
     else if (s.month === 12 && s.qualified) event = { kind: 'nat', name: '全国大会（花園）', rounds: 5 };
-    else if (s.month === 2 && s.stageYear === 3 && evaluateHighSchoolCandidate(s)) {
+    else if (s.month === 2 && s.nationalCandidate && evaluateHighSchoolCandidate(s)) {
       s.nationalCandidate = true; event = { kind: 'world', name: '高校日本代表候補・世界大会', rounds: 3 };
       s.history.unshift('高校大会での活躍が評価され、2月に高校日本代表候補へ選出された！');
     } else if (s.month === 2) event = { kind: 'newbie', name: `${PREFS[s.prefIndex].name}新人大会`, rounds: 3 };
