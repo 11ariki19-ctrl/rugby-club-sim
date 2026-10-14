@@ -1,7 +1,7 @@
 import { careerTeamStrengthProfile } from './career';
 import {
   advanceCareerMonth, careerOverall, currentTeam, newCareer, setCareerTraining, setCareerTrainingPlan,
-  resolveCareerTransfer, careerHallOfFame, careerLegacyScore,
+  resolveCareerTransfer, careerHallOfFame, careerLegacyScore, UNIVERSITY_GROUPS, selectCareerUniversity,
   CAREER_POSITIONS, CAREER_STAT_KEYS, CAREER_STAT_LABEL, CAREER_TALENTS, hasCareerSave, loadCareer, saveCareer, setCareerSaveSlot, careerSaveSummary,
 } from './career';
 import type { CareerState, CareerPhase, CareerTrainingPlan } from './career';
@@ -125,7 +125,7 @@ function homeScreen(s: CareerState): string {
     </nav>
     <section class="career-tab-panel ${activeCareerTab === 'player' ? 'active' : ''}" data-tab-panel="player">
     <div class="panel career-player-hero"><div class="profile-hero">${careerPortrait(s.player.name,s.player.pos)}<div><span class="profile-kicker">PLAYER CAREER</span><b class="career-player-name">${esc(s.player.name)}</b><p>${s.player.pos} ／ 総合値 ${o}（${rating}ランク）</p><span class="small">${esc(team)} ・ ${s.player.height}cm / ${s.player.weight}kg</span></div></div><p>${phaseDescription(s)}</p><div class="career-kit-radar">${careerUniform(team)}<div class="radar-wrap"><h3>能力バランス</h3>${careerRadar(s.player.stats as unknown as Record<string,number>)}</div></div></div>
-    ${s.university ? `<div class="card"><b>進学先</b><p>${esc(s.university)}（${esc(s.universityTier)}）</p></div>` : ''}
+    ${s.university ? `<div class="card"><b>進学先</b><p>${esc(s.university)}（${esc(s.universityGroup)}・${esc(s.universityTier)}）</p>${s.phase === 'university' ? `<label>大学を選択・変更<select id="career-university" class="search">${Object.entries(UNIVERSITY_GROUPS).map(([group, teams]) => `<optgroup label="${esc(group)}">${teams.map((name) => `<option value="${esc(name)}" ${name === s.university ? 'selected' : ''}>${esc(name)}</option>`).join('')}</optgroup>`).join('')}</select></label><p class="note">2025年度の各リーグA・Bグループを収録。Bリーグ所属校も選択できます。</p>` : ''}</div>` : ''}
     ${s.professionalTeam ? `<div class="card"><b>所属社会人チーム</b><p>${esc(s.professionalTeam)}（${esc(s.professionalLeague || `リーグワンD${s.proDivision}`)}）</p></div>` : ''}
     ${s.nationalCandidate ? `<div class="card"><b>高校日本代表候補</b><p>選出済み ／ 世界大会勝利数：${s.worldTournamentWins}</p></div>` : ''}
     ${s.japanNationalTeamSelected ? `<div class="card"><b>日本代表</b><p>選出中 ／ 国際試合 ${s.japanNationalTeamCaps}キャップ・${s.japanNationalTeamWins}勝</p><p class="small">全国の候補からポジション別の総合力で毎月再選考します。</p></div>` : `<div class="card"><b>日本代表</b><p>現在は未選出 ／ 通算 ${s.japanNationalTeamCaps}キャップ・${s.japanNationalTeamWins}勝</p></div>`}
@@ -308,6 +308,7 @@ export function openCareerMode(el: HTMLElement, resume: boolean): void {
         const posInput = root?.querySelector<HTMLSelectElement>('#career-pos'); if (posInput) posInput.value = pos;
       } else if (t.id === 'career-school') createSchoolIndex = Number(t.value);
       else if (t.id === 'career-talent') createTalentType = t.value as '凡人' | '秀才' | '天才' | '一芸';
+      else if (t.id === 'career-university' && state) { selectCareerUniversity(state, t.value); render(); }
     });
     bound = true;
   }
