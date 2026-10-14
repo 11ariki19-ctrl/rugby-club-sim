@@ -752,11 +752,7 @@ function finishCareerLiveMatch(s: CareerState): void {
           ? relegationTarget[s.universityGroup] : undefined;
       if (targetGroup) {
         s.universityPlayoff = { targetGroup, wins: 0, losses: 0 };
-        s.history.unshift(`${s.universityGroup}の成績により、昇降格入替戦に進出。`);
-        s.pendingFixtures?.push(
-          { date: '12月・入替戦第1戦', label: `${s.universityGroup}／${targetGroup} 入替戦 第1戦`, opponent: pick(UNIVERSITY_GROUPS[targetGroup].filter((x) => x !== s.university)), difficulty: 63, kind: 'university-playoff' },
-          { date: '12月・入替戦第2戦', label: `${s.universityGroup}／${targetGroup} 入替戦 第2戦`, opponent: pick(UNIVERSITY_GROUPS[targetGroup].filter((x) => x !== s.university)), difficulty: 65, kind: 'university-playoff' },
-        );
+        s.history.unshift(`${s.universityGroup}の成績により、12月の昇降格入替戦に進出。`);
       }
       if (s.universityQualified) {
         s.history.unshift(`${s.universityGroup} ${s.currentSeason.leagueWins}勝で全国大学選手権出場圏内。`);
@@ -851,6 +847,14 @@ function monthlyFixtures(s: CareerState): CareerFixture[] {
     return table.findIndex((row) => row.team === s.professionalTeam) + 1;
   };
   if (s.phase === 'university') {
+    if (s.month === 12 && s.universityPlayoff && s.currentSeason.leaguePlayed >= 7) {
+      const target = s.universityPlayoff.targetGroup;
+      const opponents = UNIVERSITY_GROUPS[target].filter((x) => x !== s.university);
+      return [
+        { date: '12月・入替戦第1戦', label: `${s.universityGroup}／${target} 入替戦 第1戦`, opponent: opponents[0] ?? target, difficulty: 63, kind: 'university-playoff' },
+        { date: '12月・入替戦第2戦', label: `${s.universityGroup}／${target} 入替戦 第2戦`, opponent: opponents[1] ?? opponents[0] ?? target, difficulty: 65, kind: 'university-playoff' },
+      ];
+    }
     if (s.month === 5) return [{ date: '5月・春季交流戦', label: '大学春季交流戦', opponent: opponentFor(s, 'university-spring'), difficulty: 57, kind: 'university-spring' }];
     if (s.month === 6) return [
       ...[1,2].map((n) => ({ date: `6月・春季交流戦${n}`, label: `大学春季交流戦${n}`, opponent: opponentFor(s, 'university-spring'), difficulty: 58 + n, kind: 'university-spring' as const })),
