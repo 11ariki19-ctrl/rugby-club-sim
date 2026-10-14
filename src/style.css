@@ -624,3 +624,25 @@ main { min-height: 100vh; }
  .career-training-grid, .career-plan-grid { gap:6px; }
  .career-pennant-shell .career-training-grid .btn, .career-pennant-shell .career-plan-grid .btn { padding:9px; min-height:62px; }
 }
+
+/* Career screen: compact command-first layout with tabbed secondary information. */
+.career-pennant-shell .career-tabs { position:sticky; top:0; z-index:20; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; margin:10px 0 12px; padding:6px; border:1px solid #34483c; border-radius:14px; background:rgba(16,27,32,.96); backdrop-filter:blur(12px); }
+.career-pennant-shell .career-tab { min-height:42px; padding:8px 4px; border:1px solid transparent; border-radius:9px; background:transparent; color:#cbd9df; font-size:12px; font-weight:800; }
+.career-pennant-shell .career-tab.active { color:#17220f; background:#9add5f; box-shadow:0 3px 10px rgba(139,216,63,.16); }
+.career-pennant-shell .career-tab-panel { display:none; scroll-margin-top:68px; }
+.career-pennant-shell .career-tab-panel.active { display:block; }
+.career-pennant-shell .career-tab-panel > .card, .career-pennant-shell .career-tab-panel > .panel { margin-bottom:10px; }
+.career-pennant-shell .career-player-hero { padding:13px; margin-bottom:10px; }
+.career-pennant-shell .career-player-hero > p { margin:8px 0; font-size:12px; line-height:1.5; }
+.career-pennant-shell .career-kit-radar { gap:10px; }
+.career-pennant-shell .career-kit-radar .uniform-preview { max-width:112px; }
+.career-pennant-shell .career-kit-radar .radar-chart { max-height:132px; }
+.career-pennant-shell .career-command-panel { margin:10px 0 14px; padding:11px; }
+.career-pennant-shell .career-section-heading { margin-bottom:8px; }
+.career-pennant-shell .career-section-heading .note { font-size:11px; line-height:1.4; }
+.career-pennant-shell .career-training-grid .btn, .career-pennant-shell .career-plan-grid .btn { min-height:48px; padding:7px; }
+.career-pennant-shell .career-training-grid .btn span, .career-pennant-shell .career-plan-grid .btn span { font-size:9px; line-height:1.25; }
+.career-pennant-shell .career-subheading { margin:10px 0 6px; }
+.career-pennant-shell .career-advance-button { margin-top:10px; min-height:54px; }
+.career-pennant-shell .career-roster-panel .note { font-size:10px; }
+@media (min-width:700px) { .career-pennant-shell .career-player-hero { padding:16px; } .career-pennant-shell .career-kit-radar .radar-chart { max-height:150px; } }
