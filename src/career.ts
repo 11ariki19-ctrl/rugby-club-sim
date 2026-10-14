@@ -926,6 +926,7 @@ export function loadCareer(): CareerState | null {
       if (!s.professionalLeague) s.professionalLeague = PRO_TEAMS[s.proDivision].includes(s.professionalTeam) ? (s.proDivision === 1 ? 'リーグワン' : s.proDivision === 2 ? 'リーグワンD2' : 'リーグワンD3') : leagueForClub(s.professionalTeam);
       if (!teamsForLeague(s.professionalLeague).includes(s.professionalTeam)) s.professionalTeam = pick(teamsForLeague(s.professionalLeague));
       if (!s.proSchedule.length) s.proSchedule = buildProSchedule(s);
+      if (!s.proStandings) s.proStandings = teamsForLeague(s.professionalLeague).filter((team) => team !== s.professionalTeam).map((team) => ({ team, wins: int(3, 11) }));
     }
     return s;
   } catch { return null; }
