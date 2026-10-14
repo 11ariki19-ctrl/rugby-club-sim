@@ -443,6 +443,33 @@ function opponentFor(s: CareerState, kind: CareerFixture['kind'] | 'highschool' 
  * 出場機会は能力だけでなく、学年・過去の実績・チーム内競争で決まる。
  * 確率は「その試合に出場する確率」であり、先発/途中出場の区別は今後の拡張対象。
  */
+const CAREER_POSITION_SLOTS: Record<Pos, { starters: number; substitutes: number }> = {
+  PR: { starters: 2, substitutes: 1 }, HO: { starters: 1, substitutes: 1 },
+  LO: { starters: 2, substitutes: 1 }, FL: { starters: 2, substitutes: 1 },
+  N8: { starters: 1, substitutes: 1 }, SH: { starters: 1, substitutes: 1 },
+  SO: { starters: 1, substitutes: 1 }, CTB: { starters: 2, substitutes: 1 },
+  WTB: { starters: 2, substitutes: 1 }, FB: { starters: 1, substitutes: 1 },
+};
+
+/** 同じチーム・同じポジション内の総合力順位で先発／途中出場を決定する。 */
+export function careerRoleByPositionalRank(s: CareerState, playerOverall = careerOverall(s)): CareerRole {
+  const slots = CAREER_POSITION_SLOTS[s.player.pos];
+  const team = currentTeam(s);
+  const peers = s.rivals
+    .filter((r) => !r.retired && r.phase === s.phase && r.team === team && r.pos === s.player.pos && r.name !== s.player.name)
+    .map((r) => r.overall);
+  const profile = careerTeamStrengthProfile(s.phase, team);
+  const squadSize = slots.starters + slots.substitutes + 2;
+  const fallbackRatings = [7, 2, -3, -8, -13].slice(0, squadSize).map((offset) =>
+    Math.round(clamp(profile.center + offset, profile.min, profile.max)));
+  const ratings = [...peers];
+  while (ratings.length < squadSize) ratings.push(fallbackRatings[ratings.length] ?? Math.round(profile.center - 10 - ratings.length));
+  const rank = 1 + ratings.filter((rating) => rating > playerOverall).length;
+  if (rank <= slots.starters) return '先発';
+  if (rank <= slots.starters + slots.substitutes) return '途中出場';
+  return rank <= slots.starters + slots.substitutes + 2 ? '控え' : 'メンバー外';
+}
+
 export function careerAppearanceProbability(s: CareerState): number {
   if (s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed) return 1;
   const year = Math.max(1, Math.min(4, s.stageYear));
@@ -488,10 +515,8 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   const selectionChance = careerAppearanceProbability(s);
   let role: CareerRole = live?.role ?? 'メンバー外';
   if (!live && s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed) role = '先発';
-  else if (!live && rand() < selectionChance) {
-    const starterChance = clamp(0.32 + (o - expected) / 100 + (s.morale - 60) / 300 - s.fatigue / 350, 0.12, 0.95);
-    role = rand() < starterChance ? '先発' : '途中出場';
-  } else if (!live) role = rand() < 0.58 ? '控え' : 'メンバー外';
+  else if (!live && rand() < selectionChance) role = careerRoleByPositionalRank(s, o);
+  else if (!live) role = rand() < 0.58 ? '控え' : 'メンバー外';
   const appeared = role === '先発' || role === '途中出場';
   const teamBonus = s.phase === 'university' ? (s.universityTier === '最上位' ? 5 : s.universityTier === '上位' ? 3 : 0) : s.phase === 'professional' ? 4 : 0;
   const strength = o + teamBonus + gauss(0, 8), opponentStrength = difficulty ?? expected + gauss(0, 10);
@@ -581,7 +606,7 @@ export function beginCareerLiveMatch(s: CareerState, source: 'tournament' | 'fix
   if (s.liveMatch) return;
   let role: CareerRole = 'メンバー外';
   if (s.phase === 'professional' && s.stageYear === 1 && s.professionalStarterGuaranteed) role = '先発';
-  else if (rand() < careerAppearanceProbability(s)) role = rand() < clamp(0.32 + (careerOverall(s) - (s.phase === 'highschool' ? 43 : s.phase === 'university' ? 59 : 66)) / 100 + (s.morale - 60) / 300 - s.fatigue / 350, 0.12, 0.95) ? '先発' : '途中出場';
+  else if (rand() < careerAppearanceProbability(s)) role = careerRoleByPositionalRank(s);
   else role = rand() < 0.58 ? '控え' : 'メンバー外';
   s.liveMatch = {
     source, fixture, elapsed: 0, possession: '自チーム', fieldPosition: 50, scoreFor: 0, scoreAgainst: 0, role,
