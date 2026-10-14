@@ -282,7 +282,7 @@ export function newCareer(name: string, pos: Pos, prefIndex = 26, schoolName?: s
     university: '', universityTier: '', professionalTeam: '', professionalLeague: 'リーグワンD3', retirementAge: 36,
     seasons: [] as CareerSeason[], currentSeason: {} as CareerSeason,
     matchHistory: [] as CareerMatch[], highSchoolAppearances: 0, highSchoolTries: 0, highSchoolRatingTotal: 0, highSchoolRatingCount: 0, nationalCandidate: false, worldTournamentWins: 0, japanNationalTeamSelected: false, japanNationalTeamCaps: 0, japanNationalTeamWins: 0, professionalStarterGuaranteed: false,
-    fatigue: 0, injuryMonths: 0, morale: 60, trainingPlan: 'バランス' as CareerTrainingPlan, proContractYears: 2, proSalary: 0, transferHistory: [], rivals: [], generatedNameVersion: 1, nationalSquad: [], awards: [],
+    fatigue: 0, injuryMonths: 0, morale: 60, trainingPlan: 'バランス' as CareerTrainingPlan, proContractYears: 2, proSalary: 0, transferHistory: [], rivals: [], generatedNameVersion: 2, nationalSquad: [], awards: [],
     universityGroup: '関東大学対抗戦A' as CareerState['universityGroup'], universityQualified: false, universityTournamentAlive: false, proDivision: 3 as 1 | 2 | 3, proMatchIndex: 0, proSchedule: [],
     history: ['15歳で高校ラグビー生活がスタート。3年間の成長と活躍を目指す。'],
   };
@@ -1070,7 +1070,7 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
     if (!Array.isArray(s.transferHistory)) s.transferHistory = [];
     if (!Array.isArray(s.rivals)) s.rivals = createCareerRivals(s);
     if (s.phase !== 'highschool' && !s.rivals.some((r) => r.country && r.country !== '日本')) addPhaseRivals(s);
-    if (s.generatedNameVersion !== 1) {
+    if (s.generatedNameVersion !== 2) {
       const usedNames = new Set<string>([s.player.name]);
       const renameMap = new Map<string, string>();
       for (const rival of s.rivals) {
@@ -1094,7 +1094,7 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
           return updated;
         });
       }
-      s.generatedNameVersion = 1;
+      s.generatedNameVersion = 2;
       s.history.unshift('架空選手の氏名を重複のないランダムなフルネームに更新しました。');
     }
     const uniqueRivalNames = new Set<string>([s.player.name]);
