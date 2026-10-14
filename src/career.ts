@@ -97,7 +97,7 @@ export interface CareerState {
   awards: string[];
   universityGroup: '関東大学対抗戦A' | '関東大学リーグ戦1部' | '関西大学Aリーグ';
   universityQualified: boolean; universityTournamentAlive: boolean;
-  proDivision: 1 | 2 | 3; proMatchIndex: number; proSchedule: CareerFixture[];
+  proDivision: 1 | 2 | 3; proMatchIndex: number; proSchedule: CareerFixture[]; proStandings?: { team: string; wins: number }[];
   tournamentCompletedMonth?: number;
   training: StatKey;
   player: CareerPlayer;
@@ -190,6 +190,7 @@ function buildProSchedule(s: CareerState): CareerFixture[] {
   const competition = PRO_LEAGUES[league] ?? PRO_LEAGUES['リーグワン'];
   const teams = teamsForLeague(league);
   const opponents = teams.filter((x) => x !== s.professionalTeam);
+  s.proStandings = opponents.map((team) => ({ team, wins: int(3, 11) }));
   const count = competition.matches;
   const rounds: string[] = [];
   if (league === 'リーグワンD2') {
@@ -628,6 +629,11 @@ function playCareerTournamentMatch(s: CareerState, interactive = false): void {
   if ((t.kind !== 'world' && !m.win) || t.rounds >= t.totalRounds) finishCareerTournament(s);
 }
 function monthlyFixtures(s: CareerState): CareerFixture[] {
+  const proPosition = (): number => {
+    const table = [{ team: s.professionalTeam, wins: s.currentSeason.leagueWins }, ...(s.proStandings ?? [])]
+      .sort((a, b) => b.wins - a.wins || a.team.localeCompare(b.team, 'ja'));
+    return table.findIndex((row) => row.team === s.professionalTeam) + 1;
+  };
   if (s.phase === 'university') {
     if (s.month === 5) return [{ date: '5月・春季交流戦', label: '大学春季交流戦', opponent: opponentFor(s, 'university-spring'), difficulty: 57, kind: 'university-spring' }];
     if (s.month === 6) return [
@@ -668,21 +674,21 @@ function monthlyFixtures(s: CareerState): CareerFixture[] {
       { date: '5/30・プレーオフ', label: 'リーグワンD1 プレーオフ準決勝', opponent: pick(PRO_TEAMS[1].filter((x) => x !== s.professionalTeam)), difficulty: 74, kind: 'professional-playoff' },
       { date: '6/7・プレーオフ', label: 'リーグワンD1 プレーオフ決勝', opponent: pick(PRO_TEAMS[1].filter((x) => x !== s.professionalTeam)), difficulty: 77, kind: 'professional-playoff' },
     ];
-    if (s.month === 6 && s.proDivision === 2 && s.currentSeason.leagueWins >= 10) {
+    if (s.month === 6 && s.proDivision === 2 && s.currentSeason.leaguePlayed >= 14 && proPosition() <= 2) {
       const opponent = pick(PRO_TEAMS[1]);
       return [
         { date: '5/23・入替戦第1戦', label: 'リーグワンD1/D2入替戦 第1戦', opponent, difficulty: 72, kind: 'professional-playoff' },
         { date: '5/30・入替戦第2戦', label: 'リーグワンD1/D2入替戦 第2戦', opponent, difficulty: 74, kind: 'professional-playoff' },
       ];
     }
-    if (s.month === 6 && s.proDivision === 2 && s.currentSeason.leagueWins <= 3) {
+    if (s.month === 6 && s.proDivision === 2 && s.currentSeason.leaguePlayed >= 14 && proPosition() >= 7) {
       const opponent = pick(PRO_TEAMS[3]);
       return [
         { date: '5/23・入替戦第1戦', label: 'リーグワンD2/D3入替戦 第1戦', opponent, difficulty: 64, kind: 'professional-playoff' },
         { date: '5/30・入替戦第2戦', label: 'リーグワンD2/D3入替戦 第2戦', opponent, difficulty: 66, kind: 'professional-playoff' },
       ];
     }
-    if (s.month === 6 && s.proDivision === 3 && s.currentSeason.leagueWins >= 10) {
+    if (s.month === 6 && s.proDivision === 3 && s.currentSeason.leaguePlayed >= 15 && proPosition() <= 2) {
       const opponent = pick(PRO_TEAMS[2]);
       return [
         { date: '5/23・入替戦第1戦', label: 'リーグワンD2/D3入替戦 第1戦', opponent, difficulty: 65, kind: 'professional-playoff' },
