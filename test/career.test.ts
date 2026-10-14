@@ -88,7 +88,7 @@ console.log('  ok - match report includes scenes, individual performance, and ex
 seed(903);
 const candidate = newCareer('代表候補テスト', 'WTB', 26, '大阪学院高校');
 candidate.stageYear = 3; candidate.month = 2;
-for (const key of Object.keys(candidate.player.stats) as (keyof typeof candidate.player.stats)[]) candidate.player.stats[key] = 90;
+for (const key of Object.keys(candidate.player.stats) as (keyof typeof candidate.player.stats)[]) candidate.player.stats[key] = 140;
 candidate.highSchoolAppearances = 6; candidate.highSchoolTries = 3;
 candidate.highSchoolRatingTotal = 42; candidate.highSchoolRatingCount = 6;
 advanceCareerMonth(candidate);
