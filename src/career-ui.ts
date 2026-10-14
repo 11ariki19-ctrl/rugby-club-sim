@@ -1,6 +1,6 @@
 import { careerTeamStrengthProfile } from './career';
 import {
-  advanceCareerMonth, careerOverall, currentTeam, newCareer, setCareerTraining, setCareerTrainingPlan, playCareerMatchAction,
+  advanceCareerMonth, careerOverall, careerStatCap, currentTeam, newCareer, setCareerTraining, setCareerTrainingPlan, playCareerMatchAction,
   resolveCareerTransfer, careerHallOfFame, careerLegacyScore,
   CAREER_POSITIONS, CAREER_STAT_KEYS, CAREER_STAT_LABEL, CAREER_TALENTS, hasCareerSave, loadCareer, saveCareer, setCareerSaveSlot, careerSaveSummary,
 } from './career';
@@ -99,7 +99,8 @@ function lastMatchCard(s: CareerState): string {
 }
 function homeScreen(s: CareerState): string {
   const o = careerOverall(s);
-  const bars = CAREER_STAT_KEYS.map((k) => `<div class="bar"><span>${STAT_LABEL[k]}</span><div class="track"><i style="width:${Math.round(Math.min(200,s.player.stats[k]) / 2)}%"></i></div><b>${Math.round(s.player.stats[k])}</b></div>`).join('');
+  const rating = s.phase === 'highschool' ? (o >= 76 ? 'S' : o >= 72 ? 'A' : o >= 68 ? 'B' : o >= 62 ? 'C' : o >= 55 ? 'D' : 'E') : s.phase === 'university' ? (o >= 95 ? 'S' : o >= 90 ? 'A' : o >= 85 ? 'B' : o >= 78 ? 'C' : o >= 68 ? 'D' : 'E') : (o >= 105 ? 'S' : o >= 98 ? 'A' : o >= 90 ? 'B' : o >= 80 ? 'C' : o >= 65 ? 'D' : 'E');
+  const bars = CAREER_STAT_KEYS.map((k) => `<div class="bar"><span>${STAT_LABEL[k]}</span><div class="track"><i style="width:${Math.round(Math.min(careerStatCap(s),s.player.stats[k]) / careerStatCap(s) * 100)}%"></i></div><b>${Math.round(s.player.stats[k])}</b></div>`).join('');
   const training = CAREER_STAT_KEYS.map((k) => `<button class="btn mode ${s.training === k ? 'primary' : ''}" data-career="train" data-v="${k}"><b>${STAT_LABEL[k]}を鍛える</b><span>${s.training === k ? '現在選択中' : '今月の重点トレーニングに設定'}</span></button>`).join('');
   const history = s.history.slice(0, 8).map((h) => `<li>${esc(h)}</li>`).join('');
   const seasons = s.seasons.slice().reverse().slice(0, 12).map((r) => `<div class="card"><b>${r.age}歳・${esc(r.team)}</b><div class="small">${labels[r.phase]} ${r.year}年目：${r.wins}勝${r.losses}敗${r.draws}分 ／ 出場${r.appearances}試合・${r.tries}トライ</div><div class="small">先発${r.starts ?? 0}・途中出場${r.substituteApps ?? 0}・控え${r.bench ?? 0}・メンバー外${r.notSelected ?? 0}</div>${r.awards?.length ? `<div class="small">表彰：${r.awards.map(esc).join('、')}</div>` : ''}</div>`).join('');
@@ -115,14 +116,14 @@ function homeScreen(s: CareerState): string {
       <button class="career-tab ${activeCareerTab === 'records' ? 'active' : ''}" role="tab" aria-selected="${activeCareerTab === 'records'}" data-career="career-tab" data-v="records">戦績・記録</button>
     </nav>
     <section class="career-tab-panel ${activeCareerTab === 'player' ? 'active' : ''}" data-tab-panel="player">
-    <div class="panel career-player-hero"><div class="profile-hero">${careerPortrait(s.player.name,s.player.pos)}<div><span class="profile-kicker">PLAYER CAREER</span><b class="career-player-name">${esc(s.player.name)}</b><p>${s.player.pos} ／ 総合値 ${o}（${o >= 160 ? 'S' : o >= 135 ? 'A' : o >= 110 ? 'B' : o >= 85 ? 'C' : o >= 60 ? 'D' : 'E'}ランク）</p><span class="small">${esc(team)} ・ ${s.player.height}cm / ${s.player.weight}kg</span></div></div><p>${phaseDescription(s)}</p><div class="career-kit-radar">${careerUniform(team)}<div class="radar-wrap"><h3>能力バランス</h3>${careerRadar(s.player.stats as unknown as Record<string,number>)}</div></div></div>
+    <div class="panel career-player-hero"><div class="profile-hero">${careerPortrait(s.player.name,s.player.pos)}<div><span class="profile-kicker">PLAYER CAREER</span><b class="career-player-name">${esc(s.player.name)}</b><p>${s.player.pos} ／ 総合値 ${o}（${rating}ランク）</p><span class="small">${esc(team)} ・ ${s.player.height}cm / ${s.player.weight}kg</span></div></div><p>${phaseDescription(s)}</p><div class="career-kit-radar">${careerUniform(team)}<div class="radar-wrap"><h3>能力バランス</h3>${careerRadar(s.player.stats as unknown as Record<string,number>)}</div></div></div>
     ${s.university ? `<div class="card"><b>進学先</b><p>${esc(s.university)}（${esc(s.universityTier)}）</p></div>` : ''}
     ${s.professionalTeam ? `<div class="card"><b>所属社会人チーム</b><p>${esc(s.professionalTeam)}（${esc(s.professionalLeague || `リーグワンD${s.proDivision}`)}）</p></div>` : ''}
     ${s.nationalCandidate ? `<div class="card"><b>高校日本代表候補</b><p>選出済み ／ 世界大会勝利数：${s.worldTournamentWins}</p></div>` : ''}
     <div class="card"><b>コンディション</b><p>疲労：${Math.round(s.fatigue)} / 100　／　士気：${Math.round(s.morale)} / 100</p><div class="bar"><span>疲労</span><div class="track"><i style="width:${Math.round(s.fatigue)}%"></i></div><b>${Math.round(s.fatigue)}%</b></div><p class="small">負傷による長期離脱はありません。疲労は月ごとの回復と育成プランで管理します。</p></div>
     ${s.japanNationalTeamSelected ? `<div class="card"><b>日本代表</b><p>選出中 ／ 国際試合 ${s.japanNationalTeamCaps}キャップ・${s.japanNationalTeamWins}勝</p><p class="small">全国の候補からポジション別の総合力で毎月再選考します。</p></div>` : `<div class="card"><b>日本代表</b><p>現在は未選出 ／ 通算 ${s.japanNationalTeamCaps}キャップ・${s.japanNationalTeamWins}勝</p></div>`}
     ${s.nationalSquad?.length && (s.pendingTournament?.kind === 'world' || s.pendingFixtures?.some((f) => f.kind === 'japan-test' || f.kind === 'world-cup') || s.liveMatch?.fixture.kind === 'japan-test' || s.liveMatch?.fixture.kind === 'world-cup') ? `<div class="card national-squad-card"><h3>${s.phase === 'highschool' ? '高校日本代表候補' : '日本代表'} 選出メンバー（${s.nationalSquad.length}名）</h3><p class="small">ポジション別に選考。代表戦の予定があるときにメンバーを表示します。</p><ol class="national-squad-list">${s.nationalSquad.slice(0, 23).map((p,i)=>`<li><span class="squad-rank">${i+1}</span><span class="squad-main"><b>${esc(p.name)}</b><small>${p.pos} ／ ${esc(p.team)}${s.phase !== 'professional' && p.year ? `・${p.year}` : ''}</small></span><strong>${p.overall}</strong></li>`).join('')}</ol></div>` : ''}
-    <div class="card"><h3>選手能力</h3>${bars}<p class="small">能力上限：200 ／ 最高総合値：${Math.round(s.player.peak)} ／ 成長タイプ：${s.player.talentType}（成長係数 ${s.player.talent.toFixed(2)}）</p></div>
+    <div class="card"><h3>選手能力</h3>${bars}<p class="small">能力上限：年代・年齢に応じて変動 ／ 最高総合値：${Math.round(s.player.peak)} ／ 成長タイプ：${s.player.talentType}（成長係数 ${s.player.talent.toFixed(2)}）</p></div>
     </section>
     <section class="career-tab-panel ${activeCareerTab === 'roster' ? 'active' : ''}" data-tab-panel="roster">
     <section class="career-roster-panel"><h3>チーム登録メンバー（23名）</h3><div class="lineup-grid">${lineupCard(s, currentTeam(s), true)}</div></section>
