@@ -867,7 +867,7 @@ function nationalCandidatePool(s: CareerState): { name: string; pos: Pos; overal
   if (ownEligible) pool.push({ name: s.player.name, pos: s.player.pos, overall: Math.round(ownOverall), team: ownTeam, year: s.phase === 'highschool' ? `${s.stageYear}年` : s.phase === 'university' ? `${s.stageYear}年` : undefined, country: '日本' });
   const thresholds = s.phase === 'highschool' ? 80 : s.phase === 'university' ? 94 : 115;
   const selected: typeof pool = [];
-  const positionSlots: [Pos, number][] = [['PR',2],['HO',1],['LO',2],['FL',2],['N8',1],['SH',1],['SO',1],['CTB',2],['WTB',2],['FB',1]];
+  const positionSlots: [Pos, number][] = [['PR',3],['HO',2],['LO',3],['FL',3],['N8',2],['SH',2],['SO',2],['CTB',2],['WTB',3],['FB',1]];
   for (const [pos, slots] of positionSlots) {
     const top = pool.filter((p) => p.pos === pos && p.overall >= thresholds).sort((a,b) => b.overall-a.overall).slice(0, slots);
     selected.push(...top);
