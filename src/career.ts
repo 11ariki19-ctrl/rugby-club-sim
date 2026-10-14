@@ -158,7 +158,21 @@ const PHASE_LABEL: Record<CareerPhase, string> = {
   highschool: '高校生', university: '大学生', professional: '社会人', retired: '引退',
 };
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
-export function careerOverall(s: CareerState): number { return Math.round(overallAt({ pos: s.player.pos, stats: s.player.stats } as never)); }
+export function careerOverallCap(s: Pick<CareerState, 'phase' | 'age' | 'stageYear'>): number {
+  if (s.phase === 'highschool') return [0, 62, 70, 78][Math.max(1, Math.min(3, s.stageYear))];
+  if (s.phase === 'university') return [0, 82, 87, 92, 97][Math.max(1, Math.min(4, s.stageYear))];
+  if (s.phase === 'professional') {
+    if (s.age <= 22) return 100;
+    if (s.age <= 25) return 108;
+    if (s.age <= 29) return 112;
+    if (s.age <= 32) return 108;
+    return 100;
+  }
+  return 100;
+}
+export function careerOverall(s: CareerState): number {
+  return Math.min(Math.round(overallAt({ pos: s.player.pos, stats: s.player.stats } as never)), careerOverallCap(s));
+}
 function newSeason(s: CareerState): CareerSeason {
   return { age: s.age, phase: s.phase === 'retired' ? 'professional' : s.phase, year: s.stageYear, team: currentTeam(s), league: s.phase === 'professional' ? s.professionalLeague : undefined, played: 0, leaguePlayed: 0, leagueWins: 0, leagueLosses: 0, leagueDraws: 0, wins: 0, losses: 0, draws: 0, pointsFor: 0, pointsAgainst: 0, appearances: 0, starts: 0, substituteApps: 0, bench: 0, notSelected: 0, tries: 0, awards: [], notes: [] };
 }
@@ -893,11 +907,12 @@ function applyCareerDevelopment(s: CareerState): void {
   const baseStage = s.phase === 'highschool' ? 1.15 * 1.45 : s.phase === 'university' ? 0.95 * 1.30 : 0.55;
   const ageFactor = s.age < 22 ? 1 : s.age < 27 ? 0.72 : s.age < 31 ? 0.42 : s.age < 34 ? 0.18 : 0.05;
   const planFactor: Record<CareerTrainingPlan, number> = { 'バランス': 1, '筋力': 0.9, '技術': 1.05, '持久力': 0.88, '回復': 0.68 };
+  const statCap = s.phase === 'highschool' ? [0, 68, 76, 84][Math.max(1, Math.min(3, s.stageYear))] : s.phase === 'university' ? [0, 88, 94, 100, 106][Math.max(1, Math.min(4, s.stageYear))] : s.phase === 'professional' ? (s.age <= 22 ? 112 : s.age <= 27 ? 122 : s.age <= 31 ? 118 : 110) : 110;
   for (const k of STAT_KEYS) {
     const focus = k === s.training ? (s.trainingPlan === 'バランス' ? 1.35 : s.trainingPlan === '筋力' && ['pow','sta'].includes(k) ? 1.8 : s.trainingPlan === '技術' && ['tec','men'].includes(k) ? 1.8 : s.trainingPlan === '持久力' && ['sta','spd'].includes(k) ? 1.8 : 1.08) : 0.1;
     const inc = s.player.talent * careerGrowthMultiplier(s) * baseStage * Math.max(0.04, ageFactor) * planFactor[s.trainingPlan] * focus * Math.max(0.08, 1 - s.player.stats[k] / 220) * (0.85 + rand() * 0.3);
-    s.player.stats[k] = clamp(s.player.stats[k] + inc, 0, 200);
-    if (s.age >= 31 && rand() < (s.age >= 35 ? 0.12 : 0.045)) s.player.stats[k] = clamp(s.player.stats[k] - (s.age >= 35 ? 0.18 : 0.08), 0, 200);
+    s.player.stats[k] = clamp(s.player.stats[k] + inc, 0, statCap);
+    if (s.age >= 31 && rand() < (s.age >= 35 ? 0.12 : 0.045)) s.player.stats[k] = clamp(s.player.stats[k] - (s.age >= 35 ? 0.8 : 0.35), 0, statCap);
   }
   if (s.trainingPlan === '筋力') s.fatigue = clamp(s.fatigue + 5, 0, 100);
   else if (s.trainingPlan === '持久力') s.fatigue = clamp(s.fatigue + 2, 0, 100);
@@ -906,21 +921,26 @@ function applyCareerDevelopment(s: CareerState): void {
   else if (s.fatigue < 35) s.morale = clamp(s.morale + 1, 0, 100);
   s.player.peak = Math.max(s.player.peak, careerOverall(s)); s.elapsedMonths++;
 }
-function nationalCandidatePool(s: CareerState): { name: string; pos: Pos; overall: number; team: string; year?: string; country?: string }[] {
-  const eligible = s.rivals.filter((r) => !r.retired && r.country === '日本' && (s.phase === 'highschool' ? r.phase === 'highschool' : s.phase === 'university' ? r.phase === 'university' : r.phase === 'professional'));
-  const ownTeam = s.phase === 'highschool' ? s.highSchool : s.phase === 'university' ? s.university : s.professionalTeam;
+export function nationalCandidatePool(s: CareerState): { name: string; pos: Pos; overall: number; team: string; year?: string; country?: string }[] {
+  const phase = s.phase;
+  const eligible = s.rivals.filter((r) => !r.retired && r.country === '日本' && (phase === 'highschool' ? r.phase === 'highschool' : phase === 'university' ? r.phase === 'university' : r.phase === 'professional'));
+  const ownTeam = phase === 'highschool' ? s.highSchool : phase === 'university' ? s.university : s.professionalTeam;
   const ownOverall = careerOverall(s);
-  const ownEligible = ownOverall >= (s.phase === 'highschool' ? 70 : s.phase === 'university' ? 85 : 100);
-  const pool = eligible.map((r) => ({ name: r.name, pos: r.pos, overall: Math.round(r.overall), team: r.team, year: s.phase === 'highschool' ? `${Math.max(1, Math.min(3, r.age - 14))}年` : s.phase === 'university' ? `${Math.max(1, Math.min(4, r.age - 17))}年` : undefined, country: r.country }));
-  if (ownEligible) pool.push({ name: s.player.name, pos: s.player.pos, overall: Math.round(ownOverall), team: ownTeam, year: s.phase === 'highschool' ? `${s.stageYear}年` : s.phase === 'university' ? `${s.stageYear}年` : undefined, country: '日本' });
-  const thresholds = s.phase === 'highschool' ? 100 : s.phase === 'university' ? 120 : 145;
-  const selected: typeof pool = [];
+  const ownMinimum = phase === 'highschool' ? 58 : phase === 'university' ? 75 : 88;
+  const pool = eligible.map((r) => ({ name: r.name, pos: r.pos, overall: Math.round(r.overall), team: r.team, year: phase === 'highschool' ? `${Math.max(1, Math.min(3, r.age - 14))}年` : phase === 'university' ? `${Math.max(1, Math.min(4, r.age - 17))}年` : undefined, country: r.country }));
+  if (ownOverall >= ownMinimum) pool.push({ name: s.player.name, pos: s.player.pos, overall: ownOverall, team: ownTeam, year: phase === 'highschool' ? `${s.stageYear}年` : phase === 'university' ? `${s.stageYear}年` : undefined, country: '日本' });
   const positionSlots: [Pos, number][] = [['PR',3],['HO',2],['LO',3],['FL',3],['N8',2],['SH',2],['SO',2],['CTB',2],['WTB',3],['FB',1]];
+  const selected: typeof pool = [];
   for (const [pos, slots] of positionSlots) {
-    const top = pool.filter((p) => p.pos === pos && p.overall >= thresholds).sort((a,b) => b.overall-a.overall).slice(0, slots);
-    selected.push(...top);
+    const candidates = pool.filter((p) => p.pos === pos).sort((a,b) => b.overall-a.overall);
+    const phaseFloor = phase === 'highschool' ? 48 : phase === 'university' ? 62 : 72;
+    selected.push(...candidates.filter((p) => p.overall >= phaseFloor).slice(0, slots));
+    if (selected.filter((p) => p.pos === pos).length < slots) {
+      const chosen = new Set(selected.filter((p) => p.pos === pos).map((p) => p.name + '|' + p.team));
+      selected.push(...candidates.filter((p) => !chosen.has(p.name + '|' + p.team)).slice(0, slots - selected.filter((p) => p.pos === pos).length));
+    }
   }
-  return selected.sort((a,b) => b.overall-a.overall);
+  return selected.sort((a,b) => b.overall-a.overall).slice(0, 23);
 }
 function refreshNationalSelection(s: CareerState): void {
   if (s.phase === 'retired') return;
