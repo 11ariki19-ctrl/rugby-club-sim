@@ -1,10 +1,24 @@
 import assert from 'node:assert/strict';
 import { seed, rand } from '../src/rng';
-import { PREFS, SURNAMES } from '../src/data';
+import { PREFS, SURNAMES, allSchools, schoolsOf, HANAZONO_FINALS_LAST_10 } from '../src/data';
 import { generateUniquePlayerName, generateUniqueJapaneseName, inferPlayerCountry } from '../src/names';
-import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, careerGrowthMultiplier, careerTeamStrengthProfile, WORLD_CUP_TEAMS, worldCupPools, saveCareer, loadCareer, setCareerSaveSlot, clearCareer, nationalCandidatePool, careerRoleByPositionalRank, nationalMatchRole } from '../src/career';
+import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, careerGrowthMultiplier, careerTeamStrengthProfile, WORLD_CUP_TEAMS, worldCupPools, saveCareer, loadCareer, setCareerSaveSlot, clearCareer, nationalCandidatePool, careerRoleByPositionalRank, nationalMatchRole, UNIVERSITY_GROUPS, selectCareerUniversity } from '../src/career';
 
 console.log('career mode tests');
+const realSchools = allSchools();
+assert.ok(realSchools.length >= 180, 'real school catalogue should contain a broad national selection');
+assert.equal(new Set(realSchools.map((school) => school.name)).size, realSchools.length, 'school names are unique');
+assert.ok(PREFS.every((pref, i) => schoolsOf(i).length >= 2), 'all 47 prefectures have selectable real schools');
+assert.equal(HANAZONO_FINALS_LAST_10.length, 10, 'last ten Hanazono finals are stored');
+assert.ok(HANAZONO_FINALS_LAST_10.filter((x) => x.champion === '桐蔭学園高等学校').length >= 4, 'recent repeated Hanazono champion receives top rank');
+assert.equal(Object.keys(UNIVERSITY_GROUPS).length, 6, 'three university competitions each include A and B groups');
+assert.ok(Object.values(UNIVERSITY_GROUPS).every((teams) => teams.length === 8), 'each included university group has eight teams');
+const selectableUniversity = newCareer('大学選択テスト', 'FL');
+selectableUniversity.phase = 'university';
+selectableUniversity.university = '帝京大学';
+assert.equal(selectCareerUniversity(selectableUniversity, '武蔵大学'), true, 'a B-group university can be selected');
+assert.equal(selectableUniversity.universityGroup, '関東大学対抗戦B', 'selecting a university updates its group');
+console.log('  ok - real high-school catalogue, ten-year Hanazono finals, six university groups, and university selection');
 const initialPlayer = newCareer('年代調整テスト', 'CTB');
 seed(774411);
 const generatedNameSet = new Set<string>();
