@@ -891,11 +891,11 @@ function advanceCalendar(s: CareerState): void {
   if (s.phase !== 'retired') s.currentSeason.age = s.age;
 }
 export function careerGrowthMultiplier(s: CareerState): number {
-  return s.player.talentType === '天才' ? 2 : 1;
+  return s.player.talentType === '天才' ? 1.35 : s.player.talentType === '秀才' ? 1.12 : 1;
 }
 
 function applyCareerDevelopment(s: CareerState): void {
-  const baseStage = s.phase === 'highschool' ? 1.15 * 1.45 : s.phase === 'university' ? 0.95 * 1.30 : 0.55;
+  const baseStage = s.phase === 'highschool' ? 0.58 : s.phase === 'university' ? 0.42 : 0.28;
   const ageFactor = s.age < 22 ? 1 : s.age < 27 ? 0.72 : s.age < 31 ? 0.42 : s.age < 34 ? 0.18 : 0.05;
   const planFactor: Record<CareerTrainingPlan, number> = { 'バランス': 1, '筋力': 0.9, '技術': 1.05, '持久力': 0.88, '回復': 0.68 };
   for (const k of STAT_KEYS) {
@@ -1022,7 +1022,17 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
     if (!Array.isArray(s.rivals)) s.rivals = createCareerRivals(s);
     if (s.phase !== 'highschool' && !s.rivals.some((r) => r.country && r.country !== '日本')) addPhaseRivals(s);
     if (!Array.isArray(s.awards)) s.awards = [];
-    for (const k of STAT_KEYS) s.player.stats[k] = clamp(Number(s.player.stats[k]) || 0, 0, careerStatCap(s));
+    for (const k of STAT_KEYS) s.player.stats[k] = clamp(Number(s.player.stats[k]) || 0, 0, 200);
+    // One-time compatibility correction for legacy saves whose ratings were far outside their age group.
+    const savedOverall = careerOverall(s);
+    const expectedBand = s.phase === 'highschool' ? (s.stageYear === 1 ? 52 : s.stageYear === 2 ? 60 : 68) : s.phase === 'university' ? (s.stageYear === 1 ? 68 : s.stageYear === 2 ? 74 : s.stageYear === 3 ? 80 : 86) : s.phase === 'professional' ? (s.age < 23 ? 82 : s.age < 27 ? 94 : s.age < 31 ? 101 : 94) : 90;
+    const extremeThreshold = s.phase === 'highschool' ? 88 : s.phase === 'university' ? 108 : s.phase === 'professional' ? 132 : 150;
+    if (savedOverall > extremeThreshold) {
+      const scale = expectedBand / savedOverall;
+      for (const k of STAT_KEYS) s.player.stats[k] = Math.round(s.player.stats[k] * scale * 10) / 10;
+      s.player.peak = Math.min(s.player.peak || expectedBand, expectedBand + 8);
+      s.history.unshift('旧バージョンの能力値を年代に合う水準へ調整しました。');
+    }
     for (const r of [...s.seasons, s.currentSeason]) { if (!r) continue; if (typeof r.starts !== 'number') r.starts = r.appearances || 0; if (typeof r.substituteApps !== 'number') r.substituteApps = 0; if (typeof r.bench !== 'number') r.bench = 0; if (typeof r.notSelected !== 'number') r.notSelected = Math.max(0, (r.played || 0) - (r.appearances || 0)); if (!Array.isArray(r.awards)) r.awards = []; }
     for (const m of s.matchHistory) if (!m.role) m.role = m.appeared ? '先発' : 'メンバー外';
     if (!s.universityGroup) s.universityGroup = groupForUniversity(s.university || '');
