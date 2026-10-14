@@ -322,6 +322,23 @@ const NATIONAL_COUNTRY_RANK: Record<string, number> = { SouthAfrica: 98, NZ: 97,
 const COUNTRY_LABEL: Record<string, string> = { SouthAfrica: '南アフリカ', NZ: 'ニュージーランド', Ireland: 'アイルランド', France: 'フランス', England: 'イングランド', Australia: 'オーストラリア', Scotland: 'スコットランド', Argentina: 'アルゼンチン', Japan: '日本', Fiji: 'フィジー', Wales: 'ウェールズ', Italy: 'イタリア', Georgia: 'ジョージア', USA: 'アメリカ', Portugal: 'ポルトガル', Samoa: 'サモア', Tonga: 'トンガ', Uruguay: 'ウルグアイ', Chile: 'チリ', Spain: 'スペイン', Canada: 'カナダ', Romania: 'ルーマニア' };
 const TOP_SCHOOLS = ['桐蔭学園','東福岡','大阪桐蔭','京都成章','東海大大阪仰星','國學院栃木','東海大相模','佐賀工業','常翔学園','御所実業','中部大春日丘','石見智翠館','尾道','流経大柏','目黒学院','天理','報徳学園','関西学院高等部','大分東明','秋田工業','茗溪学園','日本航空石川','高鍋','長崎北陽台','京都工学院','仙台育英','盛岡工業','札幌山の手'];
 const UNI_STRENGTH: Record<string, number> = { '帝京大学': 98, '明治大学': 97, '早稲田大学': 97, '京都産業大学': 94, '天理大学': 93, '東海大学': 93, '筑波大学': 91, '関西学院大学': 90, '同志社大学': 89, '慶應義塾大学': 89, '東洋大学': 88, '立命館大学': 87, '大東文化大学': 86, '日本大学': 85, '関東学院大学': 84, '近畿大学': 84, '流通経済大学': 83, '福岡工業大学': 82, '青山学院大学': 82, '法政大学': 82 };
+export function careerTeamStrengthProfile(phase: CareerPhase, team: string): { center: number; min: number; max: number } {
+  if (phase === 'highschool') {
+    const prefecturePower = PREFS.find((p) => team.startsWith(p.short))?.p ?? 2;
+    const schoolPower = TOP_SCHOOLS.includes(team) ? 5 : prefecturePower;
+    const center = schoolPower <= 2 ? 43 : schoolPower === 3 ? 52 : schoolPower === 4 ? 61 : 70;
+    const elite = TOP_SCHOOLS.includes(team);
+    return { center: center + (elite ? 3 : 0), min: 25, max: schoolPower <= 2 ? 59 : schoolPower === 3 ? 68 : schoolPower === 4 ? 78 : 91 };
+  }
+  if (phase === 'university') {
+    const strength = UNI_STRENGTH[team] ?? 72;
+    return { center: 52 + Math.round((strength - 65) * 0.62), min: 35, max: clamp(61 + Math.round((strength - 70) * 0.62), 63, 94) };
+  }
+  const league = leagueForClub(team);
+  const eliteLeagues = ['リーグワン', 'イングランド・プレミアシップ', 'フランス・トップ14', 'ユナイテッド・ラグビー・チャンピオンシップ', 'スーパーラグビー・パシフィック'];
+  const tier = eliteLeagues.includes(league) ? 5 : league.includes('D2') || ['メジャーリーグラグビー', 'カリーカップ'].includes(league) ? 3 : 2;
+  return { center: 58 + tier * 5, min: 45, max: tier === 5 ? 98 : tier === 3 ? 88 : 80 };
+}
 function createCareerRivals(s: CareerState): CareerRival[] {
   const high = s.phase === 'highschool', uni = s.phase === 'university';
   const playerOverall = careerOverall(s);
@@ -337,10 +354,9 @@ function createCareerRivals(s: CareerState): CareerRival[] {
     for (let j = 0; j < countPerTeam; j++) {
       const pos = POSITIONS[(n * 7 + j * 3) % POSITIONS.length];
       const name = names[(n + j * 3) % names.length];
-      const rankBoost = high ? (TOP_SCHOOLS.includes(team) ? 25 : 0) : uni ? (UNI_STRENGTH[team] ?? 74) - 75 : (team.includes('ワイルドナイツ') || team.includes('ブレイブルーパス') || team.includes('スピアーズ') || team.includes('サンゴリアス') || team.includes('神戸スティーラーズ') ? 22 : 0);
-      const phaseBase = high ? 82 : uni ? 103 : 124;
-      const growthAdjustment = Math.max(-8, Math.min(16, playerOverall - phaseBase)) * 0.22;
-      const overall = clamp(phaseBase + rankBoost + int(-8, 18) + growthAdjustment, high ? 55 : uni ? 70 : 85, high ? 155 : uni ? 175 : 195);
+      const profile = careerTeamStrengthProfile(s.phase, team);
+      const growthAdjustment = Math.max(-6, Math.min(14, playerOverall - (high ? 48 : uni ? 70 : 90))) * 0.12;
+      const overall = clamp(profile.center + int(-8, 8) + growthAdjustment, profile.min, profile.max);
       candidates.push({ name: `${name}${j ? 'Jr.' : ''}`, pos, age: high ? 15 + (n % 3) : uni ? 18 + (n % 4) : 21 + (n % 14), overall, phase: s.phase, team, country: '日本', league: high ? '高校ラグビー' : uni ? '大学リーグ' : leagueForClub(team), appearances: 0, tries: 0, retired: false });
       n++;
     }
