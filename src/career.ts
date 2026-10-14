@@ -972,11 +972,11 @@ export function advanceCareerMonth(s: CareerState, _interactive = false): Career
       s.nationalCandidate = true; event = { kind: 'world', name: '高校日本代表候補・世界大会', rounds: 3 };
       s.history.unshift('高校大会での活躍が評価され、2月に高校日本代表候補へ選出された！');
     } else if (s.month === 2) event = { kind: 'newbie', name: `${PREFS[s.prefIndex].name}新人大会`, rounds: 3 };
-    if (event) { s.pendingTournament = { name: event.name, kind: event.kind, totalRounds: event.rounds, rounds: 0, wins: 0 }; playCareerTournamentMatch(s, interactive); saveCareer(s); return s; }
+    if (event) { s.pendingTournament = { name: event.name, kind: event.kind, totalRounds: event.rounds, rounds: 0, wins: 0 }; playCareerTournamentMatch(s, false); saveCareer(s); return s; }
   }
   if (s.phase === 'university' || s.phase === 'professional') {
     const fixtures = monthlyFixtures(s);
-    if (fixtures.length) { s.pendingFixtures = fixtures; playNextFixture(s, interactive); saveCareer(s); return s; }
+    if (fixtures.length) { s.pendingFixtures = fixtures; playNextFixture(s, false); saveCareer(s); return s; }
   }
   applyCareerDevelopment(s);
   advanceCalendar(s); saveCareer(s); return s;
