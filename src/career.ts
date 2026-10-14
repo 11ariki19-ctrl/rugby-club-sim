@@ -47,7 +47,7 @@ export interface CareerMatch {
 }
 export interface CareerFixture {
   date: string; label: string; opponent: string; difficulty: number;
-  kind: 'university-league' | 'university-spring' | 'university-championship' | 'professional-league' | 'professional-playoff' | 'japan-test' | 'highschool' | 'world';
+  kind: 'university-league' | 'university-spring' | 'university-championship' | 'professional-league' | 'professional-playoff' | 'japan-test' | 'world-cup' | 'highschool' | 'world';
 }
 export type CareerMatchAction = 'carry' | 'pass' | 'kick' | 'goal' | 'scrum' | 'lineout' | 'rush' | 'drift' | 'jackal';
 export interface CareerLiveMatch {
@@ -80,6 +80,7 @@ export interface CareerState {
   pendingFixtures?: CareerFixture[]; liveMatch?: CareerLiveMatch; lastMatch?: CareerMatch; matchHistory: CareerMatch[];
   highSchoolAppearances: number; highSchoolTries: number; highSchoolRatingTotal: number; highSchoolRatingCount: number;
   nationalCandidate: boolean; worldTournamentWins: number;
+  worldCup?: { year: number; pool: string; poolOpponents: string[]; poolPlayed: number; poolWins: number; qualified: boolean; knockoutStage: number; completed: boolean };
   japanNationalTeamSelected: boolean; japanNationalTeamCaps: number; japanNationalTeamWins: number;
   professionalStarterGuaranteed: boolean;
   fatigue: number;
@@ -141,7 +142,7 @@ function leagueForClub(club: string): string {
 }
 function teamsForLeague(league: string): string[] { return PRO_LEAGUES[league]?.teams ?? PRO_TEAMS[1]; }
 const WORLD_OPPONENTS = ['オーストラリア','ウェールズ','フィジー'];
-const WORLD_CUP_TEAMS = ['日本','ニュージーランド','南アフリカ','アイルランド','フランス','イングランド','オーストラリア','アルゼンチン','スコットランド','ウェールズ','フィジー','イタリア','サモア','トンガ','ジョージア','アメリカ','カナダ','ウルグアイ','チリ','ポルトガル','スペイン','ルーマニア','ナミビア','ジンバブエ','香港','韓国','ブラジル','ケニア','オランダ','ベルギー','スイス','ドイツ'];
+const WORLD_CUP_TEAMS = ['日本','ニュージーランド','南アフリカ','アイルランド','フランス','イングランド','オーストラリア','アルゼンチン','スコットランド','ウェールズ','フィジー','イタリア','サモア','トンガ','ジョージア','アメリカ','カナダ','ウルグアイ','チリ','ポルトガル'];
 const JAPAN_TEST_OPPONENTS = ['ニュージーランド','オーストラリア','イングランド'];
 const PHASE_LABEL: Record<CareerPhase, string> = {
   highschool: '高校生', university: '大学生', professional: '社会人', retired: '引退',
@@ -351,7 +352,8 @@ function awardMatchExperience(s: CareerState, my: number, their: number, appeare
   s.experiencePoints += earned; return earned;
 }
 function opponentFor(s: CareerState, kind: CareerFixture['kind'] | 'highschool' | 'world', round = 0): string {
-  if (kind === 'world') return WORLD_CUP_TEAMS.filter((team) => team !== '日本')[round % (WORLD_CUP_TEAMS.length - 1)];
+  if (kind === 'world-cup') return s.worldCup?.poolOpponents[round % Math.max(1, s.worldCup.poolOpponents.length)] ?? 'ニュージーランド';
+  if (kind === 'world') return WORLD_OPPONENTS[round % WORLD_OPPONENTS.length];
   if (kind === 'japan-test') return JAPAN_TEST_OPPONENTS[round % JAPAN_TEST_OPPONENTS.length];
   if (kind === 'highschool') return `${PREFS[s.prefIndex].short}${pick(SUFFIX)}高校`;
   if (kind === 'university-league' || kind === 'university-spring' || kind === 'university-championship') {
@@ -447,7 +449,7 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   }
   const result = my > their ? '勝利' : my === their ? '引分' : '敗戦';
   scenes.push(my > their ? 'チームは勝利。試合後の評価が上がった。' : my === their ? '接戦の末に引き分け。最後まで集中を切らさなかった。' : '悔しい敗戦。課題を持ち帰り、次戦に向けて修正する。');
-  const match: CareerMatch = { date: date || `2025年${s.month}月`, competition: label, opponent: opponent || opponentFor(s, kind), my, their, result, appeared, role, tries, carries, tackles, lineBreaks, kicks, errors, rating, experience: exp, scenes };
+  const match: CareerMatch = { date: date || `2025年${s.month}月`, competition: (kind === 'japan-test' || kind === 'world-cup') && !label.includes('日本代表') ? `日本代表 ${label}` : label, opponent: opponent || opponentFor(s, kind), my, their, result, appeared, role, tries, carries, tackles, lineBreaks, kicks, errors, rating, experience: exp, scenes };
   if (role === '先発') season.starts = (season.starts ?? 0) + 1;
   else if (role === '途中出場') season.substituteApps = (season.substituteApps ?? 0) + 1;
   else if (role === '控え') season.bench = (season.bench ?? 0) + 1;
@@ -460,11 +462,11 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   else if (role === 'メンバー外') scenes.unshift(s.injuryMonths > 0 ? `負傷療養中（残り約${s.injuryMonths}か月）のためメンバー外。` : '今回はメンバー外。練習で次の機会を狙う。');
   else if (role === '途中出場') scenes.unshift('途中出場でピッチへ。限られた時間でアピールを狙う。');
   else scenes.unshift('先発メンバーとして試合開始から出場。');
-  if (kind === 'japan-test' && appeared) {
+  if ((kind === 'japan-test' || kind === 'world-cup') && appeared) {
     s.japanNationalTeamCaps++;
     if (my > their) s.japanNationalTeamWins++;
     match.scenes.unshift(`日本代表として${match.opponent}戦に出場。国際試合出場${s.japanNationalTeamCaps}試合目。`);
-  } else if (kind === 'japan-test') match.scenes.unshift('日本代表に帯同したが、今回は出場機会がなかった。');
+  } else if (kind === 'japan-test' || kind === 'world-cup') match.scenes.unshift('日本代表に帯同したが、今回は出場機会がなかった。');
   s.lastMatch = match; s.matchHistory.unshift(match); s.matchHistory = s.matchHistory.slice(0, 80);
   if (appeared) season.appearances++; season.tries += tries;
   if (appeared && rating >= 7.5 && !s.currentSeason.awards?.includes('週間ベストプレーヤー')) { s.currentSeason.awards ??= []; s.currentSeason.awards.push('週間ベストプレーヤー'); }
@@ -642,6 +644,15 @@ function monthlyFixtures(s: CareerState): CareerFixture[] {
     ];
   }
   if (s.phase === 'professional') {
+    if (s.japanNationalTeamSelected && s.month === 9 && (s.age - 23) % 4 === 0 && !s.worldCup?.completed) {
+      const shuffled = [...WORLD_CUP_TEAMS];
+      for (let i = shuffled.length - 1; i > 0; i--) { const j = int(0, i); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
+      const pools = [shuffled.slice(0,5), shuffled.slice(5,10), shuffled.slice(10,15), shuffled.slice(15,20)];
+      const pool = pools.find((p) => p.includes('日本')) ?? pools[0];
+      const opponents = pool.filter((x) => x !== '日本');
+      s.worldCup = { year: 2023 + Math.max(0, Math.floor((s.age - 23) / 4)) * 4, pool: String.fromCharCode(65 + pools.indexOf(pool)), poolOpponents: opponents, poolPlayed: 0, poolWins: 0, qualified: false, knockoutStage: 0, completed: false };
+      return opponents.map((opponent, i) => ({ date: `${9 + Math.floor(i * 2 / 3)}月・プール戦`, label: `ラグビーワールドカップ プール${s.worldCup!.pool} 第${i + 1}戦`, opponent, difficulty: 76 + i * 2, kind: 'world-cup' as const }));
+    }
     if (s.month === 8 && s.japanNationalTeamSelected) return JAPAN_TEST_OPPONENTS.map((opponent, i) => ({ date: `8月・日本代表戦${i + 1}`, label: `日本代表テストマッチ 第${i + 1}戦`, opponent, difficulty: 72 + i * 2, kind: 'japan-test' as const }));
     if ([12,1,2,3,4,5].includes(s.month)) return s.proSchedule.filter((f, i) => i >= s.proMatchIndex && f.date.startsWith(`${s.month}月`));
     if (s.month === 6 && s.proDivision === 1 && s.currentSeason.leagueWins >= 11) return [
@@ -663,6 +674,24 @@ function playNextFixture(s: CareerState, interactive = false): void {
   if (interactive) { beginCareerLiveMatch(s, 'fixture', fixture); return; }
   const m = simulateMatch(s, fixture.label, fixture.opponent, fixture.date, fixture.kind, fixture.difficulty);
   if (fixture.kind === 'professional-league') s.proMatchIndex++;
+  if (fixture.kind === 'world-cup' && s.worldCup) {
+    s.worldCup.poolPlayed++;
+    if (m.win) s.worldCup.poolWins++;
+    if (s.worldCup.poolPlayed === 4) {
+      s.worldCup.qualified = s.worldCup.poolWins >= 2;
+      if (s.worldCup.qualified) s.pendingFixtures = [
+        { date: '10月・準々決勝', label: 'ラグビーワールドカップ 準々決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本' && !s.worldCup!.poolOpponents.includes(x))), difficulty: 82, kind: 'world-cup' },
+        { date: '10月・準決勝', label: 'ラグビーワールドカップ 準決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), difficulty: 86, kind: 'world-cup' },
+        { date: '10月・決勝', label: 'ラグビーワールドカップ 決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), difficulty: 90, kind: 'world-cup' },
+      ];
+      else s.worldCup.completed = true;
+    } else if (s.worldCup.poolPlayed > 4) {
+      s.worldCup.knockoutStage++;
+      if (!m.win || s.worldCup.knockoutStage >= 3) s.worldCup.completed = true;
+      else if (s.worldCup.knockoutStage === 1 && s.pendingFixtures.length === 0) s.pendingFixtures = [{ date: '10月・準決勝', label: 'ラグビーワールドカップ 準決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), difficulty: 86, kind: 'world-cup' }];
+      else if (s.worldCup.knockoutStage === 2 && s.pendingFixtures.length === 0) s.pendingFixtures = [{ date: '10月・決勝', label: 'ラグビーワールドカップ 決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), difficulty: 90, kind: 'world-cup' }];
+    }
+  }
   if (fixture.kind === 'university-league' && s.currentSeason.leaguePlayed >= 7) {
     s.universityQualified = s.currentSeason.leagueWins >= 4 || s.universityTier === '最上位';
     s.universityTournamentAlive = s.universityQualified;
@@ -827,6 +856,7 @@ export function loadCareer(): CareerState | null {
     if (typeof s.highSchoolRatingCount !== 'number') s.highSchoolRatingCount = 0;
     if (typeof s.nationalCandidate !== 'boolean') s.nationalCandidate = false;
     if (typeof s.worldTournamentWins !== 'number') s.worldTournamentWins = 0;
+    if (s.worldCup && (!Array.isArray(s.worldCup.poolOpponents) || typeof s.worldCup.poolPlayed !== 'number')) s.worldCup = undefined;
     if (!s.player.talentType || !CAREER_TALENTS.some((x) => x.id === s.player.talentType)) s.player.talentType = '凡人';
     if (typeof s.japanNationalTeamSelected !== 'boolean') s.japanNationalTeamSelected = false;
     if (typeof s.japanNationalTeamCaps !== 'number') s.japanNationalTeamCaps = 0;
