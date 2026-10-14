@@ -868,11 +868,13 @@ function nationalCandidatePool(s: CareerState): { name: string; pos: Pos; overal
 function refreshNationalSelection(s: CareerState): void {
   if (s.phase === 'retired') return;
   if (s.phase === 'highschool') {
-    // 高校日本代表候補は3年生限定にせず、学年ごとの能力で選考。
+    // 高校日本代表候補は1年次から学年ごとの能力とポジション適性で選考。
     const pool = nationalCandidatePool(s);
     const own = pool.some((p) => p.name === s.player.name);
+    s.nationalSquad = pool.map((p) => ({ ...p }));
+    const wasSelected = s.nationalCandidate;
     s.nationalCandidate = own && s.highSchoolAppearances >= 2;
-    if (s.nationalCandidate) s.history.unshift(`高校日本代表候補に選出（${s.stageYear}年生）。ポジション適性と全国候補の総合力で選考。`);
+    if (s.nationalCandidate !== wasSelected) s.history.unshift(s.nationalCandidate ? `高校日本代表候補に選出（${s.stageYear}年生）。全国の候補をポジション別・総合力順で再選考。` : '高校日本代表候補から外れた。全国の選手の成長を踏まえ、ポジション別に再選考。');
   } else if (s.phase === 'university' || s.phase === 'professional') {
     const pool = nationalCandidatePool(s);
     const own = pool.some((p) => p.name === s.player.name);
