@@ -1,6 +1,6 @@
 import { careerTeamStrengthProfile } from './career';
 import {
-  advanceCareerMonth, careerOverall, currentTeam, newCareer, setCareerTraining, setCareerTrainingPlan,
+  advanceCareerMonth, careerOverall, currentTeam, newCareer, setCareerTraining, setCareerTrainingPlan, playCareerMatchAction,
   resolveCareerTransfer, careerHallOfFame, careerLegacyScore,
   CAREER_POSITIONS, CAREER_STAT_KEYS, CAREER_STAT_LABEL, CAREER_TALENTS, hasCareerSave, loadCareer, saveCareer, setCareerSaveSlot, careerSaveSummary, careerHallOfFame,
 } from './career';
@@ -243,8 +243,7 @@ function matchResultScreen(s: CareerState): string {
 function render(): void {
   if (!root) return;
   if (titleMenu) { root.innerHTML = titleScreen(); return; }
-  if (state?.liveMatch) state.liveMatch = undefined;
-  root.innerHTML = creating || !state ? createScreen() : showMatchResult ? matchResultScreen(state) : homeScreen(state);
+  root.innerHTML = creating || !state ? createScreen() : state.liveMatch ? liveMatchScreen(state) : showMatchResult ? matchResultScreen(state) : homeScreen(state);
 }
 function act(action: string, value = ''): void {
   if (!root) return;
@@ -274,6 +273,12 @@ function act(action: string, value = ''): void {
     return;
   }
   if (action === 'result-continue' && state) { showMatchResult = false; selectedRosterMember = null; activeCareerTab = 'player'; render(); return; }
+  if (action === 'match-action' && state?.liveMatch) {
+    playCareerMatchAction(state, value as CareerMatchAction);
+    if (!state.liveMatch) showMatchResult = true;
+    render(); return;
+  }
+  if (action === 'match-exit' && state) { state.liveMatch = undefined; showMatchResult = false; saveCareer(state); render(); return; }
   if (action === 'start') {
     const name = root.querySelector<HTMLInputElement>('#career-name')?.value ?? '';
     const pos = (root.querySelector<HTMLSelectElement>('#career-pos')?.value ?? 'CTB') as Pos;
@@ -293,7 +298,7 @@ function act(action: string, value = ''): void {
   } else if (action === 'advance' && state) {
     const previousMatchCount = state.matchHistory.length;
     state.liveMatch = undefined;
-    advanceCareerMonth(state, false);
+    advanceCareerMonth(state, true);
     showMatchResult = state.matchHistory.length > previousMatchCount;
     selectedRosterMember = null;
   }
