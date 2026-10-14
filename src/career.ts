@@ -192,8 +192,15 @@ function buildProSchedule(s: CareerState): CareerFixture[] {
   const opponents = teams.filter((x) => x !== s.professionalTeam);
   const count = competition.matches;
   const rounds: string[] = [];
-  for (let i = 0; i < count; i++) rounds.push(opponents[i % Math.max(1, opponents.length)]);
-  for (let i = rounds.length - 1; i > 0; i--) { const j = int(0, i); [rounds[i], rounds[j]] = [rounds[j], rounds[i]]; }
+  if (league === 'リーグワンD2') {
+    // 8 clubs, home-and-away double round robin: each opponent exactly twice.
+    rounds.push(...opponents, ...[...opponents].reverse());
+  } else if (league === 'リーグワンD3') {
+    rounds.push(...opponents, ...[...opponents].reverse(), ...opponents);
+  } else {
+    for (let i = 0; i < count; i++) rounds.push(opponents[i % Math.max(1, opponents.length)]);
+    for (let i = rounds.length - 1; i > 0; i--) { const j = int(0, i); [rounds[i], rounds[j]] = [rounds[j], rounds[i]]; }
+  }
   const months = league === 'スーパーラグビー・パシフィック' ? [12,1,2,3,4,5] : [12,1,2,3,4,5];
   const fixturesPerMonth = Math.ceil(count / months.length);
   return rounds.map((opponent, i) => {
