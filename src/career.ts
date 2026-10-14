@@ -854,7 +854,7 @@ function nationalCandidatePool(s: CareerState): { name: string; pos: Pos; overal
   const ownTeam = s.phase === 'highschool' ? s.highSchool : s.phase === 'university' ? s.university : s.professionalTeam;
   const ownOverall = careerOverall(s);
   const ownEligible = ownOverall >= (s.phase === 'highschool' ? 70 : s.phase === 'university' ? 85 : 100);
-  const pool = eligible.map((r) => ({ name: r.name, pos: r.pos, overall: Math.round(r.overall), team: r.team, year: s.phase === 'highschool' ? `${Math.max(1, Math.min(3, s.stageYear))}年` : s.phase === 'university' ? `${Math.max(1, Math.min(4, s.stageYear))}年` : undefined, country: r.country }));
+  const pool = eligible.map((r) => ({ name: r.name, pos: r.pos, overall: Math.round(r.overall), team: r.team, year: s.phase === 'highschool' ? `${Math.max(1, Math.min(3, r.age - 14))}年` : s.phase === 'university' ? `${Math.max(1, Math.min(4, r.age - 17))}年` : undefined, country: r.country }));
   if (ownEligible) pool.push({ name: s.player.name, pos: s.player.pos, overall: Math.round(ownOverall), team: ownTeam, year: s.phase === 'highschool' ? `${s.stageYear}年` : s.phase === 'university' ? `${s.stageYear}年` : undefined, country: '日本' });
   const thresholds = s.phase === 'highschool' ? 80 : s.phase === 'university' ? 94 : 115;
   const selected: typeof pool = [];
