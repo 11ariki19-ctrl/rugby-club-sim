@@ -890,18 +890,6 @@ export function advanceCareerMonth(s: CareerState, interactive = false): CareerS
   // UIから次へ進めた場合、提示中の契約オファーは現所属で更新してから進行する。
   refreshNationalSelection(s);
   if (s.pendingTransfer) { s.pendingTransfer = undefined; s.proContractYears = Math.max(2, s.proContractYears); s.history.unshift(`${s.age}歳：契約オファーを見送り、現所属で契約を更新。年俸${s.proSalary}万円でプレーを続ける。`); }
-  if (s.phase === 'university' && s.month === 5) {
-    const form = [...s.seasons].reverse().find((r) => r.phase === 'university');
-    const eligible = careerOverall(s) >= 62 && (s.stageYear >= 2 || careerOverall(s) >= 68) && (!form || form.appearances >= 4);
-    if (s.japanNationalTeamSelected && (careerOverall(s) < 58 || (form && form.appearances < 3))) { s.japanNationalTeamSelected = false; s.history.unshift('代表合宿での競争に敗れ、日本代表から落選。リーグで結果を残せば再招集の可能性がある。'); }
-    else if (!s.japanNationalTeamSelected && eligible) { s.japanNationalTeamSelected = true; s.history.unshift(`大学での能力と実績が評価され、${s.stageYear}年生で日本代表に${s.japanNationalTeamCaps ? '再選出' : '選出'}！6月のテストマッチに出場する。`); }
-  }
-  if (s.phase === 'professional' && s.month === 7) {
-    const form = [...s.seasons].reverse().find((r) => r.phase === 'professional');
-    const eligible = careerOverall(s) >= 67 && s.seasons.some((r) => r.phase === 'university' && r.appearances >= 8) && (!form || form.appearances >= 5);
-    if (s.japanNationalTeamSelected && (careerOverall(s) < 60 || (form && form.appearances < 3))) { s.japanNationalTeamSelected = false; s.history.unshift('代表選考で落選。クラブでの活躍を積み重ねて再招集を目指す。'); }
-    else if (!s.japanNationalTeamSelected && eligible) { s.japanNationalTeamSelected = true; s.history.unshift(`クラブでの実績が評価され、日本代表に${s.japanNationalTeamCaps ? '再選出' : '選出'}！8月のテストマッチに出場する。`); }
-  }
   if (s.pendingTournament) { playCareerTournamentMatch(s, interactive); saveCareer(s); return s; }
   if (s.pendingFixtures?.length) { playNextFixture(s, interactive); saveCareer(s); return s; }
   if (s.tournamentCompletedMonth === s.month) {
