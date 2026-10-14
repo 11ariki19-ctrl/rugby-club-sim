@@ -105,7 +105,7 @@ export interface CareerState {
   legacyScore?: number;
   awards: string[];
   universityGroup: '関東大学対抗戦A' | '関東大学対抗戦B' | '関東大学リーグ戦1部' | '関東大学リーグ戦2部' | '関西大学Aリーグ' | '関西大学Bリーグ';
-  universityQualified: boolean; universityTournamentAlive: boolean;
+  universityQualified: boolean; universityTournamentAlive: boolean; universityPlayoff?: { targetGroup: CareerState['universityGroup']; wins: number; losses: number };
   proDivision: 1 | 2 | 3; proMatchIndex: number; proSchedule: CareerFixture[]; proStandings?: { team: string; wins: number }[];
   tournamentCompletedMonth?: number;
   training: StatKey;
@@ -703,14 +703,48 @@ function finishCareerLiveMatch(s: CareerState): void {
         }
       }
     }
+    if (kind === 'university-playoff' && s.universityPlayoff) {
+      if (m.win) s.universityPlayoff.wins++; else s.universityPlayoff.losses++;
+      if (f.label.includes('第2戦')) {
+        const playoff = s.universityPlayoff;
+        if (playoff.wins > playoff.losses) {
+          s.universityGroup = playoff.targetGroup;
+          s.history.unshift(`大学リーグ入替戦に勝利。翌年度から${s.universityGroup}として戦います。`);
+        } else s.history.unshift(`大学リーグ入替戦に敗退。翌年度も${s.universityGroup}で戦います。`);
+        s.universityPlayoff = undefined;
+      }
+    }
     if (kind === 'university-league' && s.currentSeason.leaguePlayed >= 7) {
-      s.universityQualified = s.currentSeason.leagueWins >= 4 || s.universityTier === '最上位';
+      const isAGroup = ['関東大学対抗戦A','関東大学リーグ戦1部','関西大学Aリーグ'].includes(s.universityGroup);
+      s.universityQualified = isAGroup && (s.currentSeason.leagueWins >= 4 || s.universityTier === '最上位');
       s.universityTournamentAlive = s.universityQualified;
-      if (s.universityQualified) {
-        s.history.unshift(`${s.universityGroup} ${s.currentSeason.leagueWins}勝で全国大学選手権への出場権を獲得。`);
+      const promotionTarget: Partial<Record<CareerState['universityGroup'], CareerState['universityGroup']>> = {
+        '関東大学対抗戦B': '関東大学対抗戦A',
+        '関東大学リーグ戦2部': '関東大学リーグ戦1部',
+        '関西大学Bリーグ': '関西大学Aリーグ',
+      };
+      const relegationTarget: Partial<Record<CareerState['universityGroup'], CareerState['universityGroup']>> = {
+        '関東大学対抗戦A': '関東大学対抗戦B',
+        '関東大学リーグ戦1部': '関東大学リーグ戦2部',
+        '関西大学Aリーグ': '関西大学Bリーグ',
+      };
+      const targetGroup = promotionTarget[s.universityGroup] && s.currentSeason.leagueWins >= 5
+        ? promotionTarget[s.universityGroup]
+        : relegationTarget[s.universityGroup] && s.currentSeason.leagueWins <= 1
+          ? relegationTarget[s.universityGroup] : undefined;
+      if (targetGroup) {
+        s.universityPlayoff = { targetGroup, wins: 0, losses: 0 };
+        s.history.unshift(`${s.universityGroup}の成績により、昇降格入替戦に進出。`);
         s.pendingFixtures?.push(
-          { date: '11/22・1回戦', label: '全国大学選手権 1回戦', opponent: opponentFor(s, 'university-championship'), difficulty: 60, kind: 'university-championship' },
-          { date: '11/29・2回戦', label: '全国大学選手権 2回戦', opponent: opponentFor(s, 'university-championship'), difficulty: 61, kind: 'university-championship' },
+          { date: '12月・入替戦第1戦', label: `${s.universityGroup}／${targetGroup} 入替戦 第1戦`, opponent: pick(UNIVERSITY_GROUPS[targetGroup].filter((x) => x !== s.university)), difficulty: 63, kind: 'university-playoff' },
+          { date: '12月・入替戦第2戦', label: `${s.universityGroup}／${targetGroup} 入替戦 第2戦`, opponent: pick(UNIVERSITY_GROUPS[targetGroup].filter((x) => x !== s.university)), difficulty: 65, kind: 'university-playoff' },
+        );
+      }
+      if (s.universityQualified) {
+        s.history.unshift(`${s.universityGroup} ${s.currentSeason.leagueWins}勝で全国大学選手権出場圏内。`);
+        s.pendingFixtures?.push(
+          { date: '11〜12月・全国大学選手権', label: '全国大学選手権 3回戦', opponent: opponentFor(s, 'university-championship'), difficulty: 62, kind: 'university-championship' },
+          { date: '12月・準々決勝', label: '全国大学選手権 準々決勝', opponent: opponentFor(s, 'university-championship'), difficulty: 66, kind: 'university-championship' },
         );
       }
     }
@@ -1135,7 +1169,7 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
     for (const r of [...s.seasons, s.currentSeason]) { if (!r) continue; if (typeof r.starts !== 'number') r.starts = r.appearances || 0; if (typeof r.substituteApps !== 'number') r.substituteApps = 0; if (typeof r.bench !== 'number') r.bench = 0; if (typeof r.notSelected !== 'number') r.notSelected = Math.max(0, (r.played || 0) - (r.appearances || 0)); if (!Array.isArray(r.awards)) r.awards = []; }
     for (const m of s.matchHistory) if (!m.role) m.role = m.appeared ? '先発' : 'メンバー外';
     if (!s.universityGroup || !UNIVERSITY_GROUPS[s.universityGroup]) s.universityGroup = groupForUniversity(s.university || '');
-    if (s.university && !UNIVERSITY_GROUPS[s.universityGroup].includes(s.university)) {
+    if (s.university && !Object.values(UNIVERSITY_GROUPS).some((teams) => teams.includes(s.university))) {
       s.university = pick(UNIVERSITY_GROUPS[s.universityGroup]);
     }
     if (typeof s.universityQualified !== 'boolean') s.universityQualified = false;
