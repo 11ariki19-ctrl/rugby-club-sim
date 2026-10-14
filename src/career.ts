@@ -142,7 +142,7 @@ function leagueForClub(club: string): string {
 }
 function teamsForLeague(league: string): string[] { return PRO_LEAGUES[league]?.teams ?? PRO_TEAMS[1]; }
 const WORLD_OPPONENTS = ['オーストラリア','ウェールズ','フィジー'];
-const WORLD_CUP_TEAMS = ['日本','ニュージーランド','南アフリカ','アイルランド','フランス','イングランド','オーストラリア','アルゼンチン','スコットランド','ウェールズ','フィジー','イタリア','サモア','トンガ','ジョージア','アメリカ','カナダ','ウルグアイ','チリ','ポルトガル'];
+const WORLD_CUP_TEAMS = ['日本','ニュージーランド','南アフリカ','アイルランド','フランス','イングランド','オーストラリア','アルゼンチン','スコットランド','ウェールズ','フィジー','イタリア','サモア','トンガ','ジョージア','ルーマニア','ナミビア','ウルグアイ','チリ','ポルトガル'];
 const JAPAN_TEST_OPPONENTS = ['ニュージーランド','オーストラリア','イングランド'];
 const PHASE_LABEL: Record<CareerPhase, string> = {
   highschool: '高校生', university: '大学生', professional: '社会人', retired: '引退',
@@ -678,7 +678,8 @@ function playNextFixture(s: CareerState, interactive = false): void {
     s.worldCup.poolPlayed++;
     if (m.win) s.worldCup.poolWins++;
     if (s.worldCup.poolPlayed === 4) {
-      const table = [{ team: '日本', wins: s.worldCup.poolWins, tie: rand() }, ...s.worldCup.poolOpponents.map((team, i) => ({ team, wins: s.worldCup.poolRivalWins[i] ?? int(0,4), tie: rand() }))].sort((a,b) => b.wins - a.wins || b.tie - a.tie);\n      s.worldCup.qualified = table.findIndex((row) => row.team === '日本') < 2;
+      const table = [{ team: '日本', wins: s.worldCup.poolWins, tie: rand() }, ...s.worldCup.poolOpponents.map((team, i) => ({ team, wins: s.worldCup.poolRivalWins[i] ?? int(0,4), tie: rand() }))].sort((a,b) => b.wins - a.wins || b.tie - a.tie);
+      s.worldCup.qualified = table.findIndex((row) => row.team === '日本') < 2;
       if (s.worldCup.qualified) s.pendingFixtures = [
         { date: '10月・準々決勝', label: 'ラグビーワールドカップ 準々決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本' && !s.worldCup!.poolOpponents.includes(x))), difficulty: 82, kind: 'world-cup' },
         { date: '10月・準決勝', label: 'ラグビーワールドカップ 準決勝', opponent: pick(WORLD_CUP_TEAMS.filter((x) => x !== '日本')), difficulty: 86, kind: 'world-cup' },
@@ -856,7 +857,8 @@ export function loadCareer(): CareerState | null {
     if (typeof s.highSchoolRatingCount !== 'number') s.highSchoolRatingCount = 0;
     if (typeof s.nationalCandidate !== 'boolean') s.nationalCandidate = false;
     if (typeof s.worldTournamentWins !== 'number') s.worldTournamentWins = 0;
-    if (s.worldCup && (!Array.isArray(s.worldCup.poolOpponents) || typeof s.worldCup.poolPlayed !== 'number')) s.worldCup = undefined;\n    if (s.worldCup && !Array.isArray(s.worldCup.poolRivalWins)) s.worldCup.poolRivalWins = s.worldCup.poolOpponents.map(() => 2);
+    if (s.worldCup && (!Array.isArray(s.worldCup.poolOpponents) || typeof s.worldCup.poolPlayed !== 'number')) s.worldCup = undefined;
+    if (s.worldCup && !Array.isArray(s.worldCup.poolRivalWins)) s.worldCup.poolRivalWins = s.worldCup.poolOpponents.map(() => 2);
     if (!s.player.talentType || !CAREER_TALENTS.some((x) => x.id === s.player.talentType)) s.player.talentType = '凡人';
     if (typeof s.japanNationalTeamSelected !== 'boolean') s.japanNationalTeamSelected = false;
     if (typeof s.japanNationalTeamCaps !== 'number') s.japanNationalTeamCaps = 0;
