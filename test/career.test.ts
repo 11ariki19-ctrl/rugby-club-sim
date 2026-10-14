@@ -133,7 +133,13 @@ console.log('  ok - university league has seven official matches across Septembe
 assert.ok(schedule.matchHistory.length > 0);
 assert.ok(schedule.lastMatch?.scenes.length);
 assert.ok(schedule.lastMatch?.experience > 0);
-console.log('  ok - match report includes scenes, individual performance, and experience points');
+const report = schedule.lastMatch!;
+assert.ok(report.scoreEvents && report.scoreEvents.length > 0, 'match report records scoring events');
+assert.equal(report.scoreEvents!.reduce((sum, event) => sum + (event.side === '自チーム' ? event.points : 0), 0), report.my, 'home scoring events add up to the final score');
+assert.equal(report.scoreEvents!.reduce((sum, event) => sum + (event.side === '相手' ? event.points : 0), 0), report.their, 'opponent scoring events add up to the final score');
+assert.ok(report.scoreEvents!.every(event => event.minute >= 1 && event.minute <= 80 && event.scorer.length > 0), 'each scoring event has a scorer and a valid match minute');
+assert.equal(report.tries, report.scoreEvents!.filter(event => event.side === '自チーム' && event.scorer === schedule.player.name && event.points !== 3).length, 'player try tally matches the scoring timeline');
+console.log('  ok - match scoring timeline includes scorer and minute, with points and player try totals consistent');
 seed(903);
 const candidate = newCareer('代表候補テスト', 'WTB', 26, '大阪学院高校');
 candidate.stageYear = 3; candidate.month = 2;
