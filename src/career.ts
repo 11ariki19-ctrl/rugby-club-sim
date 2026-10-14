@@ -215,7 +215,8 @@ function assignProfessional(s: CareerState): void {
   s.proSalary = Math.round((s.proDivision === 1 ? 1800 : s.proDivision === 2 ? 900 : 500) + o * 18);
   const role = s.professionalStarterGuaranteed ? '大学時代のスター選手として、加入時から先発起用を約束された。' : 'まずは控えからプロキャリアをスタートする。';
   s.history.unshift(`大学卒業。大学リーグでの勝利${wins}勝・総合値${o}を評価され、リーグワン ディビジョン${s.proDivision}の${s.professionalTeam}に加入。${role}`);
-  s.phase = 'professional'; s.stageYear = 1; s.age = 22; s.month = 7; s.currentSeason = newSeason(s); s.proSchedule = buildProSchedule(s);\n  addPhaseRivals(s);
+  s.phase = 'professional'; s.stageYear = 1; s.age = 22; s.month = 7; s.currentSeason = newSeason(s); s.proSchedule = buildProSchedule(s);
+  addPhaseRivals(s);
 }
 export function newCareer(name: string, pos: Pos, prefIndex = 26, schoolName?: string, talentType: CareerTalentType = '凡人'): CareerState {
   const p = POSITIONS.includes(pos) ? pos : 'CTB';
