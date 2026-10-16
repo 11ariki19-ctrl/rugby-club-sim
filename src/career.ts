@@ -721,19 +721,23 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
     role = careerRoleByPositionalRank(s, o);
   }
   const appeared = role === '先発' || role === '途中出場';
-  const teamBonus = s.phase === 'university' ? (s.universityTier === '最上位' ? 7 : s.universityTier === '上位' ? 4 : 0) : s.phase === 'professional' ? (s.proDivision === 1 ? 7 : s.proDivision === 2 ? 3 : 0) : 0;
   const fatiguePenalty = Math.max(0, s.fatigue - 20) * 0.08 + s.injuryMonths * 1.8;
   const roster = s.rosterPlayers ?? [];
   const teammates = roster.filter((p) => !p.isUser);
-  const teamOverall = teammates.length ? (teammates.reduce((sum, p) => sum + p.overall, o) / (teammates.length + 1)) : o;
-  const strength = teamOverall + teamBonus - fatiguePenalty + gauss(0, 1.5);
-  // 国際試合はチーム全体の実効総合値を基準に、相手を約3上に設定する。
+  // 試合に出る23名の総合値をそのままチーム力にする。所属カテゴリー補正の二重加算は行わない。
+  const teamOverall = teammates.length
+    ? (teammates.reduce((sum, p) => sum + p.overall, o) / (teammates.length + 1))
+    : o;
+  const strength = teamOverall - fatiguePenalty;
+  // 代表戦の相手は自チームより約3高い。国内戦は日程に設定された相手強度を使用する。
   const international = kind === 'japan-test' || kind === 'world-cup';
-  const opponentStrength = international ? strength + 3 : (difficulty ?? expected + gauss(0, 2));
-  // 選手のポジション別総合値・疲労・所属カテゴリーを得点に強く反映し、乱数は試合ごとの振れ幅に限定する。
+  const opponentStrength = international ? teamOverall + 3 : (difficulty ?? expected);
   const strengthGap = strength - opponentStrength;
-  const rawMy = live ? live.scoreFor : Math.max(0, Math.round(22 + strengthGap * 0.48 + gauss(0, 5)));
-  const rawTheir = live ? live.scoreAgainst : Math.max(0, Math.round(22 - strengthGap * 0.48 + gauss(0, 5)));
+  // 強度差を得点差へ反映し、乱数は試合展開の小さな揺れに限定する。
+  // 両チームに独立した大きな乱数を与えると、総合値差が結果に反映されなくなる。
+  const matchPace = gauss(0, 2.5);
+  const rawMy = live ? live.scoreFor : Math.max(0, Math.round(24 + matchPace + strengthGap * 0.72 + gauss(0, 2)));
+  const rawTheir = live ? live.scoreAgainst : Math.max(0, Math.round(24 + matchPace - strengthGap * 0.72 + gauss(0, 2)));
   const scoreReport = buildCareerScoreEvents(s, rawMy, rawTheir, appeared, opponent || opponentFor(s, kind));
   const my = scoreReport.my;
   const their = scoreReport.their;
