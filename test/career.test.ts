@@ -68,6 +68,15 @@ setCareerSaveSlot(2); assert.equal(loadCareer(2), null, 'clearing slot two leave
 setCareerSaveSlot(1); assert.equal(loadCareer(1)?.player.name, 'スロット1', 'clearing slot two does not delete slot one');
 setCareerSaveSlot(1);
 console.log('  ok - independent local save slots and slot-specific clearing');
+const squadCareer = newCareer('主将テスト', 'CTB');
+assert.equal(squadCareer.rosterPlayers?.length, 23, 'career start creates a persistent 23-player squad');
+assert.equal(new Set(squadCareer.rosterPlayers?.map((p) => p.name)).size, 23, 'squad player names are unique');
+assert.ok(squadCareer.rosterPlayers?.every((p) => p.stats && p.careerPath.length === 1 && p.currentSeason.team === squadCareer.highSchool), 'each squad player starts with abilities, current season and an individual career path');
+const squadBefore = squadCareer.rosterPlayers!.map((p) => ({ id:p.id, name:p.name, stats:{...p.stats} }));
+const squadLoaded = loadCareer(1);
+assert.ok(squadLoaded?.rosterPlayers?.length === 23, 'squad data persists through save/load');
+console.log('  ok - all 23 players have persistent individualized data and career paths');
+
 const uncappedSave = newCareer('上限撤廃セーブ', 'CTB');
 for (const key of Object.keys(uncappedSave.player.stats) as (keyof typeof uncappedSave.player.stats)[]) uncappedSave.player.stats[key] = 245.5;
 uncappedSave.player.stats.spd = 231.25; uncappedSave.player.peak = 245.5;
