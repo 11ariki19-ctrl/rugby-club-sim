@@ -1331,6 +1331,7 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
     if (!Array.isArray(s.matchHistory)) s.matchHistory = [];
     if (!Array.isArray(s.playerArchive)) s.playerArchive = [];
     if (!Array.isArray(s.rosterPlayers) || s.rosterPlayers.length !== 23) s.rosterPlayers = createCareerRoster(s);
+    if (!s.opponentRosters || typeof s.opponentRosters !== 'object') s.opponentRosters = {};
     if (typeof s.highSchoolAppearances !== 'number') s.highSchoolAppearances = 0;
     if (typeof s.highSchoolTries !== 'number') s.highSchoolTries = 0;
     if (typeof s.highSchoolRatingTotal !== 'number') s.highSchoolRatingTotal = 0;
@@ -1353,6 +1354,26 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
     if (typeof s.proSalary !== 'number') s.proSalary = 0;
     if (!Array.isArray(s.transferHistory)) s.transferHistory = [];
     if (!Array.isArray(s.rivals)) s.rivals = createCareerRivals(s);
+    // Migrate older saves once: one canonical rival record stores name, abilities and career history.
+    for (const rival of s.rivals) {
+      if (!rival.id) rival.id = `player-${stablePlayerKey(rival.name + '|' + (rival.country ?? '日本'))}`;
+      if (!rival.stats) {
+        rival.stats = {} as Stats;
+        for (const key of STAT_KEYS) rival.stats[key] = Math.max(0, Math.round(rival.overall + gauss(0, 5)));
+      }
+      if (typeof rival.height !== 'number' || typeof rival.weight !== 'number') {
+        const [heightBase, weightBase] = BODY[rival.pos];
+        rival.height = rival.height ?? heightBase;
+        rival.weight = rival.weight ?? weightBase;
+      }
+      if (!Array.isArray(rival.careerPath) || !rival.careerPath.length) {
+        const history: CareerRosterPlayer['careerPath'] = [];
+        if (rival.phase === 'university' || rival.phase === 'professional') history.push({phase:'highschool',age:15,team:allSchools()[stablePlayerKey(rival.name).length % Math.max(1,allSchools().length)]?.name ?? '高校ラグビー部',year:1});
+        if (rival.phase === 'professional') history.push({phase:'university',age:18,team:[...new Set(Object.values(UNIVERSITY_GROUPS).flat())][stablePlayerKey(rival.team+rival.name).length % Math.max(1,Object.values(UNIVERSITY_GROUPS).flat().length)] ?? '大学ラグビー部',year:1});
+        history.push({phase:rival.phase === 'retired' ? 'professional' : rival.phase,age:rival.age,team:rival.team,year:Math.max(1,rival.age-(rival.phase==='highschool'?14:rival.phase==='university'?17:20))});
+        rival.careerPath = history;
+      }
+    }
     if (s.phase !== 'highschool' && !s.rivals.some((r) => r.country && r.country !== '日本')) addPhaseRivals(s);
     if (s.generatedNameVersion !== 2) {
       const usedNames = new Set<string>([s.player.name]);
