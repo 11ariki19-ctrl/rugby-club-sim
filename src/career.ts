@@ -324,7 +324,9 @@ function transitionRoster(s: CareerState): void {
     const o=rosterOverall(p.pos,p.stats), chance=phase==='university'?(o>=55?.72:o>=45?.42:.16):(o>=72?.55:o>=60?.32:.12);
     if (phase!=='retired' && rand()<chance) {
       p.age=s.age;p.phase=phase;p.team=team;
-      for(const key of STAT_KEYS)p.stats[key]+=Math.max(0,gauss(phase==='university'?2.5:3,1.1));
+      // 継続選手も進学・移籍先チームのランクに合わせて能力帯を調整する。
+      const destinationProfile=careerTeamStrengthProfile(phase,team);
+      for(const key of STAT_KEYS)p.stats[key]=clamp(Math.round(p.stats[key]+gauss(phase==='university'?0.8:1,0.7)),destinationProfile.min,destinationProfile.max);
       p.overall=rosterOverall(p.pos,p.stats);p.currentSeason=makeRosterSeason(p.age,phase,s.stageYear,team);
       p.careerPath.push({phase,age:p.age,team,year:s.stageYear});continuing.push(p);
     } else { p.phase='retired'; archive.push(p); }
@@ -333,8 +335,9 @@ function transitionRoster(s: CareerState): void {
   const used=new Set([...continuing.map(p=>p.name),s.player.name]), profile=careerTeamStrengthProfile(phase,team);
   while(continuing.length<23) {
     const i=continuing.length,pos=CAREER_ROSTER_POSITIONS[i%23],stats={} as Stats;
-    const base=phase==='university'?57:66;
-    for(const key of STAT_KEYS)stats[key]=clamp(Math.round(Math.max(base,profile.center)+gauss(0,4)),profile.min,profile.max);
+    const base=profile.center;
+    // 新規加入選手も所属チームのランクに見合う能力帯で生成する。
+    for(const key of STAT_KEYS)stats[key]=clamp(Math.round(base+gauss(0,4)),profile.min,profile.max);
     const name=generateUniquePlayerName(used,'日本',rand);used.add(name);const [h,w]=BODY[pos];
     const rosterPhase: Exclude<CareerPhase, 'retired'> = phase === 'retired' ? 'professional' : phase;
     continuing.push({id:`${rosterPhase}-${s.stageYear}-${i+1}-${name.replace(/\s/g,'')}`,name,pos,number:i+1,age:s.age,phase:rosterPhase,team,stats,
