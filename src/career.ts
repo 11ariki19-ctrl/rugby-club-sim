@@ -233,6 +233,7 @@ function assignUniversity(s: CareerState): void {
   s.universityQualified = false; s.universityTournamentAlive = false;
   s.history.unshift(`高校卒業。総合値${o}・${rankOf(o)}ランクの評価で、${s.university}（${s.universityGroup}）へ進学。`);
   s.phase = 'university'; s.stageYear = 1; s.age = 18; s.month = 4; s.currentSeason = newSeason(s);
+  transitionRoster(s);
   addPhaseRivals(s);
 }
 function buildProSchedule(s: CareerState): CareerFixture[] {
@@ -276,6 +277,7 @@ function assignProfessional(s: CareerState): void {
   const role = s.professionalStarterGuaranteed ? '大学時代のスター選手として、加入時から先発起用を約束された。' : 'まずは控えからプロキャリアをスタートする。';
   s.history.unshift(`大学卒業。大学リーグでの勝利${wins}勝・総合値${o}を評価され、リーグワン ディビジョン${s.proDivision}の${s.professionalTeam}に加入。${role}`);
   s.phase = 'professional'; s.stageYear = 1; s.age = 22; s.month = 7; s.currentSeason = newSeason(s); s.proSchedule = buildProSchedule(s);
+  transitionRoster(s);
   addPhaseRivals(s);
 }
 const CAREER_ROSTER_POSITIONS: Pos[] = ['PR','HO','PR','LO','LO','FL','FL','N8','SH','SO','CTB','CTB','WTB','WTB','FB','PR','HO','LO','FL','N8','SH','SO','CTB'];
@@ -695,10 +697,11 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   const appeared = role === '先発' || role === '途中出場';
   const teamBonus = s.phase === 'university' ? (s.universityTier === '最上位' ? 7 : s.universityTier === '上位' ? 4 : 0) : s.phase === 'professional' ? (s.proDivision === 1 ? 7 : s.proDivision === 2 ? 3 : 0) : 0;
   const fatiguePenalty = Math.max(0, s.fatigue - 20) * 0.08 + s.injuryMonths * 1.8;
-  const strength = o + teamBonus - fatiguePenalty + gauss(0, 4.5), opponentStrength = difficulty ?? expected + gauss(0, 5.5);
-  // 総合値差が得点差へ反映される一方、ラグビーらしい得点の振れ幅を残す。
-  const rawMy = live ? live.scoreFor : Math.max(0, Math.round(22 + (strength - opponentStrength) * 0.82 + gauss(0, 5.5)));
-  const rawTheir = live ? live.scoreAgainst : Math.max(0, Math.round(22 + (opponentStrength - strength) * 0.82 + gauss(0, 5.5)));
+  const strength = o + teamBonus - fatiguePenalty + gauss(0, 2.5), opponentStrength = difficulty ?? expected + gauss(0, 4);
+  // 選手のポジション別総合値・疲労・所属カテゴリーを得点に強く反映し、乱数は試合ごとの振れ幅に限定する。
+  const strengthGap = strength - opponentStrength;
+  const rawMy = live ? live.scoreFor : Math.max(0, Math.round(22 + strengthGap * 1.05 + gauss(0, 4.5)));
+  const rawTheir = live ? live.scoreAgainst : Math.max(0, Math.round(22 - strengthGap * 1.05 + gauss(0, 4.5)));
   const scoreReport = buildCareerScoreEvents(s, rawMy, rawTheir, appeared, opponent || opponentFor(s, kind));
   const my = scoreReport.my;
   const their = scoreReport.their;
