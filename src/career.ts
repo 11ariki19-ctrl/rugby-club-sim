@@ -283,7 +283,7 @@ function assignProfessional(s: CareerState): void {
 const CAREER_ROSTER_POSITIONS: Pos[] = ['PR','HO','PR','LO','LO','FL','FL','N8','SH','SO','CTB','CTB','WTB','WTB','FB','PR','HO','LO','FL','N8','SH','SO','CTB'];
 function rosterOverall(pos: Pos, stats: Stats): number { return Math.round(overallAt({ pos, stats } as never)); }
 function makeRosterSeason(age: number, phase: CareerPhase, year: number, team: string): CareerRosterSeason {
-  return { age, phase: phase === 'retired' ? 'professional' : phase, year, team, appearances: 0, starts: 0, tries: 0, tackles: 0, wins: 0, losses: 0, draws: 0 };
+  return { age, phase: phase === 'retired' ? 'professional' : phase as Exclude<CareerPhase, 'retired'>, year, team, appearances: 0, starts: 0, tries: 0, tackles: 0, wins: 0, losses: 0, draws: 0 };
 }
 function createCareerRoster(s: CareerState): CareerRosterPlayer[] {
   const team = currentTeam(s), profile = careerTeamStrengthProfile(s.phase, team);
