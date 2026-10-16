@@ -165,6 +165,18 @@ let activeCareerTab = 'player';
 const rosterPositions: Pos[] = ['PR','HO','PR','LO','LO','FL','FL','N8','SH','SO','CTB','CTB','WTB','WTB','FB','PR','HO','LO','FL','N8','SH','SO','CTB'];
 function stableHash(text: string): number { let h = 2166136261; for (const ch of text) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; }
 function teamRoster(team: string, s: CareerState, own: boolean): RosterMember[] {
+  const currentFixture = s.liveMatch?.fixture ?? s.pendingFixtures?.[0];
+  const nationalFixture = currentFixture?.kind === 'japan-test' || currentFixture?.kind === 'world-cup'
+    || s.lastMatch?.competition.includes('日本代表') === true;
+  if (own && nationalFixture && s.nationalSquad?.length) {
+    const userId = s.rosterPlayers?.find((p) => p.isUser)?.id;
+    return s.nationalSquad.slice(0, 23).map((p, i) => {
+      const isUser = Boolean((userId && p.id === userId) || p.name === s.player.name);
+      const stats = p.stats ?? (isUser ? s.player.stats : Object.fromEntries(CAREER_STAT_KEYS.map((key) => [key, Math.round(p.overall)])) as Record<StatKey, number>);
+      const record = isUser ? s.rosterPlayers?.find((member) => member.isUser) : undefined;
+      return { name:p.name, pos:p.pos, number:i+1, role:i<15?'先発':'控え', stats, overall:p.overall, isUser, playerId:p.id, record };
+    });
+  }
   if (own && s.rosterPlayers?.length) {
     return s.rosterPlayers.map((p) => ({ name:p.name,pos:p.pos,number:p.number,role:p.isUser && s.liveMatch ? s.liveMatch.role : p.number<=15?'先発':'控え',stats:p.stats,overall:p.overall,isUser:p.isUser,playerId:p.id,record:p }));
   }
