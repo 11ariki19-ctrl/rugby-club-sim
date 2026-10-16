@@ -75,6 +75,21 @@ assert.ok(squadCareer.rosterPlayers?.every((p) => p.stats && p.careerPath.length
 const squadLoaded = loadCareer(1);
 assert.ok(squadLoaded?.rosterPlayers?.length === 23, 'squad data persists through save/load');
 console.log('  ok - all 23 players have persistent individualized data and career paths');
+const continuity = newCareer('進路引継ぎテスト', 'CTB');
+const originalUserRecord = continuity.rosterPlayers!.find((p) => p.isUser)!;
+continuity.stageYear = 3; continuity.age = 17; continuity.month = 3;
+continuity.currentSeason.age = 17; continuity.currentSeason.year = 3;
+advanceCareerMonth(continuity);
+assert.equal(continuity.phase, 'university', 'third high school year transitions to university');
+assert.ok(continuity.rosterPlayers!.some((p) => p.isUser && p.name === '進路引継ぎテスト' && p.careerPath.some((h) => h.phase === 'university')), 'player identity and history carry into university');
+assert.ok(continuity.rosterPlayers!.some((p) => p.id === originalUserRecord.id), 'the same player record is retained across the first transition');
+continuity.stageYear = 4; continuity.age = 21; continuity.month = 3;
+continuity.currentSeason.age = 21; continuity.currentSeason.year = 4;
+advanceCareerMonth(continuity);
+assert.equal(continuity.phase, 'professional', 'fourth university year transitions to professional rugby');
+assert.ok(continuity.rosterPlayers!.some((p) => p.isUser && p.careerPath.some((h) => h.phase === 'professional')), 'player identity and career path carry into professional rugby');
+console.log('  ok - player identities and histories continue from high school to university and pro rugby');
+
 
 const uncappedSave = newCareer('上限撤廃セーブ', 'CTB');
 for (const key of Object.keys(uncappedSave.player.stats) as (keyof typeof uncappedSave.player.stats)[]) uncappedSave.player.stats[key] = 245.5;
