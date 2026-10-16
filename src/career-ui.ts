@@ -4,7 +4,7 @@ import {
   resolveCareerTransfer, careerHallOfFame, careerLegacyScore, UNIVERSITY_GROUPS, selectCareerUniversity,
   CAREER_POSITIONS, CAREER_STAT_KEYS, CAREER_STAT_LABEL, CAREER_TALENTS, hasCareerSave, loadCareer, saveCareer, setCareerSaveSlot, careerSaveSummary,
 } from './career';
-import type { CareerState, CareerPhase, CareerTrainingPlan } from './career';
+import type { CareerState, CareerPhase, CareerTrainingPlan, CareerRosterPlayer } from './career';
 import { STAT_LABEL } from './game';
 import type { Pos, StatKey } from './game';
 import { PREFS, schoolsOf } from './data';
@@ -158,44 +158,27 @@ function homeScreen(s: CareerState): string {
     </section>${rivalModal}</main>`;
 }
 
-type RosterMember = { name: string; pos: Pos; number: number; role: string; stats: Record<StatKey, number>; overall: number; isUser?: boolean };
+type RosterMember = { name: string; pos: Pos; number: number; role: string; stats: Record<StatKey, number>; overall: number; isUser?: boolean; playerId?: string; record?: CareerRosterPlayer };
 let selectedRosterMember: RosterMember | null = null;
 let selectedRivalIndex: number | null = null;
 let showMatchResult = false;
 let activeCareerTab = 'player';
-const rosterPositions: Pos[] = ['PR','HO','PR','LO','LO','FL','FL','N8','SH','SO','WTB','CTB','CTB','WTB','FB','PR','HO','LO','FL','N8','SH','SO','CTB'];
+const rosterPositions: Pos[] = ['PR','HO','PR','LO','LO','FL','FL','N8','SH','SO','CTB','CTB','WTB','WTB','FB','PR','HO','LO','FL','N8','SH','SO','CTB'];
 function stableHash(text: string): number { let h = 2166136261; for (const ch of text) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; }
 function teamRoster(team: string, s: CareerState, own: boolean): RosterMember[] {
-  const seed = stableHash(`${s.phase}|${team}`);
-  const usedNames = new Set<string>([s.player.name, ...s.rivals.map((r) => r.name), ...s.matchHistory.flatMap((m) => (m.scoreEvents ?? []).map((e) => e.scorer))]);
-  const knownCountry = s.rivals.find((r) => r.team === team && r.country && r.country !== '日本')?.country;
-  const rosterCountry = inferPlayerCountry(knownCountry || team);
-  return rosterPositions.map((pos, i) => {
-    const isUser = own && pos === s.player.pos && i === rosterPositions.findIndex((p) => p === s.player.pos);
-    const stats = {} as Record<StatKey, number>;
-    for (const [j, key] of CAREER_STAT_KEYS.entries()) {
-      const variation = ((seed >>> ((i + j) % 24)) + i * 13 + j * 7) % 19 - 9;
-      const hsPenalty = !own && s.phase === 'highschool' ? 10 + ((seed + i * 7 + j * 3) % 6) : 0;
-      const phaseBaseline = s.phase === 'highschool' ? 52 : s.phase === 'university' ? 82 : 112;
-      const teamName = s.phase === 'highschool' ? s.highSchool : s.phase === 'university' ? s.university : s.professionalTeam;
-      const profile = careerTeamStrengthProfile(s.phase, teamName || team);
-      const base = own ? (profile.center + variation) : (phaseBaseline + variation + (s.phase === 'professional' ? 8 : 0) - hsPenalty);
-      stats[key] = isUser ? Math.max(0, s.player.stats[key]) : Math.max(15, Math.min(200, Math.round(base)));
-    }
-    if (isUser) for (const key of CAREER_STAT_KEYS) stats[key] = Math.round(s.player.stats[key]);
-    const overall = Math.round(CAREER_STAT_KEYS.reduce((sum, key) => sum + stats[key], 0) / CAREER_STAT_KEYS.length);
-    let nameSeed = (seed + (i + 1) * 2654435761) >>> 0;
-    const generatedName = isUser ? s.player.name : generateUniquePlayerName(usedNames, rosterCountry, () => {
-      nameSeed = (Math.imul(nameSeed, 1664525) + 1013904223) >>> 0;
-      return nameSeed / 4294967296;
-    });
-    return { name: isUser ? s.player.name : generatedName, pos, number: i + 1, role: i < 15 ? '先発' : '控え', stats, overall, isUser };
-  }).map((member, index, all) => {
-    const startsByPos: Partial<Record<Pos, number>> = { PR: 2, HO: 1, LO: 2, FL: 2, N8: 1, SH: 1, SO: 1, WTB: 2, CTB: 2, FB: 1 };
-    const samePos = all.filter((candidate) => candidate.pos === member.pos).sort((a,b) => b.overall - a.overall || a.number - b.number);
-    const role = samePos.findIndex((candidate) => candidate.number === member.number) < (startsByPos[member.pos] ?? 1) ? '先発' : '控え';
-    return { ...member, role: member.isUser && s.liveMatch ? s.liveMatch.role : role };
-  }).sort((a,b) => a.number - b.number);
+  if (own && s.rosterPlayers?.length) {
+    return s.rosterPlayers.map((p) => ({ name:p.name,pos:p.pos,number:p.number,role:p.isUser && s.liveMatch ? s.liveMatch.role : p.number<=15?'先発':'控え',stats:p.stats,overall:p.overall,isUser:p.isUser,playerId:p.id,record:p }));
+  }
+  const seed=stableHash(`${s.phase}|${team}`), used=new Set<string>([s.player.name,...s.rivals.map(r=>r.name)]);
+  const country=inferPlayerCountry(team);
+  return rosterPositions.map((pos,i)=>{
+    const stats={} as Record<StatKey,number>;
+    for(const key of CAREER_STAT_KEYS){const variation=((seed>>>((i+CAREER_STAT_KEYS.indexOf(key))%24))+i*13+CAREER_STAT_KEYS.indexOf(key)*7)%19-9;const baseline=s.phase==='highschool'?44:s.phase==='university'?61:74;stats[key]=Math.max(18,Math.round(baseline+variation));}
+    let ns=(seed+(i+1)*2654435761)>>>0;
+    const name=generateUniquePlayerName(used,country,()=>{ns=(Math.imul(ns,1664525)+1013904223)>>>0;return ns/4294967296;});
+    const overall=Math.round(CAREER_STAT_KEYS.reduce((sum,k)=>sum+stats[k],0)/CAREER_STAT_KEYS.length);
+    return {name,pos,number:i+1,role:i<15?'先発':'控え',stats,overall};
+  });
 }
 
 function playerCareerHistory(member: RosterMember): string {
@@ -208,19 +191,19 @@ function playerCareerHistory(member: RosterMember): string {
     const history = state.history.map(item => `<li>${esc(item)}</li>`).join('');
     return `<div class="card player-career-history"><h3>選手経歴</h3><ol class="career-player-timeline">${seasons}${current}${transfers}</ol>${history ? `<h4>キャリア年表</h4><ul class="news">${history}</ul>` : ''}</div>`;
   }
-  const currentPhase = state?.phase ?? 'highschool';
-  const stage = [
-    { label: '高校', team: state?.highSchool || '高校ラグビー', reached: true },
-    { label: '大学', team: currentPhase === 'highschool' ? '進学前' : (state?.university || '大学ラグビー'), reached: currentPhase !== 'highschool' },
-    { label: '社会人', team: currentPhase === 'professional' || currentPhase === 'retired' ? (state?.professionalTeam || '社会人ラグビー') : '未到達', reached: currentPhase === 'professional' || currentPhase === 'retired' }
-  ];
-  return `<div class="card player-career-history"><h3>選手経歴</h3><ol class="career-player-timeline">${stage.map(item => `<li class="${item.reached ? '' : 'future'}"><b>${item.label}</b><span>${esc(item.team)}</span></li>`).join('')}</ol><p class="small">チーム生成選手の個人別過去シーズン記録は保存されていないため、所属段階に基づく経歴を表示しています。</p></div>`;
+  const p=member.record;
+  if (!p) return `<div class="card player-career-history"><h3>選手経歴</h3><p>対戦相手の選手データは試合メンバー情報として表示しています。</p></div>`;
+  const rows=p.seasons.map(row=>`<li><b>${row.age}歳・${labels[row.phase]} ${row.year}年目</b><span>${esc(row.team)}</span><small>出場${row.appearances}試合・${row.tries}トライ・${row.tackles}タックル ／ ${row.wins}勝${row.losses}敗${row.draws}分</small></li>`).join('');
+  const cur=p.currentSeason;
+  const current=`<li class="current"><b>${p.age}歳・${labels[p.phase]} ${cur.year}年目（現在）</b><span>${esc(p.team)}</span><small>出場${cur.appearances}試合・${cur.tries}トライ・${cur.tackles}タックル ／ ${cur.wins}勝${cur.losses}敗${cur.draws}分</small></li>`;
+  const path=p.careerPath.map(item=>`<li><b>${item.age}歳・${labels[item.phase]} ${item.year}年目</b><span>${esc(item.team)}</span></li>`).join('');
+  return `<div class="card player-career-history"><h3>選手経歴</h3><ol class="career-player-timeline">${rows}${current}</ol><h4>所属履歴</h4><ol class="career-player-timeline">${path}</ol><p class="small">通算：出場${p.seasons.reduce((n,x)=>n+x.appearances,cur.appearances)}試合・${p.seasons.reduce((n,x)=>n+x.tries,cur.tries)}トライ・${p.seasons.reduce((n,x)=>n+x.tackles,cur.tackles)}タックル</p></div>`;
 }
 
 function playerDetail(member: RosterMember): string {
-  const bars = CAREER_STAT_KEYS.map((key) => `<div class="bar"><span>${CAREER_STAT_LABEL[key]}</span><div class="track"><i style="width:${Math.round(Math.min(200,member.stats[key])/2)}%"></i></div><b>${member.stats[key]}</b></div>`).join('');
-  const height = member.isUser && state ? state.player.height : (member.pos === 'LO' ? 188 : member.pos === 'PR' ? 178 : 174);
-  const weight = member.isUser && state ? state.player.weight : (['PR','HO','LO','N8'].includes(member.pos) ? 94 : 78);
+  const bars = CAREER_STAT_KEYS.map((key) => `<div class="bar"><span>${CAREER_STAT_LABEL[key]}</span><div class="track"><i style="width:${Math.round(Math.min(100,member.stats[key])/2)}%"></i></div><b>${member.stats[key]}</b></div>`).join('');
+  const height = member.record?.height ?? (member.isUser && state ? state.player.height : (member.pos === 'LO' ? 188 : member.pos === 'PR' ? 178 : 174));
+  const weight = member.record?.weight ?? (member.isUser && state ? state.player.weight : (['PR','HO','LO','N8'].includes(member.pos) ? 94 : 78));
   return `<div class="modal" data-career="roster-close"><section class="sheet" role="dialog" aria-modal="true" aria-label="選手詳細" data-roster-sheet><button class="link" data-career="roster-close">← メンバー表へ戻る</button><h2>${esc(member.name)}</h2><div class="panel">背番号 ${member.number} ／ ${member.pos} ／ ${member.role}<br>総合値 <b>${member.overall}</b>${member.isUser ? '<br>あなたが操作する選手' : ''}</div><div class="card"><h3>能力ステータス</h3>${bars}</div><div class="cards"><div class="card stat"><span class="k">身長</span><b>${height}cm</b></div><div class="card stat"><span class="k">体重</span><b>${weight}kg</b></div></div>${playerCareerHistory(member)}<button class="btn primary" data-career="roster-close">閉じる</button></section></div>`;
 }
 function rivalDetail(s: CareerState, rival: CareerState['rivals'][number]): string {
