@@ -180,7 +180,7 @@ function teamRoster(team: string, s: CareerState, own: boolean): RosterMember[] 
       const teamName = s.phase === 'highschool' ? s.highSchool : s.phase === 'university' ? s.university : s.professionalTeam;
       const profile = careerTeamStrengthProfile(s.phase, teamName || team);
       const base = own ? (profile.center + variation) : (phaseBaseline + variation + (s.phase === 'professional' ? 8 : 0) - hsPenalty);
-      stats[key] = Math.max(15, Math.min(200, Math.round(isUser ? s.player.stats[key] : base)));
+      stats[key] = isUser ? Math.max(0, s.player.stats[key]) : Math.max(15, Math.min(200, Math.round(base)));
     }
     if (isUser) for (const key of CAREER_STAT_KEYS) stats[key] = Math.round(s.player.stats[key]);
     const overall = Math.round(CAREER_STAT_KEYS.reduce((sum, key) => sum + stats[key], 0) / CAREER_STAT_KEYS.length);
