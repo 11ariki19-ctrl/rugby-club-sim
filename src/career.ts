@@ -321,7 +321,11 @@ function transitionRoster(s: CareerState): void {
       p.currentSeason=makeRosterSeason(s.age,phase,s.stageYear,team);
       p.careerPath.push({phase:phase==='retired'?'professional':phase,age:s.age,team,year:s.stageYear}); continuing.push(p); continue;
     }
-    const o=rosterOverall(p.pos,p.stats), chance=phase==='university'?(o>=55?.72:o>=45?.42:.16):(o>=72?.55:o>=60?.32:.12);
+    const o=rosterOverall(p.pos,p.stats);
+    // 同じ高校・大学のチームメイト全員が同じ進学先へ進むのを避け、経歴を個別化する。
+    const chance=phase==='university'
+      ? (p.phase==='highschool'?(o>=55?.24:o>=45?.12:.04):(o>=55?.48:o>=45?.25:.08))
+      : (p.phase==='university'?(o>=72?.20:o>=60?.08:.02):(o>=72?.38:o>=60?.18:.05));
     if (phase!=='retired' && rand()<chance) {
       p.age=s.age;p.phase=phase;p.team=team;
       // 継続選手も進学・移籍先チームのランクに合わせて能力帯を調整する。
@@ -333,6 +337,18 @@ function transitionRoster(s: CareerState): void {
   }
   s.playerArchive=archive;
   const used=new Set([...continuing.map(p=>p.name),s.player.name]), profile=careerTeamStrengthProfile(phase,team);
+  // 新加入選手には現在の所属先だけでなく、それぞれ異なる過去の出身校・大学を記録する。
+  const schoolPool=allSchools().slice().sort((a,b)=>a.name.localeCompare(b.name));
+  const usedSchoolNames=new Set(continuing.flatMap(p=>p.careerPath.filter(h=>h.phase==='highschool').map(h=>h.team)));
+  const universityPool=[...new Set(Object.values(UNIVERSITY_GROUPS).flatMap(group=>[...group]))].sort().map(name=>({name}));
+  const usedUniversityNames=new Set(continuing.flatMap(p=>p.careerPath.filter(h=>h.phase==='university').map(h=>h.team)));
+  let backgroundIndex=0;
+  const distinctBackground=(pool:{name:string}[],usedNames:Set<string>,fallback:string):string=>{
+    const available=pool.filter(item=>!usedNames.has(item.name));
+    const selected=available.length?available[backgroundIndex++%available.length]?.name:pool[backgroundIndex++%Math.max(1,pool.length)]?.name;
+    if(selected)usedNames.add(selected);
+    return selected??fallback;
+  };
   while(continuing.length<23) {
     const i=continuing.length,pos=CAREER_ROSTER_POSITIONS[i%23],stats={} as Stats;
     const base=profile.center;
@@ -340,9 +356,13 @@ function transitionRoster(s: CareerState): void {
     for(const key of STAT_KEYS)stats[key]=clamp(Math.round(base+gauss(0,4)),profile.min,profile.max);
     const name=generateUniquePlayerName(used,'日本',rand);used.add(name);const [h,w]=BODY[pos];
     const rosterPhase: Exclude<CareerPhase, 'retired'> = phase === 'retired' ? 'professional' : phase;
+    const careerPath:{phase:Exclude<CareerPhase,'retired'>;age:number;team:string;year:number}[]=[];
+    if(phase==='university'||phase==='professional') careerPath.push({phase:'highschool',age:15,team:distinctBackground(schoolPool,usedSchoolNames,'高校ラグビー部'),year:1});
+    if(phase==='professional') careerPath.push({phase:'university',age:18,team:distinctBackground(universityPool,usedUniversityNames,'大学ラグビー部'),year:1});
+    careerPath.push({phase:rosterPhase,age:s.age,team,year:s.stageYear});
     continuing.push({id:`${rosterPhase}-${s.stageYear}-${i+1}-${name.replace(/\s/g,'')}`,name,pos,number:i+1,age:s.age,phase:rosterPhase,team,stats,
       height:Math.round(h+gauss(0,3)),weight:Math.round(w+gauss(0,4)),overall:rosterOverall(pos,stats),seasons:[],
-      currentSeason:makeRosterSeason(s.age,rosterPhase,s.stageYear,team),careerPath:[{phase:rosterPhase,age:s.age,team,year:s.stageYear}]});
+      currentSeason:makeRosterSeason(s.age,rosterPhase,s.stageYear,team),careerPath});
   }
   s.rosterPlayers=continuing.slice(0,23).map((p,i)=>({...p,number:i+1}));
 }
