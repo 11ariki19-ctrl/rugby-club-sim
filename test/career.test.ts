@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { seed, rand } from '../src/rng';
 import { PREFS, SURNAMES, allSchools, schoolsOf, HANAZONO_FINALS_LAST_10 } from '../src/data';
 import { generateUniquePlayerName, generateUniqueJapaneseName, inferPlayerCountry } from '../src/names';
+import { overallAt } from '../src/game';
 import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, careerGrowthMultiplier, careerTeamStrengthProfile, WORLD_CUP_TEAMS, worldCupPools, saveCareer, loadCareer, setCareerSaveSlot, clearCareer, nationalCandidatePool, careerRoleByPositionalRank, nationalMatchRole, UNIVERSITY_GROUPS, selectCareerUniversity } from '../src/career';
 
 console.log('career mode tests');
@@ -27,6 +28,7 @@ for (let i = 0; i < 5000; i++) generateUniqueJapaneseName(generatedNameSet, rand
 assert.equal(generatedNameSet.size, 5000, 'generated full names remain unique across a large batch');
 assert.ok([...generatedNameSet].every((name) => SURNAMES.includes(name.split(' ')[0] as never) && name.split(' ').length === 2), 'generated names use a top-300 surname and full name format');
 assert.equal(new Set(initialPlayer.rivals.map((r) => r.name)).size, initialPlayer.rivals.length, 'career rival full names are unique');
+assert.ok(initialPlayer.rivals.every((r) => r.stats && Math.round(overallAt({ pos: r.pos, stats: r.stats } as never)) === r.overall), 'each player overall matches the ability stats shown in the profile');
 assert.ok(initialPlayer.rivals.every((r) => SURNAMES.includes(r.name.split(' ')[0] as never)), 'career rivals use the top-300 surname pool');
 assert.ok(initialPlayer.rivals.every((r) => r.id && r.stats && r.careerPath?.length && typeof r.height === 'number' && typeof r.weight === 'number'), 'every rival has a stable ID, ability stats, body data and career history');
 assert.equal(new Set(initialPlayer.rivals.map((r) => r.id)).size, initialPlayer.rivals.length, 'rival IDs are unique');
