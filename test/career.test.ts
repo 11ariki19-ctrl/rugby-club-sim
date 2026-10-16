@@ -69,7 +69,8 @@ setCareerSaveSlot(1); assert.equal(loadCareer(1)?.player.name, 'スロット1', 
 setCareerSaveSlot(1);
 console.log('  ok - independent local save slots and slot-specific clearing');
 const uncappedSave = newCareer('上限撤廃セーブ', 'CTB');
-uncappedSave.player.stats.pow = 245.5; uncappedSave.player.stats.spd = 231.25; uncappedSave.player.peak = 245.5;
+for (const key of Object.keys(uncappedSave.player.stats) as (keyof typeof uncappedSave.player.stats)[]) uncappedSave.player.stats[key] = 245.5;
+uncappedSave.player.stats.spd = 231.25; uncappedSave.player.peak = 245.5;
 setCareerSaveSlot(1); saveCareer(uncappedSave);
 const loadedUncappedSave = loadCareer(1)!;
 assert.equal(loadedUncappedSave.player.stats.pow, 245.5, 'saving and loading preserves abilities above 200');
