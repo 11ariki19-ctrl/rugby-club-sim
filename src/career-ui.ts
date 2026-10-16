@@ -222,7 +222,7 @@ function matchResultScreen(s: CareerState): string {
   const m = s.lastMatch;
   if (!m) return homeScreen(s);
   const detail = selectedRosterMember ? playerDetail(selectedRosterMember) : '';
-  return `<main class="page"><header class="hd"><div class="school">🏉 試合結果</div><div class="date">${esc(m.date)} ／ ${esc(m.competition)}</div></header>
+  return `<main class="page"><div class="match-result-top-actions"><button class="btn primary big" data-career="result-continue">← キャリアに戻る</button></div><header class="hd"><div class="school">🏉 試合結果</div><div class="date">${esc(m.date)} ／ ${esc(m.competition)}</div></header>
     ${detail}
     <section class="card match-result-card"><h2>${esc(m.competition)}</h2><p>${esc(m.date)}</p>
       <div class="scoreboard"><div><span>${esc(m.competition.includes('日本代表') ? '日本代表' : currentTeam(s))}</span><strong>${m.my}</strong></div><div class="score-dash">—</div><div><span>${esc(m.opponent)}</span><strong>${m.their}</strong></div></div>
@@ -231,8 +231,8 @@ function matchResultScreen(s: CareerState): string {
       <div class="cards"><div class="card stat"><span class="k">トライ</span><b>${m.tries}</b></div><div class="card stat"><span class="k">キャリー</span><b>${m.carries}</b></div><div class="card stat"><span class="k">タックル</span><b>${m.tackles}</b></div><div class="card stat"><span class="k">突破</span><b>${m.lineBreaks}</b></div></div>
       <h3>試合レポート</h3><ul class="news">${m.scenes.map((scene) => `<li>${esc(scene)}</li>`).join('')}</ul>
     </section>
-    <div class="lineup-grid">${lineupCard(s, currentTeam(s), true)}${lineupCard(s, m.opponent, false)}</div>
-    <button class="btn primary big" data-career="result-continue">キャリアへ戻る</button></main>`;
+    <details class="match-lineups"><summary>メンバー表を表示（両チーム23名）</summary><div class="lineup-grid">${lineupCard(s, currentTeam(s), true)}${lineupCard(s, m.opponent, false)}</div></details>
+    </main>`;
 }
 function render(): void {
   if (!root) return;
