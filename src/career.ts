@@ -336,9 +336,10 @@ function transitionRoster(s: CareerState): void {
     const base=phase==='university'?57:66;
     for(const key of STAT_KEYS)stats[key]=Math.max(25,Math.round(Math.max(base,profile.center)+gauss(0,5)));
     const name=generateUniquePlayerName(used,'日本',rand);used.add(name);const [h,w]=BODY[pos];
-    continuing.push({id:`${phase}-${s.stageYear}-${i+1}-${name.replace(/\s/g,'')}`,name,pos,number:i+1,age:s.age,phase,team,stats,
+    const rosterPhase: Exclude<CareerPhase, 'retired'> = phase === 'retired' ? 'professional' : phase;
+    continuing.push({id:`${rosterPhase}-${s.stageYear}-${i+1}-${name.replace(/\s/g,'')}`,name,pos,number:i+1,age:s.age,phase:rosterPhase,team,stats,
       height:Math.round(h+gauss(0,3)),weight:Math.round(w+gauss(0,4)),overall:rosterOverall(pos,stats),seasons:[],
-      currentSeason:makeRosterSeason(s.age,phase,s.stageYear,team),careerPath:[{phase,age:s.age,team,year:s.stageYear}]});
+      currentSeason:makeRosterSeason(s.age,rosterPhase,s.stageYear,team),careerPath:[{phase:rosterPhase,age:s.age,team,year:s.stageYear}]});
   }
   s.rosterPlayers=continuing.slice(0,23).map((p,i)=>({...p,number:i+1}));
 }
