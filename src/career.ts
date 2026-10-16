@@ -99,7 +99,7 @@ export interface CareerState {
   highSchoolAppearances: number; highSchoolTries: number; highSchoolRatingTotal: number; highSchoolRatingCount: number;
   nationalCandidate: boolean; worldTournamentWins: number;
   worldCup?: { year: number; pool: string; poolOpponents: string[]; poolRivalWins: number[]; poolPlayed: number; poolWins: number; qualified: boolean; knockoutStage: number; completed: boolean };
-  japanNationalTeamSelected: boolean; japanNationalTeamCaps: number; japanNationalTeamWins: number; nationalSquad?: { name: string; pos: Pos; overall: number; team: string; year?: string; country?: string }[];
+  japanNationalTeamSelected: boolean; japanNationalTeamCaps: number; japanNationalTeamWins: number; nationalSquad?: { id?: string; name: string; pos: Pos; overall: number; stats?: Stats; team: string; year?: string; country?: string }[];
   professionalStarterGuaranteed: boolean;
   fatigue: number;
   injuryMonths: number;
@@ -1223,14 +1223,14 @@ function applyCareerDevelopment(s: CareerState): void {
   }
   s.player.peak = Math.max(s.player.peak, careerOverall(s)); s.elapsedMonths++;
 }
-export function nationalCandidatePool(s: CareerState): { name: string; pos: Pos; overall: number; team: string; year?: string; country?: string }[] {
+export function nationalCandidatePool(s: CareerState): { id?: string; name: string; pos: Pos; overall: number; stats?: Stats; team: string; year?: string; country?: string }[] {
   const phase = s.phase;
   const eligible = s.rivals.filter((r) => !r.retired && r.country === '日本' && (phase === 'highschool' ? r.phase === 'highschool' : phase === 'university' ? r.phase === 'university' : r.phase === 'professional'));
   const ownTeam = phase === 'highschool' ? s.highSchool : phase === 'university' ? s.university : s.professionalTeam;
   const ownOverall = careerOverall(s);
   const ownMinimum = phase === 'highschool' ? 58 : phase === 'university' ? 75 : 88;
-  const pool = eligible.map((r) => ({ name: r.name, pos: r.pos, overall: Math.round(r.overall), team: r.team, year: phase === 'highschool' ? `${Math.max(1, Math.min(3, r.age - 14))}年` : phase === 'university' ? `${Math.max(1, Math.min(4, r.age - 17))}年` : undefined, country: r.country }));
-  if (ownOverall >= ownMinimum) pool.push({ name: s.player.name, pos: s.player.pos, overall: ownOverall, team: ownTeam, year: phase === 'highschool' ? `${s.stageYear}年` : phase === 'university' ? `${s.stageYear}年` : undefined, country: '日本' });
+  const pool = eligible.map((r) => ({ id: r.id, name: r.name, pos: r.pos, overall: Math.round(r.overall), stats: r.stats, team: r.team, year: phase === 'highschool' ? `${Math.max(1, Math.min(3, r.age - 14))}年` : phase === 'university' ? `${Math.max(1, Math.min(4, r.age - 17))}年` : undefined, country: r.country }));
+  if (ownOverall >= ownMinimum) pool.push({ id: s.rosterPlayers?.find((p) => p.isUser)?.id, name: s.player.name, pos: s.player.pos, overall: ownOverall, stats: s.player.stats, team: ownTeam, year: phase === 'highschool' ? `${s.stageYear}年` : phase === 'university' ? `${s.stageYear}年` : undefined, country: '日本' });
   const positionSlots: [Pos, number][] = [['PR',3],['HO',2],['LO',3],['FL',3],['N8',2],['SH',2],['SO',2],['CTB',2],['WTB',3],['FB',1]];
   const selected: typeof pool = [];
   for (const [pos, slots] of positionSlots) {
