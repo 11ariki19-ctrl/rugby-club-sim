@@ -132,6 +132,8 @@ assert.equal(careerGrowthMultiplier(genius), 1.35, 'genius talent improves growt
 assert.equal(careerGrowthMultiplier(scholar), 1.12, 'scholar talent receives a modest growth bonus');
 assert.equal(careerGrowthMultiplier(ordinary), 1, 'ordinary talent keeps the existing growth rate');
 console.log('  ok - four selectable talent types apply their specified starting stats');
+// Isolate the long career simulation from RNG consumed by earlier fixture/setup tests.
+seed(906);
 assert.equal(s.phase, 'highschool');
 assert.equal(s.age, 15);
 assert.equal(s.month, 4);
@@ -167,7 +169,6 @@ assert.ok(s.experiencePoints > 0, 'match results should award experience points'
 assert.ok(careerOverall(s) >= 0, 'overall rating remains non-negative and reflects uncapped abilities');
 assert.ok(Object.values(s.player.stats).some((value) => value > 200), 'long-term career growth can exceed 200 ability points');
 for (const value of Object.values(s.player.stats)) assert.ok(value >= 0, 'career abilities remain non-negative');
-for (const value of Object.values(s.player.stats)) assert.ok(value >= 0 && value <= 200, 'career abilities must stay within the 200-point cap');
 console.log('  ok - high school 3 years, university 4 years, professional career through retirement');
 console.log('  ok - university is assigned to a 2025 official league group');
 console.log('  ok - league records and retirement summary are retained');
