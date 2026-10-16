@@ -28,6 +28,9 @@ assert.equal(generatedNameSet.size, 5000, 'generated full names remain unique ac
 assert.ok([...generatedNameSet].every((name) => SURNAMES.includes(name.split(' ')[0] as never) && name.split(' ').length === 2), 'generated names use a top-300 surname and full name format');
 assert.equal(new Set(initialPlayer.rivals.map((r) => r.name)).size, initialPlayer.rivals.length, 'career rival full names are unique');
 assert.ok(initialPlayer.rivals.every((r) => SURNAMES.includes(r.name.split(' ')[0] as never)), 'career rivals use the top-300 surname pool');
+assert.ok(initialPlayer.rivals.every((r) => r.id && r.stats && r.careerPath?.length && typeof r.height === 'number' && typeof r.weight === 'number'), 'every rival has a stable ID, ability stats, body data and career history');
+assert.equal(new Set(initialPlayer.rivals.map((r) => r.id)).size, initialPlayer.rivals.length, 'rival IDs are unique');
+
 console.log('  ok - unique random full names and top-300 surname pool');
 const overseasNames = new Set<string>();
 const nzName = generateUniquePlayerName(overseasNames, 'NZ', rand);
@@ -74,6 +77,8 @@ assert.equal(new Set(squadCareer.rosterPlayers?.map((p) => p.name)).size, 23, 's
 assert.ok(squadCareer.rosterPlayers?.every((p) => p.stats && p.careerPath.length === 1 && p.currentSeason.team === squadCareer.highSchool), 'each squad player starts with abilities, current season and an individual career path');
 const squadLoaded = loadCareer(1);
 assert.ok(squadLoaded?.rosterPlayers?.length === 23, 'squad data persists through save/load');
+assert.ok(squadLoaded?.rivals.every(r => r.id && r.stats && r.careerPath?.length), 'rival profile and history data persist through save/load');
+
 console.log('  ok - all 23 players have persistent individualized data and career paths');
 const continuity = newCareer('進路引継ぎテスト', 'CTB');
 const originalUserRecord = continuity.rosterPlayers!.find((p) => p.isUser)!;
