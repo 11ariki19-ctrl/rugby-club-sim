@@ -54,6 +54,7 @@ assert.ok(proClub.center > eliteSchool.center, 'professional squads have a highe
 const selectionProbe = newCareer('代表選考テスト', 'CTB');
 assert.equal(nationalCandidatePool(selectionProbe).length, 23, 'national squad has exactly 23 players when enough candidates exist');
 assert.ok(nationalCandidatePool(selectionProbe).every((p) => p.overall < 90), 'high school national candidates do not have wildly inflated ratings');
+assert.ok(nationalCandidatePool(selectionProbe).every((p) => p.id && p.stats), 'national squad candidates reference the same canonical player ID and ability stats');
 console.log('  ok - realistic age-category rating distribution and 23-player national squad limit');
 
 const storageData = new Map<string, string>();
