@@ -520,7 +520,7 @@ function createCareerRivals(s: CareerState): CareerRival[] {
       const overall = Math.round(clamp(profile.center + int(-7, 7) + growthAdjustment + ageAdjustment, profile.min, profile.max));
       const playerName = `${name}${j ? 'Jr.' : ''}`;
       const league = high ? '高校ラグビー' : uni ? '大学リーグ' : leagueForClub(team);
-      candidates.push({ ...createRivalIdentity(playerName, team, pos, age, overall, s.phase, '日本'), name: playerName, pos, age, overall, phase: s.phase, team, country: '日本', league, appearances: 0, tries: 0, retired: false });
+      candidates.push({ ...createRivalIdentity(playerName, team, pos, age, overall, s.phase, '日本'), name: playerName, pos, age, phase: s.phase, team, country: '日本', league, appearances: 0, tries: 0, retired: false });
       n++;
     }
   }
@@ -537,7 +537,7 @@ function createCareerRivals(s: CareerState): CareerRival[] {
       const name = generateUniquePlayerName(usedNames, country, rand);
       const age = uni ? 18 + i % 4 : 22 + i % 12;
       const countryLabel = COUNTRY_LABEL[country] ?? country;
-      candidates.push({ ...createRivalIdentity(name, team, pos, age, overall, s.phase, countryLabel), name, pos, age, overall, phase: s.phase, team, country: countryLabel, league, appearances: 0, tries: 0, retired: false });
+      candidates.push({ ...createRivalIdentity(name, team, pos, age, overall, s.phase, countryLabel), name, pos, age, phase: s.phase, team, country: countryLabel, league, appearances: 0, tries: 0, retired: false });
     }
   }
   return candidates;
