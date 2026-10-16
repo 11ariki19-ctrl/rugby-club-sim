@@ -168,16 +168,43 @@ function teamRoster(team: string, s: CareerState, own: boolean): RosterMember[] 
   if (own && s.rosterPlayers?.length) {
     return s.rosterPlayers.map((p) => ({ name:p.name,pos:p.pos,number:p.number,role:p.isUser && s.liveMatch ? s.liveMatch.role : p.number<=15?'先発':'控え',stats:p.stats,overall:p.overall,isUser:p.isUser,playerId:p.id,record:p }));
   }
-  const seed=stableHash(`${s.phase}|${team}`), used=new Set<string>([s.player.name,...s.rivals.map(r=>r.name)]);
-  const country=inferPlayerCountry(team);
-  return rosterPositions.map((pos,i)=>{
-    const stats={} as Record<StatKey,number>;
-    for(const key of CAREER_STAT_KEYS){const variation=((seed>>>((i+CAREER_STAT_KEYS.indexOf(key))%24))+i*13+CAREER_STAT_KEYS.indexOf(key)*7)%19-9;const baseline=s.phase==='highschool'?44:s.phase==='university'?61:74;stats[key]=Math.max(18,Math.round(baseline+variation));}
-    let ns=(seed+(i+1)*2654435761)>>>0;
-    const name=generateUniquePlayerName(used,country,()=>{ns=(Math.imul(ns,1664525)+1013904223)>>>0;return ns/4294967296;});
-    const overall=Math.round(CAREER_STAT_KEYS.reduce((sum,k)=>sum+stats[k],0)/CAREER_STAT_KEYS.length);
-    return {name,pos,number:i+1,role:i<15?'先発':'控え',stats,overall};
-  });
+  if (!s.opponentRosters) s.opponentRosters = {};
+  const rosterKey = `${s.phase}|${team}`;
+  let saved = s.opponentRosters[rosterKey];
+  if (!saved || saved.length !== 23) {
+    const seed=stableHash(rosterKey), used=new Set<string>([s.player.name,...s.rivals.map(r=>r.name)]);
+    const sameTeamRivals=s.rivals.filter(r=>r.team===team && r.phase===s.phase);
+    const usedRivals=new Set<string>();
+    saved=rosterPositions.map((pos,i)=>{
+      const rival=sameTeamRivals.find(r=>r.pos===pos && r.id && !usedRivals.has(r.id));
+      if(rival) {
+        usedRivals.add(rival.id!);
+        const stats=(rival.stats ?? Object.fromEntries(CAREER_STAT_KEYS.map(k=>[k,Math.round(rival.overall)]))) as CareerRosterPlayer['stats'];
+        const record: CareerRosterPlayer={
+          id:rival.id!,name:rival.name,pos:rival.pos,number:i+1,age:rival.age,phase:rival.phase,team:rival.team,
+          stats,height:rival.height ?? (pos==='LO'?188:174),weight:rival.weight ?? (['PR','HO','LO','N8'].includes(pos)?94:78),
+          overall:rival.overall,isUser:false,seasons:[],
+          currentSeason:{age:rival.age,phase:rival.phase==='retired'?'professional':rival.phase,year:Math.max(1,rival.age-17),team:rival.team,appearances:rival.appearances,starts:0,tries:rival.tries,tackles:0,wins:0,losses:0,draws:0},
+          careerPath:rival.careerPath ?? [{phase:rival.phase==='retired'?'professional':rival.phase,age:rival.age,team:rival.team,year:1}]
+        };
+        return record;
+      }
+      const stats={} as CareerRosterPlayer['stats'];
+      for(const key of CAREER_STAT_KEYS){const variation=((seed>>>((i+CAREER_STAT_KEYS.indexOf(key))%24))+i*13+CAREER_STAT_KEYS.indexOf(key)*7)%11-5;const baseline=s.phase==='highschool'?44:s.phase==='university'?61:74;stats[key]=Math.max(18,Math.round(baseline+variation));}
+      let ns=(seed+(i+1)*2654435761)>>>0;
+      const name=generateUniquePlayerName(used,inferPlayerCountry(team),()=>{ns=(Math.imul(ns,1664525)+1013904223)>>>0;return ns/4294967296;});
+      const overall=Math.round(CAREER_STAT_KEYS.reduce((sum,k)=>sum+stats[k],0)/CAREER_STAT_KEYS.length);
+      const age=s.phase==='highschool'?15:s.phase==='university'?19:25;
+      const path: CareerRosterPlayer['careerPath']=[];
+      if(s.phase==='university'||s.phase==='professional') path.push({phase:'highschool',age:15,team:'高校ラグビー部',year:1});
+      if(s.phase==='professional') path.push({phase:'university',age:18,team:'大学ラグビー部',year:1});
+      path.push({phase:s.phase==='retired'?'professional':s.phase,age,team,year:1});
+      return {id:`opponent-${stableHash(rosterKey+'|'+i+'|'+name).toString(36)}`,name,pos,number:i+1,age,phase:s.phase,team,stats,height:pos==='LO'?188:174,weight:['PR','HO','LO','N8'].includes(pos)?94:78,overall,isUser:false,seasons:[],currentSeason:{age,phase:s.phase==='retired'?'professional':s.phase,year:1,team,appearances:0,starts:0,tries:0,tackles:0,wins:0,losses:0,draws:0},careerPath:path};
+    });
+    s.opponentRosters[rosterKey]=saved;
+    saveCareer(s);
+  }
+  return saved.map((p) => ({name:p.name,pos:p.pos,number:p.number,role:p.number<=15?'先発':'控え',stats:p.stats,overall:p.overall,playerId:p.id,record:p}));
 }
 
 
@@ -217,14 +244,10 @@ function playerDetail(member: RosterMember): string {
   return `<div class="modal" data-career="roster-close"><section class="sheet" role="dialog" aria-modal="true" aria-label="選手詳細" data-roster-sheet><button class="link" data-career="roster-close">← メンバー表へ戻る</button><h2>${esc(member.name)}</h2><div class="panel">背番号 ${member.number} ／ ${member.pos} ／ ${member.role}<br>総合値 <b>${member.overall}</b>${member.isUser ? '<br>あなたが操作する選手' : ''}</div><div class="card"><h3>能力ステータス</h3>${bars}</div><div class="cards"><div class="card stat"><span class="k">身長</span><b>${height}cm</b></div><div class="card stat"><span class="k">体重</span><b>${weight}kg</b></div></div>${playerCareerHistory(member)}<button class="btn primary" data-career="roster-close">閉じる</button></section></div>`;
 }
 function rivalDetail(s: CareerState, rival: CareerState['rivals'][number]): string {
-  const seed = stableHash(`${rival.name}|${rival.team}|${rival.pos}`);
-  const stats = {} as Record<StatKey, number>;
-  for (const [i, key] of CAREER_STAT_KEYS.entries()) {
-    const variation = ((seed >>> ((i * 3) % 24)) + i * 11) % 17 - 8;
-    stats[key] = Math.max(15, Math.min(200, Math.round(rival.overall + variation)));
-  }
+  const stats = rival.stats ?? Object.fromEntries(CAREER_STAT_KEYS.map(key => [key, Math.round(rival.overall)])) as Record<StatKey, number>;
   const bars = CAREER_STAT_KEYS.map((key) => `<div class="bar"><span>${CAREER_STAT_LABEL[key]}</span><div class="track"><i style="width:${Math.round(Math.min(200,stats[key])/2)}%"></i></div><b>${stats[key]}</b></div>`).join('');
-  return `<div class="modal" data-career="rival-close"><section class="sheet" role="dialog" aria-modal="true" aria-label="ライバル選手詳細" data-rival-sheet><button class="link" data-career="rival-close">← ランキングへ戻る</button><h2>${esc(rival.name)}</h2><div class="panel">${esc(rival.team)}${rival.league ? `・${esc(rival.league)}` : ''}<br>${labels[rival.phase]}・${rival.age}歳・${rival.pos}<br>総合値 <b>${Math.round(rival.overall)}</b>${rival.country && rival.country !== '日本' ? `<br>国籍：${esc(rival.country)}` : ''}</div><div class="card"><h3>能力ステータス</h3>${bars}<p class="small">能力値はゲーム内総合値を基準にしたライバル選手のステータスです。</p></div><div class="cards"><div class="card stat"><span class="k">出場</span><b>${rival.appearances}</b></div><div class="card stat"><span class="k">トライ</span><b>${rival.tries}</b></div></div><button class="btn primary" data-career="rival-close">閉じる</button></section></div>`;
+  const path = (rival.careerPath ?? []).map(item => `<li><b>${item.age}歳・${labels[item.phase]} ${item.year}年目</b><span>${esc(item.team)}</span></li>`).join('');
+  return `<div class="modal" data-career="rival-close"><section class="sheet" role="dialog" aria-modal="true" aria-label="ライバル選手詳細" data-rival-sheet><button class="link" data-career="rival-close">← ランキングへ戻る</button><h2>${esc(rival.name)}</h2><div class="panel">${esc(rival.team)}${rival.league ? `・${esc(rival.league)}` : ''}<br>${labels[rival.phase]}・${rival.age}歳・${rival.pos}<br>総合値 <b>${Math.round(rival.overall)}</b>${rival.country && rival.country !== '日本' ? `<br>国籍：${esc(rival.country)}` : ''}<br>選手ID：<code>${esc(rival.id ?? '')}</code></div><div class="card"><h3>能力ステータス</h3>${bars}<p class="small">能力値は選手IDに紐づく保存データです。</p></div><div class="cards"><div class="card stat"><span class="k">出場</span><b>${rival.appearances}</b></div><div class="card stat"><span class="k">トライ</span><b>${rival.tries}</b></div></div><div class="card"><h3>選手経歴</h3><ol class="career-player-timeline">${path || `<li class="current"><b>現在</b><span>${esc(rival.team)}</span></li>`}</ol></div><button class="btn primary" data-career="rival-close">閉じる</button></section></div>`;
 }
 function lineupCard(s: CareerState, team: string, own: boolean): string {
   const roster = teamRoster(team, s, own);
