@@ -186,7 +186,8 @@ assert.ok(Object.keys(UNIVERSITY_GROUPS).includes(schedule.universityGroup), 'sc
 console.log('  ok - university league has seven matches across September-November');
 assert.ok(schedule.matchHistory.length > 0);
 assert.ok(schedule.lastMatch?.scenes.length);
-assert.ok(schedule.lastMatch?.experience > 0);
+assert.ok(schedule.lastMatch);
+assert.equal(schedule.lastMatch!.experience > 0, schedule.lastMatch!.appeared, 'only players who appear receive match experience');
 const report = schedule.lastMatch!;
 assert.ok(report.scoreEvents && report.scoreEvents.length > 0, 'match report records scoring events');
 assert.equal(report.scoreEvents!.reduce((sum, event) => sum + (event.side === '自チーム' ? event.points : 0), 0), report.my, 'home scoring events add up to the final score');
@@ -296,5 +297,6 @@ assert.equal(simulatedCareer.liveMatch, undefined, 'matches resolve automaticall
 assert.equal(simulatedCareer.matchHistory.length, 1, 'automatically simulated match is recorded');
 assert.equal(simulatedCareer.lastMatch?.competition, 'キャリア自動試合テスト');
 assert.equal(simulatedCareer.currentSeason.played, 1, 'automatic simulation updates the season record exactly once');
+assert.equal(simulatedCareer.lastMatch?.experience! > 0, simulatedCareer.lastMatch?.appeared, 'match experience is awarded exactly when the player appears');
 console.log('  ok - matches are simulated automatically without an interactive play mode');
 console.log('\n10 passed');
