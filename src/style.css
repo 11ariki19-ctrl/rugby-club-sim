@@ -768,3 +768,54 @@ body {
   .career-path-step { align-content:start; }
   .career-path-step:not(:last-child):before { top:16px; bottom:auto; left:40px; right:-14px; width:auto; height:2px; }
 }
+
+
+/* Match result: keep the return action reachable and roster hidden until requested. */
+.match-result-top-actions {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  padding: 8px 0;
+  margin: 0 0 8px;
+  background: rgba(11, 20, 32, 0.96);
+  backdrop-filter: blur(10px);
+}
+.match-result-top-actions .btn {
+  width: 100%;
+  margin: 0;
+}
+.match-lineups {
+  margin-top: 14px;
+}
+.match-lineups > summary {
+  list-style: none;
+  cursor: pointer;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 15px;
+  border: 1px solid #53684d;
+  border-radius: 12px;
+  background: linear-gradient(100deg, #173b2c, #142535);
+  color: #e0c16f;
+  font-weight: 800;
+}
+.match-lineups > summary::-webkit-details-marker {
+  display: none;
+}
+.match-lineups > summary::after {
+  content: "＋";
+  font-size: 1.2em;
+}
+.match-lineups[open] > summary::after {
+  content: "−";
+}
+.match-lineups[open] > summary {
+  border-radius: 12px 12px 0 0;
+}
+.match-lineups[open] .lineup-grid {
+  margin-top: 8px;
+}
