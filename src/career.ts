@@ -703,11 +703,14 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   const appeared = role === '先発' || role === '途中出場';
   const teamBonus = s.phase === 'university' ? (s.universityTier === '最上位' ? 7 : s.universityTier === '上位' ? 4 : 0) : s.phase === 'professional' ? (s.proDivision === 1 ? 7 : s.proDivision === 2 ? 3 : 0) : 0;
   const fatiguePenalty = Math.max(0, s.fatigue - 20) * 0.08 + s.injuryMonths * 1.8;
-  const strength = o + teamBonus - fatiguePenalty + gauss(0, 2.5), opponentStrength = difficulty ?? expected + gauss(0, 4);
+  const strength = o + teamBonus - fatiguePenalty + gauss(0, 1.5);
+  // 国際試合は相手を自チームの実効総合値より約3高く設定する。
+  const international = kind === 'japan-test' || kind === 'world-cup';
+  const opponentStrength = international ? strength + 3 : (difficulty ?? expected + gauss(0, 2));
   // 選手のポジション別総合値・疲労・所属カテゴリーを得点に強く反映し、乱数は試合ごとの振れ幅に限定する。
   const strengthGap = strength - opponentStrength;
-  const rawMy = live ? live.scoreFor : Math.max(0, Math.round(22 + strengthGap * 1.05 + gauss(0, 4.5)));
-  const rawTheir = live ? live.scoreAgainst : Math.max(0, Math.round(22 - strengthGap * 1.05 + gauss(0, 4.5)));
+  const rawMy = live ? live.scoreFor : Math.max(0, Math.round(22 + strengthGap * 0.48 + gauss(0, 5)));
+  const rawTheir = live ? live.scoreAgainst : Math.max(0, Math.round(22 - strengthGap * 0.48 + gauss(0, 5)));
   const scoreReport = buildCareerScoreEvents(s, rawMy, rawTheir, appeared, opponent || opponentFor(s, kind));
   const my = scoreReport.my;
   const their = scoreReport.their;
