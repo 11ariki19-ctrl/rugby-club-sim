@@ -819,3 +819,13 @@ body {
 .match-lineups[open] .lineup-grid {
   margin-top: 8px;
 }
+
+
+.player-career-history { margin-top: 14px; }
+.career-player-timeline { list-style: none; margin: 0; padding: 0 0 0 8px; }
+.career-player-timeline li { position: relative; display: grid; gap: 4px; padding: 12px 12px 12px 18px; margin: 0 0 8px; border-left: 2px solid #78905d; background: rgba(120,144,93,.09); border-radius: 0 10px 10px 0; }
+.career-player-timeline li::before { content: ""; position: absolute; left: -6px; top: 16px; width: 9px; height: 9px; border-radius: 50%; background: #e0c16f; }
+.career-player-timeline li.current { border-left-color: #e0c16f; background: rgba(224,193,111,.12); }
+.career-player-timeline li.future { opacity: .68; }
+.career-player-timeline li span { font-weight: 700; }
+.career-player-timeline li small { color: var(--muted, #aab8c4); line-height: 1.5; }
