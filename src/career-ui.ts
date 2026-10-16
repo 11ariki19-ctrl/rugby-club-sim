@@ -141,7 +141,7 @@ function homeScreen(s: CareerState): string {
     <div class="card"><h3>選手能力</h3>${bars}<p class="small">能力値は育成・経験・年齢に応じて変化 ／ 最高総合値：${Math.round(s.player.peak)} ／ 成長タイプ：${s.player.talentType}（成長係数 ${s.player.talent.toFixed(2)}）</p></div>
     </section>
     <section class="career-tab-panel ${activeCareerTab === 'roster' ? 'active' : ''}" data-tab-panel="roster">
-    <section class="career-roster-panel"><h3>チーム登録メンバー（23名）</h3><div class="lineup-grid">${lineupCard(s, currentTeam(s), true)}</div></section>
+    <section class="career-roster-panel"><h3>チーム登録メンバー（23名）</h3><div class="lineup-grid">${lineupCard(s, currentTeam(s), true)}</div></section>${archivedRosterCard(s)}
     </section>
     <section class="career-tab-panel ${activeCareerTab === 'records' ? 'active' : ''}" data-tab-panel="records">
     ${lastMatchCard(s)}
@@ -178,6 +178,17 @@ function teamRoster(team: string, s: CareerState, own: boolean): RosterMember[] 
     const overall=Math.round(CAREER_STAT_KEYS.reduce((sum,k)=>sum+stats[k],0)/CAREER_STAT_KEYS.length);
     return {name,pos,number:i+1,role:i<15?'先発':'控え',stats,overall};
   });
+}
+
+
+function archivedRosterCard(s: CareerState): string {
+  const archive=s.playerArchive??[];
+  if(!archive.length)return '';
+  const rows=archive.slice(-12).reverse().map((p,i)=>{
+    const index=archive.length-1-i;
+    return `<button class="row roster-player" data-career="roster-player" data-v="archive:${index}"><span class="pos">${p.pos}</span><span class="nm">${esc(p.name)}<small>${p.age}歳・${esc(p.team)}・経歴記録あり</small></span><span class="ov">${p.overall}</span><span aria-hidden="true">›</span></button>`;
+  }).join('');
+  return `<section class="card"><h3>以前のチームメイト</h3><p class="note">進学・移籍などでチームを離れた選手の個人データと、それまでの年度別経歴を確認できます（直近12名）。</p><div class="roster-list">${rows}</div></section>`;
 }
 
 function playerCareerHistory(member: RosterMember): string {
@@ -258,9 +269,14 @@ function act(action: string, value = ''): void {
   if (action === 'roster-close') { selectedRosterMember = null; render(); return; }
   if (action === 'roster-player' && state) {
     const [side, rawNumber] = value.split(':');
-    const opponent = state.liveMatch?.fixture.opponent ?? state.lastMatch?.opponent ?? '対戦相手';
-    const team = side === 'own' ? currentTeam(state) : opponent;
-    selectedRosterMember = teamRoster(team, state, side === 'own').find((p) => p.number === Number(rawNumber)) ?? null;
+    if (side === 'archive') {
+      const record = state.playerArchive?.[Number(rawNumber)];
+      selectedRosterMember = record ? { name:record.name,pos:record.pos,number:record.number,role:'過去の所属選手',stats:record.stats,overall:record.overall,playerId:record.id,record } : null;
+    } else {
+      const opponent = state.liveMatch?.fixture.opponent ?? state.lastMatch?.opponent ?? '対戦相手';
+      const team = side === 'own' ? currentTeam(state) : opponent;
+      selectedRosterMember = teamRoster(team, state, side === 'own').find((p) => p.number === Number(rawNumber)) ?? null;
+    }
     render(); return;
   }
   if (action === 'career-tab' && state) {
