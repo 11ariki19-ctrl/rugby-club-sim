@@ -294,6 +294,7 @@ representativeCareer.japanNationalTeamSelected = false;
 assert.equal(nationalMatchRole(representativeCareer, 'japan-test'), undefined, 'players not selected for Japan are not assigned a national-team role');
 const simulatedCareer = newCareer('自動試合テスト', 'CTB');
 simulatedCareer.phase = 'professional'; simulatedCareer.stageYear = 1; simulatedCareer.professionalStarterGuaranteed = true;
+for (const key of Object.keys(simulatedCareer.player.stats) as (keyof typeof simulatedCareer.player.stats)[]) simulatedCareer.player.stats[key] = 150;
 const preMatchStats = { ...simulatedCareer.player.stats };
 beginCareerLiveMatch(simulatedCareer, 'fixture', { date: 'テスト日', label: 'キャリア自動試合テスト', opponent: 'テストクラブ', difficulty: 45, kind: 'university-spring' });
 assert.equal(simulatedCareer.liveMatch, undefined, 'matches resolve automatically without entering a playable mode');
