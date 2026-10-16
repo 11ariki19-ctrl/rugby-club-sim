@@ -336,6 +336,9 @@ const simulatedCareer = newCareer('自動試合テスト', 'CTB');
 simulatedCareer.phase = 'professional'; simulatedCareer.stageYear = 1; simulatedCareer.professionalStarterGuaranteed = true;
 for (const key of Object.keys(simulatedCareer.player.stats) as (keyof typeof simulatedCareer.player.stats)[]) simulatedCareer.player.stats[key] = 150;
 const preMatchStats = { ...simulatedCareer.player.stats };
+const preMatchTeammates = simulatedCareer.rosterPlayers.filter(p => !p.isUser).map(p => ({ id: p.id, stats: { ...p.stats } }));
+const teamProfile = careerTeamStrengthProfile(simulatedCareer.phase, simulatedCareer.professionalTeam);
+assert.ok(simulatedCareer.rosterPlayers.filter(p => !p.isUser).every(p => Object.values(p.stats).every(value => value >= teamProfile.min && value <= teamProfile.max)), 'non-user roster abilities stay within the current team tier');
 beginCareerLiveMatch(simulatedCareer, 'fixture', { date: 'テスト日', label: 'キャリア自動試合テスト', opponent: 'テストクラブ', difficulty: 45, kind: 'university-spring' });
 assert.equal(simulatedCareer.liveMatch, undefined, 'matches resolve automatically without entering a playable mode');
 assert.equal(simulatedCareer.matchHistory.length, 1, 'automatically simulated match is recorded');
@@ -344,5 +347,9 @@ assert.equal(simulatedCareer.currentSeason.played, 1, 'automatic simulation upda
 assert.ok(simulatedCareer.lastMatch?.experience! > 0, 'a guaranteed starter earns match experience');
 assert.ok(Object.keys(preMatchStats).some((key) => simulatedCareer.player.stats[key as keyof typeof preMatchStats] > preMatchStats[key as keyof typeof preMatchStats]), 'match experience increases player abilities');
 assert.equal(simulatedCareer.lastMatch?.experience! > 0, simulatedCareer.lastMatch?.appeared, 'match experience is awarded exactly when the player appears');
+assert.ok(preMatchTeammates.every(before => {
+  const after = simulatedCareer.rosterPlayers.find(p => p.id === before.id);
+  return after && Object.keys(before.stats).every(key => after.stats[key as keyof typeof before.stats] === before.stats[key as keyof typeof before.stats]);
+}), 'teammates do not gain abilities from match appearances');
 console.log('  ok - matches are simulated automatically without an interactive play mode');
 console.log('\n10 passed');
