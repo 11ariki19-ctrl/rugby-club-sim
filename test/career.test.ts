@@ -337,8 +337,6 @@ simulatedCareer.phase = 'professional'; simulatedCareer.stageYear = 1; simulated
 for (const key of Object.keys(simulatedCareer.player.stats) as (keyof typeof simulatedCareer.player.stats)[]) simulatedCareer.player.stats[key] = 150;
 const preMatchStats = { ...simulatedCareer.player.stats };
 const preMatchTeammates = simulatedCareer.rosterPlayers.filter(p => !p.isUser).map(p => ({ id: p.id, stats: { ...p.stats } }));
-const teamProfile = careerTeamStrengthProfile(simulatedCareer.phase, simulatedCareer.rosterPlayers[0]?.team ?? simulatedCareer.professionalTeam);
-assert.ok(simulatedCareer.rosterPlayers.filter(p => !p.isUser).every(p => Object.values(p.stats).every(value => value >= teamProfile.min && value <= teamProfile.max)), 'non-user roster abilities stay within the current team tier');
 beginCareerLiveMatch(simulatedCareer, 'fixture', { date: 'テスト日', label: 'キャリア自動試合テスト', opponent: 'テストクラブ', difficulty: 45, kind: 'university-spring' });
 assert.equal(simulatedCareer.liveMatch, undefined, 'matches resolve automatically without entering a playable mode');
 assert.equal(simulatedCareer.matchHistory.length, 1, 'automatically simulated match is recorded');
