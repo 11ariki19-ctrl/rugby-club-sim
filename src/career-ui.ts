@@ -63,7 +63,7 @@ function createScreen(): string {
   return `<main class="page career-pennant-shell career-create-screen"><div class="career-pennant-ribbon"><span>RUGBY PENNANT</span><span>PLAYER DEVELOPMENT</span></div><button class="link" data-career="title">← タイトルへ</button>
     <h2>ラグビー人生キャリア</h2>
     <p>高校入学から社会人引退まで、一人の選手を育てます。高校3年間、大学4年間、そして社会人リーグを同じ選手で進みます。</p>
-    <div class="card"><label>選手名<input id="career-name" class="search" maxlength="24" placeholder="例：佐藤 蓮"></label>
+    <div class="card"><label>選手名<input id="career-name" class="search" maxlength="24" placeholder="例：佐藤 蓮"></label><button type="button" class="btn" data-career="random-name">名前をランダム生成</button>
     <label>ポジション<select id="career-pos" class="search">${CAREER_POSITIONS.map((p) => `<option value="${p.id}" ${p.id === 'CTB' ? 'selected' : ''}>${p.label}（${p.id}）</option>`).join('')}</select></label>
     <label>出身・所属都道府県<select id="career-pref" class="search">${PREFS.map((p, i) => `<option value="${i}" ${i === createPrefIndex ? 'selected' : ''}>${p.name}</option>`).join('')}</select></label>
     <label>高校（県予選に参加）<select id="career-school" class="search">${schools.map((s, i) => `<option value="${i}" ${i === createSchoolIndex ? 'selected' : ''}>${s.name}（戦力★${s.power}）</option>`).join('')}</select></label>
@@ -289,6 +289,11 @@ function act(action: string, value = ''): void {
     return;
   }
   if (action === 'result-continue' && state) { showMatchResult = false; selectedRosterMember = null; activeCareerTab = 'player'; render(); return; }
+  if (action === 'random-name') {
+    const input = root.querySelector<HTMLInputElement>('#career-name');
+    if (input) { input.value = generateUniquePlayerName(new Set<string>(), '日本'); input.focus(); }
+    return;
+  }
   if (action === 'start') {
     const name = root.querySelector<HTMLInputElement>('#career-name')?.value ?? '';
     const pos = (root.querySelector<HTMLSelectElement>('#career-pos')?.value ?? 'CTB') as Pos;
