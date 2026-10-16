@@ -134,7 +134,7 @@ function homeScreen(s: CareerState): string {
       <h3>在籍シーズン記録</h3>
       <div class="career-season-history">${s.seasons.length ? [...s.seasons].reverse().map(season => `<div class="career-season-row"><b>${season.age}歳・${season.year}年目</b><span>${season.phase === 'highschool' ? '高校' : season.phase === 'university' ? '大学' : '社会人'}／${esc(season.team)}</span><small>${season.played}試合・${season.wins}勝 ${season.draws}分 ${season.losses}敗・得点 ${season.pointsFor}-${season.pointsAgainst}</small></div>`).join('') : '<p class="note">シーズン記録は進行に合わせて追加されます。</p>'}</div>
     </div>
-    ${s.university ? `<div class="card"><b>進学先</b><p>${esc(s.university)}（${esc(s.universityGroup)}・${esc(s.universityTier)}）</p>${s.phase === 'university' ? `<label>大学を選択・変更<select id="career-university" class="search">${Object.entries(UNIVERSITY_GROUPS).map(([group, teams]) => `<optgroup label="${esc(group)}">${teams.map((name) => `<option value="${esc(name)}" ${name === s.university ? 'selected' : ''}>${esc(name)}</option>`).join('')}</optgroup>`).join('')}</select></label><p class="note">2025年度の各リーグA・Bグループを収録。Bリーグ所属校も選択できます。</p>` : ''}</div>` : ''}
+    ${s.university ? `<div class="card"><b>進学先</b><p>${esc(s.university)}（${esc(s.universityGroup)}・${esc(s.universityTier)}）</p>${s.phase === 'university' ? `<p class="note">大学編の所属校は固定され、大学編の途中で移籍することはできません。</p></div>` : ''}
     ${s.professionalTeam ? `<div class="card"><b>所属社会人チーム</b><p>${esc(s.professionalTeam)}（${esc(s.professionalLeague || `リーグワンD${s.proDivision}`)}）</p></div>` : ''}
     ${s.nationalCandidate ? `<div class="card"><b>高校日本代表候補</b><p>選出済み ／ 世界大会勝利数：${s.worldTournamentWins}</p></div>` : ''}
     ${s.japanNationalTeamSelected ? `<div class="card"><b>日本代表</b><p>選出中 ／ 国際試合 ${s.japanNationalTeamCaps}キャップ・${s.japanNationalTeamWins}勝</p><p class="small">全国の候補からポジション別の総合力で毎月再選考します。</p></div>` : `<div class="card"><b>日本代表</b><p>現在は未選出 ／ 通算 ${s.japanNationalTeamCaps}キャップ・${s.japanNationalTeamWins}勝</p></div>`}
@@ -317,7 +317,6 @@ export function openCareerMode(el: HTMLElement, resume: boolean): void {
         const posInput = root?.querySelector<HTMLSelectElement>('#career-pos'); if (posInput) posInput.value = pos;
       } else if (t.id === 'career-school') createSchoolIndex = Number(t.value);
       else if (t.id === 'career-talent') createTalentType = t.value as '凡人' | '秀才' | '天才' | '一芸';
-      else if (t.id === 'career-university' && state) { selectCareerUniversity(state, t.value); render(); }
     });
     bound = true;
   }
