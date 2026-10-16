@@ -675,7 +675,7 @@ export function nationalMatchRole(s: CareerState, kind: CareerFixture['kind'] | 
   if (kind !== 'japan-test' && kind !== 'world-cup') return undefined;
   if (s.phase === 'highschool' || !s.japanNationalTeamSelected) return undefined;
   const userId = s.rosterPlayers?.find((p) => p.isUser)?.id;
-  const isUserCandidate = (p: NonNullable<CareerState['nationalSquad']>[number]) => userId ? p.id === userId : p.name === s.player.name;
+  const isUserCandidate = (p: NonNullable<CareerState['nationalSquad']>[number]) => (userId && p.id === userId) || p.name === s.player.name;
   const selected = s.nationalSquad?.find(isUserCandidate);
   if (!selected) return undefined;
   const peers = s.nationalSquad!.filter((p) => p.pos === s.player.pos).sort((a, b) => b.overall - a.overall);
