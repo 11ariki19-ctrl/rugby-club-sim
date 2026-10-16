@@ -274,7 +274,7 @@ export function newCareer(name: string, pos: Pos, prefIndex = 26, schoolName?: s
   const selectedTalent: CareerTalentType = CAREER_TALENTS.some((x) => x.id === talentType) ? talentType : '凡人';
   if (selectedTalent === '秀才' || selectedTalent === '天才') {
     const bonus = selectedTalent === '秀才' ? 10 : 15;
-    for (const k of STAT_KEYS) stats[k] = clamp(stats[k] + bonus, 0, 200);
+    for (const k of STAT_KEYS) stats[k] += bonus;
   } else if (selectedTalent === '一芸') {
     const lowKey = pick([...STAT_KEYS]);
     const highKey = pick(STAT_KEYS.filter((k) => k !== lowKey));
@@ -420,9 +420,20 @@ export function resolveCareerTransfer(s: CareerState, offerIndex: number): void 
   saveCareer(s);
 }
 function awardMatchExperience(s: CareerState, my: number, their: number, appeared: boolean, tries: number, rating: number): number {
-  const base = my > their ? 35 : my === their ? 20 : 10;
-  const earned = base + (appeared ? 10 : 0) + tries * 15 + Math.max(0, Math.round((rating - 6) * 3));
-  s.experiencePoints += earned; return earned;
+  // 未出場選手には試合経験点を付与しない。
+  if (!appeared) return 0;
+  const base = my > their ? 35 : my === their ? 25 : 18;
+  const earned = base + 10 + tries * 15 + Math.max(0, Math.round((rating - 6) * 4));
+  s.experiencePoints += earned;
+  // 経験点は累積記録だけでなく、試合後の実能力成長にも反映する。
+  // 能力値自体には上限を設けず、出場経験による伸びは緩やかに設定。
+  const focused = s.training;
+  for (const key of STAT_KEYS) {
+    const growth = earned * (key === focused ? 0.012 : 0.0025) * s.player.talent * careerGrowthMultiplier(s);
+    s.player.stats[key] = Math.max(0, s.player.stats[key] + growth);
+  }
+  s.player.peak = Math.max(s.player.peak, careerOverall(s));
+  return earned;
 }
 function opponentFor(s: CareerState, kind: CareerFixture['kind'] | 'highschool' | 'world', round = 0): string {
   if (kind === 'world-cup') return s.worldCup?.poolOpponents[round % Math.max(1, s.worldCup.poolOpponents.length)] ?? 'ニュージーランド';
@@ -998,7 +1009,7 @@ function finishSeason(s: CareerState): void {
   updateRivals(s);
   const total = r.wins + r.losses + r.draws;
   s.history.unshift(`${r.age}歳・${r.team} ${r.year}年目：${r.wins}勝${r.losses}敗${r.draws}分、公式リーグ戦${r.leaguePlayed}試合（${r.leagueWins}勝${r.leagueLosses}敗${r.leagueDraws}分）、先発${r.starts}・途中出場${r.substituteApps}・控え${r.bench}・メンバー外${r.notSelected}、出場${r.appearances}試合、${r.tries}トライ。`);
-  if (total > 0 && r.wins / total >= 0.65) { for (const k of STAT_KEYS) s.player.stats[k] = clamp(s.player.stats[k] + 0.25, 0, 200); s.history.unshift('好成績による自信で、全能力が少し成長した。'); }
+  if (total > 0 && r.wins / total >= 0.65) { for (const k of STAT_KEYS) s.player.stats[k] += 0.25; s.history.unshift('好成績による自信で、全能力が少し成長した。'); }
   if (s.phase === 'professional' && s.age < s.retirementAge) {
     const domestic = pick(PRO_TEAMS[s.proDivision].filter((x) => x !== s.professionalTeam));
     const nextDivision = careerOverall(s) >= 72 ? 1 : careerOverall(s) >= 57 ? 2 : 3;
@@ -1043,8 +1054,8 @@ function applyCareerDevelopment(s: CareerState): void {
   for (const k of STAT_KEYS) {
     const focus = k === s.training ? (s.trainingPlan === 'バランス' ? 1.35 : s.trainingPlan === '筋力' && ['pow','sta'].includes(k) ? 1.8 : s.trainingPlan === '技術' && ['tec','men'].includes(k) ? 1.8 : s.trainingPlan === '持久力' && ['sta','spd'].includes(k) ? 1.8 : 1.08) : 0.1;
     const inc = s.player.talent * careerGrowthMultiplier(s) * baseStage * Math.max(0.04, ageFactor) * planFactor[s.trainingPlan] * focus * Math.max(0.08, 1 - s.player.stats[k] / 220) * (0.85 + rand() * 0.3);
-    s.player.stats[k] = clamp(s.player.stats[k] + inc, 0, 200);
-    if (s.age >= 31 && rand() < (s.age >= 35 ? 0.12 : 0.045)) s.player.stats[k] = clamp(s.player.stats[k] - (s.age >= 35 ? 0.8 : 0.35), 0, 200);
+    s.player.stats[k] = Math.max(0, s.player.stats[k] + inc);
+    if (s.age >= 31 && rand() < (s.age >= 35 ? 0.12 : 0.045)) s.player.stats[k] = Math.max(0, s.player.stats[k] - (s.age >= 35 ? 0.8 : 0.35));
   }
   s.player.peak = Math.max(s.player.peak, careerOverall(s)); s.elapsedMonths++;
 }
@@ -1208,17 +1219,9 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
       } else uniqueRivalNames.add(rival.name);
     }
     if (!Array.isArray(s.awards)) s.awards = [];
-    for (const k of STAT_KEYS) s.player.stats[k] = clamp(Number(s.player.stats[k]) || 0, 0, 200);
-    // One-time compatibility correction for legacy saves whose ratings were far outside their age group.
-    const savedOverall = careerOverall(s);
-    const expectedBand = s.phase === 'highschool' ? (s.stageYear === 1 ? 52 : s.stageYear === 2 ? 60 : 68) : s.phase === 'university' ? (s.stageYear === 1 ? 68 : s.stageYear === 2 ? 74 : s.stageYear === 3 ? 80 : 86) : s.phase === 'professional' ? (s.age < 23 ? 82 : s.age < 27 ? 94 : s.age < 31 ? 101 : 94) : 90;
-    const extremeThreshold = s.phase === 'highschool' ? 88 : s.phase === 'university' ? 108 : s.phase === 'professional' ? 132 : 150;
-    if (savedOverall > extremeThreshold) {
-      const scale = expectedBand / savedOverall;
-      for (const k of STAT_KEYS) s.player.stats[k] = Math.round(s.player.stats[k] * scale * 10) / 10;
-      s.player.peak = Math.min(s.player.peak || expectedBand, expectedBand + 8);
-      s.history.unshift('旧バージョンの能力値を年代に合う水準へ調整しました。');
-    }
+    // 能力値は旧セーブを含めて上限なしで保持する。欠損値のみ安全に補正。
+    for (const k of STAT_KEYS) s.player.stats[k] = Math.max(0, Number(s.player.stats[k]) || 0);
+    s.player.peak = Math.max(Number(s.player.peak) || 0, careerOverall(s));
     for (const r of [...s.seasons, s.currentSeason]) { if (!r) continue; if (typeof r.starts !== 'number') r.starts = r.appearances || 0; if (typeof r.substituteApps !== 'number') r.substituteApps = 0; if (typeof r.bench !== 'number') r.bench = 0; if (typeof r.notSelected !== 'number') r.notSelected = Math.max(0, (r.played || 0) - (r.appearances || 0)); if (!Array.isArray(r.awards)) r.awards = []; }
     for (const m of s.matchHistory) if (!m.role) m.role = m.appeared ? '先発' : 'メンバー外';
     if (!s.universityGroup || !UNIVERSITY_GROUPS[s.universityGroup]) s.universityGroup = groupForUniversity(s.university || '');
