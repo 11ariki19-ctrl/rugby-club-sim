@@ -4,7 +4,7 @@ import {
   CAREER_POSITIONS, CAREER_STAT_KEYS, CAREER_STAT_LABEL, CAREER_TALENTS, hasCareerSave, loadCareer, saveCareer, setCareerSaveSlot, careerSaveSummary,
 } from './career';
 import type { CareerState, CareerPhase, CareerTrainingPlan, CareerRosterPlayer } from './career';
-import { STAT_LABEL } from './game';
+import { STAT_LABEL, overallAt } from './game';
 import type { Pos, StatKey } from './game';
 import { PREFS, schoolsOf } from './data';
 import { generateUniquePlayerName, inferPlayerCountry } from './names';
@@ -193,7 +193,7 @@ function teamRoster(team: string, s: CareerState, own: boolean): RosterMember[] 
       for(const key of CAREER_STAT_KEYS){const variation=((seed>>>((i+CAREER_STAT_KEYS.indexOf(key))%24))+i*13+CAREER_STAT_KEYS.indexOf(key)*7)%11-5;const baseline=s.phase==='highschool'?44:s.phase==='university'?61:74;stats[key]=Math.max(18,Math.round(baseline+variation));}
       let ns=(seed+(i+1)*2654435761)>>>0;
       const name=generateUniquePlayerName(used,inferPlayerCountry(team),()=>{ns=(Math.imul(ns,1664525)+1013904223)>>>0;return ns/4294967296;});
-      const overall=Math.round(CAREER_STAT_KEYS.reduce((sum,k)=>sum+stats[k],0)/CAREER_STAT_KEYS.length);
+      const overall=Math.round(overallAt({pos,stats} as never));
       const age=s.phase==='highschool'?15:s.phase==='university'?19:25;
       const path: CareerRosterPlayer['careerPath']=[];
       if(s.phase==='university'||s.phase==='professional') path.push({phase:'highschool',age:15,team:'高校ラグビー部',year:1});
