@@ -68,6 +68,14 @@ setCareerSaveSlot(2); assert.equal(loadCareer(2), null, 'clearing slot two leave
 setCareerSaveSlot(1); assert.equal(loadCareer(1)?.player.name, 'スロット1', 'clearing slot two does not delete slot one');
 setCareerSaveSlot(1);
 console.log('  ok - independent local save slots and slot-specific clearing');
+const uncappedSave = newCareer('上限撤廃セーブ', 'CTB');
+uncappedSave.player.stats.pow = 245.5; uncappedSave.player.stats.spd = 231.25; uncappedSave.player.peak = 245.5;
+setCareerSaveSlot(1); saveCareer(uncappedSave);
+const loadedUncappedSave = loadCareer(1)!;
+assert.equal(loadedUncappedSave.player.stats.pow, 245.5, 'saving and loading preserves abilities above 200');
+assert.equal(loadedUncappedSave.player.stats.spd, 231.25, 'saving and loading preserves decimal ability values above 200');
+assert.ok(careerOverall(loadedUncappedSave) > 200, 'overall rating reflects uncapped ability values');
+console.log('  ok - uncapped ability values and overall persist across save/load');
 const legacySchoolSave = newCareer('旧高校データ移行', 'CTB', 26, '大阪学院高校');
 legacySchoolSave.rivals[0].team = '大阪府立選抜';
 setCareerSaveSlot(1); saveCareer(legacySchoolSave);
@@ -142,7 +150,7 @@ assert.equal(s.seasons.length, 7);
 assert.ok(s.professionalTeam.length > 0);
 assert.ok(s.history.some((x) => x.includes('加入')));
 let guard = 0;
-while (s.phase !== 'retired' && guard < 240) {
+while (s.phase !== 'retired' && guard < 900) {
   advanceCalendarMonth(s);
   guard++;
 }
@@ -155,7 +163,9 @@ const expectedLeagueMatches: Record<string, number> = { 'リーグワン': 18, '
 assert.ok(proSeasons.length > 0);
 assert.ok(proSeasons.every((r) => r.leaguePlayed === (expectedLeagueMatches[r.league || 'リーグワン'] ?? 18)), 'each pro season should use its selected league schedule');
 assert.ok(s.experiencePoints > 0, 'match results should award experience points');
-assert.ok(careerOverall(s) >= 0 && careerOverall(s) <= 200);
+assert.ok(careerOverall(s) >= 0, 'overall rating remains non-negative and reflects uncapped abilities');
+assert.ok(Object.values(s.player.stats).some((value) => value > 200), 'long-term career growth can exceed 200 ability points');
+for (const value of Object.values(s.player.stats)) assert.ok(value >= 0, 'career abilities remain non-negative');
 for (const value of Object.values(s.player.stats)) assert.ok(value >= 0 && value <= 200, 'career abilities must stay within the 200-point cap');
 console.log('  ok - high school 3 years, university 4 years, professional career through retirement');
 console.log('  ok - university is assigned to a 2025 official league group');
