@@ -1362,6 +1362,7 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
         rival.stats = {} as Stats;
         for (const key of STAT_KEYS) rival.stats[key] = Math.max(0, Math.round(rival.overall + gauss(0, 5)));
       }
+      rival.overall = Math.round(overallAt({ pos: rival.pos, stats: rival.stats } as never));
       if (typeof rival.height !== 'number' || typeof rival.weight !== 'number') {
         const [heightBase, weightBase] = BODY[rival.pos];
         rival.height = rival.height ?? heightBase;
