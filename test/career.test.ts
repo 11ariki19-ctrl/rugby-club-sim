@@ -95,6 +95,7 @@ continuity.stageYear = 4; continuity.age = 21; continuity.month = 3;
 continuity.currentSeason.age = 21; continuity.currentSeason.year = 4;
 advanceCareerMonth(continuity);
 assert.equal(continuity.phase, 'professional', 'fourth university year transitions to professional rugby');
+assert.ok(nationalCandidatePool(continuity).filter((p) => p.team !== continuity.professionalTeam).length > 0, 'professional Japan squad candidates include players from other clubs, not only the user team');
 assert.ok(continuity.rosterPlayers!.some((p) => p.isUser && p.careerPath.some((h) => h.phase === 'professional')), 'player identity and career path carry into professional rugby');
 const proTeammates = continuity.rosterPlayers!.filter((p) => !p.isUser);
 const teammateHighSchools = proTeammates.map((p) => p.careerPath.find((h) => h.phase === 'highschool')?.team).filter((team): team is string => Boolean(team));
