@@ -1223,7 +1223,11 @@ export function advanceCareerMonth(s: CareerState, _interactive = false): Career
   advanceCalendar(s); saveCareer(s); return s;
 }
 export function saveCareer(s: CareerState): void {
-  try { const raw = JSON.stringify(s); localStorage.setItem(slotKey(activeCareerSlot), raw); localStorage.setItem(KEY, raw); } catch { /* local storage may be unavailable */ }
+  try {
+    const userRecord = s.rosterPlayers?.find((p) => p.isUser);
+    if (userRecord) { userRecord.name = s.player.name; userRecord.pos = s.player.pos; userRecord.stats = { ...s.player.stats }; userRecord.overall = careerOverall(s); userRecord.age = s.age; userRecord.phase = s.phase; userRecord.team = currentTeam(s); }
+    const raw = JSON.stringify(s); localStorage.setItem(slotKey(activeCareerSlot), raw); localStorage.setItem(KEY, raw);
+  } catch { /* local storage may be unavailable */ }
 }
 export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
   try {
