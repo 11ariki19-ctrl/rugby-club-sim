@@ -1,10 +1,9 @@
-import { careerTeamStrengthProfile } from './career';
 import {
   advanceCareerMonth, careerOverall, currentTeam, newCareer, setCareerTraining, setCareerTrainingPlan,
   resolveCareerTransfer, careerHallOfFame, careerLegacyScore, UNIVERSITY_GROUPS, selectCareerUniversity,
   CAREER_POSITIONS, CAREER_STAT_KEYS, CAREER_STAT_LABEL, CAREER_TALENTS, hasCareerSave, loadCareer, saveCareer, setCareerSaveSlot, careerSaveSummary,
 } from './career';
-import type { CareerState, CareerPhase, CareerTrainingPlan, CareerRosterPlayer } from './career';
+import type { CareerState, CareerPhase, CareerTrainingPlan } from './career';
 import { STAT_LABEL } from './game';
 import type { Pos, StatKey } from './game';
 import { PREFS, schoolsOf } from './data';
