@@ -674,10 +674,12 @@ const CAREER_STARTER_SLOTS: Record<Pos, number> = {
 export function nationalMatchRole(s: CareerState, kind: CareerFixture['kind'] | 'highschool' | 'world'): CareerRole | undefined {
   if (kind !== 'japan-test' && kind !== 'world-cup') return undefined;
   if (s.phase === 'highschool' || !s.japanNationalTeamSelected) return undefined;
-  const selected = s.nationalSquad?.find((p) => p.name === s.player.name);
+  const userId = s.rosterPlayers?.find((p) => p.isUser)?.id;
+  const isUserCandidate = (p: NonNullable<CareerState['nationalSquad']>[number]) => userId ? p.id === userId : p.name === s.player.name;
+  const selected = s.nationalSquad?.find(isUserCandidate);
   if (!selected) return undefined;
   const peers = s.nationalSquad!.filter((p) => p.pos === s.player.pos).sort((a, b) => b.overall - a.overall);
-  const rank = peers.findIndex((p) => p.name === s.player.name) + 1;
+  const rank = peers.findIndex(isUserCandidate) + 1;
   if (rank <= 0) return undefined;
   if (rank <= (CAREER_STARTER_SLOTS[s.player.pos] ?? 1)) return '先発';
   // 代表23名に選ばれた選手は、クラブでの序列に関係なく代表戦では途中出場枠に入れる。
