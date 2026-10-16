@@ -191,7 +191,7 @@ assert.equal(s.phase, 'university');
 assert.equal(s.age, 18);
 assert.equal(s.stageYear, 1);
 assert.equal(s.seasons.length, 3);
-assert.ok(['関東大学対抗戦A','関東大学リーグ戦1部','関西大学Aリーグ'].includes(s.universityGroup));
+assert.ok(Object.keys(UNIVERSITY_GROUPS).includes(s.universityGroup), 'assigned university group must be one of the six supported divisions');
 assert.ok(s.history.some((x) => x.includes('進学')));
 for (let i = 0; i < 48; i++) advanceCalendarMonth(s);
 assert.equal(s.phase, 'professional');
