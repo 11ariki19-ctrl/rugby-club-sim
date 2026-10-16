@@ -197,11 +197,31 @@ function teamRoster(team: string, s: CareerState, own: boolean): RosterMember[] 
     return { ...member, role: member.isUser && s.liveMatch ? s.liveMatch.role : role };
   }).sort((a,b) => a.number - b.number);
 }
+
+function playerCareerHistory(member: RosterMember): string {
+  if (member.isUser && state) {
+    const seasons = state.seasons.slice().sort((a, b) => a.year - b.year).map(season =>
+      `<li><b>${season.age}歳・${esc(labels[season.phase])} ${season.year}年目</b><span>${esc(season.team)}${season.league ? `・${esc(season.league)}` : ''}</span><small>${season.wins}勝 ${season.losses}敗 ${season.draws}分 ／ 出場${season.appearances}試合・${season.tries}トライ</small></li>`
+    ).join('');
+    const current = state.currentSeason ? `<li class="current"><b>${state.age}歳・${esc(labels[state.currentSeason.phase])} ${state.currentSeason.year}年目（現在）</b><span>${esc(state.currentSeason.team)}</span><small>${state.currentSeason.wins}勝 ${state.currentSeason.losses}敗 ${state.currentSeason.draws}分 ／ 出場${state.currentSeason.appearances}試合・${state.currentSeason.tries}トライ</small></li>` : '';
+    const transfers = state.transferHistory.map(item => `<li><b>移籍・契約記録</b><span>${esc(item)}</span></li>`).join('');
+    const history = state.history.map(item => `<li>${esc(item)}</li>`).join('');
+    return `<div class="card player-career-history"><h3>選手経歴</h3><ol class="career-player-timeline">${seasons}${current}${transfers}</ol>${history ? `<h4>キャリア年表</h4><ul class="news">${history}</ul>` : ''}</div>`;
+  }
+  const currentPhase = state?.phase ?? 'highschool';
+  const stage = [
+    { label: '高校', team: state?.highSchool || '高校ラグビー', reached: true },
+    { label: '大学', team: currentPhase === 'highschool' ? '進学前' : (state?.university || '大学ラグビー'), reached: currentPhase !== 'highschool' },
+    { label: '社会人', team: currentPhase === 'professional' || currentPhase === 'retired' ? (state?.professionalTeam || '社会人ラグビー') : '未到達', reached: currentPhase === 'professional' || currentPhase === 'retired' }
+  ];
+  return `<div class="card player-career-history"><h3>選手経歴</h3><ol class="career-player-timeline">${stage.map(item => `<li class="${item.reached ? '' : 'future'}"><b>${item.label}</b><span>${esc(item.team)}</span></li>`).join('')}</ol><p class="small">チーム生成選手の個人別過去シーズン記録は保存されていないため、所属段階に基づく経歴を表示しています。</p></div>`;
+}
+
 function playerDetail(member: RosterMember): string {
   const bars = CAREER_STAT_KEYS.map((key) => `<div class="bar"><span>${CAREER_STAT_LABEL[key]}</span><div class="track"><i style="width:${Math.round(Math.min(200,member.stats[key])/2)}%"></i></div><b>${member.stats[key]}</b></div>`).join('');
   const height = member.isUser && state ? state.player.height : (member.pos === 'LO' ? 188 : member.pos === 'PR' ? 178 : 174);
   const weight = member.isUser && state ? state.player.weight : (['PR','HO','LO','N8'].includes(member.pos) ? 94 : 78);
-  return `<div class="modal" data-career="roster-close"><section class="sheet" role="dialog" aria-modal="true" aria-label="選手詳細" data-roster-sheet><button class="link" data-career="roster-close">← メンバー表へ戻る</button><h2>${esc(member.name)}</h2><div class="panel">背番号 ${member.number} ／ ${member.pos} ／ ${member.role}<br>総合値 <b>${member.overall}</b>${member.isUser ? '<br>あなたが操作する選手' : ''}</div><div class="card"><h3>能力ステータス</h3>${bars}</div><div class="cards"><div class="card stat"><span class="k">身長</span><b>${height}cm</b></div><div class="card stat"><span class="k">体重</span><b>${weight}kg</b></div></div><button class="btn primary" data-career="roster-close">閉じる</button></section></div>`;
+  return `<div class="modal" data-career="roster-close"><section class="sheet" role="dialog" aria-modal="true" aria-label="選手詳細" data-roster-sheet><button class="link" data-career="roster-close">← メンバー表へ戻る</button><h2>${esc(member.name)}</h2><div class="panel">背番号 ${member.number} ／ ${member.pos} ／ ${member.role}<br>総合値 <b>${member.overall}</b>${member.isUser ? '<br>あなたが操作する選手' : ''}</div><div class="card"><h3>能力ステータス</h3>${bars}</div><div class="cards"><div class="card stat"><span class="k">身長</span><b>${height}cm</b></div><div class="card stat"><span class="k">体重</span><b>${weight}kg</b></div></div>${playerCareerHistory(member)}<button class="btn primary" data-career="roster-close">閉じる</button></section></div>`;
 }
 function rivalDetail(s: CareerState, rival: CareerState['rivals'][number]): string {
   const seed = stableHash(`${rival.name}|${rival.team}|${rival.pos}`);
