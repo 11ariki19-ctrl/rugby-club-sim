@@ -486,15 +486,16 @@ export function careerTeamStrengthProfile(phase: CareerPhase, team: string): { c
   return { center, min: tier === 5 ? 62 : tier === 3 ? 50 : 43, max: tier === 5 ? 112 : tier === 3 ? 99 : 88 };
 }
 function stablePlayerKey(value: string): string { let h = 2166136261; for (const ch of value) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return (h >>> 0).toString(36); }
-function createRivalIdentity(name: string, team: string, pos: Pos, age: number, overall: number, phase: CareerPhase, country: string, league: string): Pick<CareerRival, 'id'|'stats'|'height'|'weight'|'careerPath'> {
+function createRivalIdentity(name: string, team: string, pos: Pos, age: number, overall: number, phase: CareerPhase, country: string): Pick<CareerRival, 'id'|'stats'|'height'|'weight'|'careerPath'|'overall'> {
   const stats = {} as Stats;
   for (const key of STAT_KEYS) stats[key] = Math.max(0, Math.round(overall + gauss(0, 5)));
+  const linkedOverall = Math.round(overallAt({ pos, stats } as never));
   const [heightBase, weightBase] = BODY[pos];
   const careerPath: { phase: Exclude<CareerPhase, 'retired'>; age: number; team: string; year: number }[] = [];
   if (phase === 'university' || phase === 'professional') careerPath.push({ phase: 'highschool', age: 15, team: allSchools()[stablePlayerKey(name).length % Math.max(1, allSchools().length)]?.name ?? '高校ラグビー部', year: 1 });
   if (phase === 'professional') careerPath.push({ phase: 'university', age: 18, team: [...new Set(Object.values(UNIVERSITY_GROUPS).flat())][stablePlayerKey(team + name).length % Math.max(1, Object.values(UNIVERSITY_GROUPS).flat().length)] ?? '大学ラグビー部', year: 1 });
   careerPath.push({ phase: phase === 'retired' ? 'professional' : phase, age, team, year: Math.max(1, age - (phase === 'highschool' ? 14 : phase === 'university' ? 17 : 20)) });
-  return { id: `player-${stablePlayerKey(name + '|' + country)}`, stats, height: Math.round(heightBase + gauss(0, 3)), weight: Math.round(weightBase + gauss(0, 4)), careerPath };
+  return { id: `player-${stablePlayerKey(name + '|' + country)}`, stats, overall: linkedOverall, height: Math.round(heightBase + gauss(0, 3)), weight: Math.round(weightBase + gauss(0, 4)), careerPath };
 }
 function createCareerRivals(s: CareerState): CareerRival[] {
   const high = s.phase === 'highschool', uni = s.phase === 'university';
@@ -519,7 +520,7 @@ function createCareerRivals(s: CareerState): CareerRival[] {
       const overall = Math.round(clamp(profile.center + int(-7, 7) + growthAdjustment + ageAdjustment, profile.min, profile.max));
       const playerName = `${name}${j ? 'Jr.' : ''}`;
       const league = high ? '高校ラグビー' : uni ? '大学リーグ' : leagueForClub(team);
-      candidates.push({ ...createRivalIdentity(playerName, team, pos, age, overall, s.phase, '日本', league), name: playerName, pos, age, overall, phase: s.phase, team, country: '日本', league, appearances: 0, tries: 0, retired: false });
+      candidates.push({ ...createRivalIdentity(playerName, team, pos, age, overall, s.phase, '日本'), name: playerName, pos, age, overall, phase: s.phase, team, country: '日本', league, appearances: 0, tries: 0, retired: false });
       n++;
     }
   }
@@ -536,7 +537,7 @@ function createCareerRivals(s: CareerState): CareerRival[] {
       const name = generateUniquePlayerName(usedNames, country, rand);
       const age = uni ? 18 + i % 4 : 22 + i % 12;
       const countryLabel = COUNTRY_LABEL[country] ?? country;
-      candidates.push({ ...createRivalIdentity(name, team, pos, age, overall, s.phase, countryLabel, league), name, pos, age, overall, phase: s.phase, team, country: countryLabel, league, appearances: 0, tries: 0, retired: false });
+      candidates.push({ ...createRivalIdentity(name, team, pos, age, overall, s.phase, countryLabel), name, pos, age, overall, phase: s.phase, team, country: countryLabel, league, appearances: 0, tries: 0, retired: false });
     }
   }
   return candidates;
