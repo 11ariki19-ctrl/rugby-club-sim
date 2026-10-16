@@ -89,6 +89,23 @@ advanceCareerMonth(continuity);
 assert.equal(continuity.phase, 'professional', 'fourth university year transitions to professional rugby');
 assert.ok(continuity.rosterPlayers!.some((p) => p.isUser && p.careerPath.some((h) => h.phase === 'professional')), 'player identity and career path carry into professional rugby');
 console.log('  ok - player identities and histories continue from high school to university and pro rugby');
+seed(1441);
+const strongResultCareer = newCareer('高総合値テスト', 'CTB');
+strongResultCareer.month = 7;
+for (const key of Object.keys(strongResultCareer.player.stats) as (keyof typeof strongResultCareer.player.stats)[]) strongResultCareer.player.stats[key] = 100;
+seed(551);
+advanceCareerMonth(strongResultCareer);
+const strongMargin = strongResultCareer.lastMatch!.my - strongResultCareer.lastMatch!.their;
+seed(1441);
+const weakResultCareer = newCareer('低総合値テスト', 'CTB');
+weakResultCareer.month = 7;
+for (const key of Object.keys(weakResultCareer.player.stats) as (keyof typeof weakResultCareer.player.stats)[]) weakResultCareer.player.stats[key] = 30;
+seed(551);
+advanceCareerMonth(weakResultCareer);
+const weakMargin = weakResultCareer.lastMatch!.my - weakResultCareer.lastMatch!.their;
+assert.ok(strongMargin > weakMargin, 'higher player overall should produce a better expected match margin under the same random seed');
+console.log('  ok - match scores respond to the player’s overall rating');
+
 
 
 const uncappedSave = newCareer('上限撤廃セーブ', 'CTB');
