@@ -353,17 +353,22 @@ export function careerTeamStrengthProfile(phase: CareerPhase, team: string): { c
   if (phase === 'highschool') {
     const realSchool = allSchools().find((school) => school.name === team || school.name.includes(team) || team.includes(school.name.replace(/高等学校|高等部/g, '')));
     const schoolPower = realSchool?.power ?? (TOP_SCHOOLS.includes(team) ? 5 : 2);
-    const center = schoolPower <= 2 ? 41 : schoolPower === 3 ? 47 : schoolPower === 4 ? 54 : 62;
-    return { center, min: 28, max: schoolPower <= 2 ? 54 : schoolPower === 3 ? 61 : schoolPower === 4 ? 68 : 76 };
+    // 実績上位校は全国大会で戦える選手層、地方校は育成層を中心に編成。
+    const center = schoolPower <= 2 ? 42 : schoolPower === 3 ? 49 : schoolPower === 4 ? 57 : 67;
+    return { center, min: schoolPower <= 2 ? 25 : 30, max: schoolPower <= 2 ? 57 : schoolPower === 3 ? 66 : schoolPower === 4 ? 77 : 91 };
   }
   if (phase === 'university') {
     const strength = UNI_STRENGTH[team] ?? 72;
-    return { center: 50 + Math.round((strength - 65) * 0.46), min: 38, max: clamp(62 + Math.round((strength - 70) * 0.42), 64, 82) };
+    // 大学リーグの実績差を選手層の総合値に反映。
+    const center = Math.round(48 + (strength - 65) * 0.62);
+    return { center, min: Math.max(32, center - 19), max: clamp(center + 21, 62, 100) };
   }
   const league = leagueForClub(team);
   const eliteLeagues = ['リーグワン', 'イングランド・プレミアシップ', 'フランス・トップ14', 'ユナイテッド・ラグビー・チャンピオンシップ', 'スーパーラグビー・パシフィック'];
   const tier = eliteLeagues.includes(league) ? 5 : league.includes('D2') || ['メジャーリーグラグビー', 'カリーカップ'].includes(league) ? 3 : 2;
-  return { center: 63 + tier * 4.2, min: 48, max: tier === 5 ? 94 : tier === 3 ? 86 : 79 };
+  // 国内トップ／D2／下位カテゴリと海外主要リーグの層を明確化。
+  const center = tier === 5 ? 91 : tier === 3 ? 79 : 70;
+  return { center, min: tier === 5 ? 62 : tier === 3 ? 50 : 43, max: tier === 5 ? 112 : tier === 3 ? 99 : 88 };
 }
 function createCareerRivals(s: CareerState): CareerRival[] {
   const high = s.phase === 'highschool', uni = s.phase === 'university';
@@ -591,10 +596,12 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
     role = careerRoleByPositionalRank(s, o);
   }
   const appeared = role === '先発' || role === '途中出場';
-  const teamBonus = s.phase === 'university' ? (s.universityTier === '最上位' ? 5 : s.universityTier === '上位' ? 3 : 0) : s.phase === 'professional' ? 4 : 0;
-  const strength = o + teamBonus + gauss(0, 8), opponentStrength = difficulty ?? expected + gauss(0, 10);
-  const rawMy = live ? live.scoreFor : Math.max(0, Math.round(22 + (strength - opponentStrength) * 0.55 + gauss(0, 8)));
-  const rawTheir = live ? live.scoreAgainst : Math.max(0, Math.round(22 + (opponentStrength - strength) * 0.55 + gauss(0, 8)));
+  const teamBonus = s.phase === 'university' ? (s.universityTier === '最上位' ? 7 : s.universityTier === '上位' ? 4 : 0) : s.phase === 'professional' ? (s.proDivision === 1 ? 7 : s.proDivision === 2 ? 3 : 0) : 0;
+  const fatiguePenalty = Math.max(0, s.fatigue - 20) * 0.08 + s.injuryMonths * 1.8;
+  const strength = o + teamBonus - fatiguePenalty + gauss(0, 4.5), opponentStrength = difficulty ?? expected + gauss(0, 5.5);
+  // 総合値差が得点差へ反映される一方、ラグビーらしい得点の振れ幅を残す。
+  const rawMy = live ? live.scoreFor : Math.max(0, Math.round(22 + (strength - opponentStrength) * 0.82 + gauss(0, 5.5)));
+  const rawTheir = live ? live.scoreAgainst : Math.max(0, Math.round(22 + (opponentStrength - strength) * 0.82 + gauss(0, 5.5)));
   const scoreReport = buildCareerScoreEvents(s, rawMy, rawTheir, appeared, opponent || opponentFor(s, kind));
   const my = scoreReport.my;
   const their = scoreReport.their;
