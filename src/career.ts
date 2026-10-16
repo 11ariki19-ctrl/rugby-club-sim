@@ -296,7 +296,7 @@ function createCareerRoster(s: CareerState): CareerRosterPlayer[] {
     if (isUser) for (const key of STAT_KEYS) stats[key] = s.player.stats[key];
     else {
       const posBase: Record<Pos, number> = { PR: -1, HO: 0, LO: 0, FL: 1, N8: 2, SH: 0, SO: 1, CTB: 2, WTB: 2, FB: 1 };
-      for (const key of STAT_KEYS) stats[key] = Math.max(18, Math.round(profile.center + posBase[pos] + gauss(0, 5.5)));
+      for (const key of STAT_KEYS) stats[key] = clamp(Math.round(profile.center + posBase[pos] + gauss(0, 4)), profile.min, profile.max);
     }
     const name = isUser ? s.player.name : generateUniquePlayerName(used, '日本', rand); used.add(name);
     const [h,w] = BODY[pos], age = s.age;
@@ -334,7 +334,7 @@ function transitionRoster(s: CareerState): void {
   while(continuing.length<23) {
     const i=continuing.length,pos=CAREER_ROSTER_POSITIONS[i%23],stats={} as Stats;
     const base=phase==='university'?57:66;
-    for(const key of STAT_KEYS)stats[key]=Math.max(25,Math.round(Math.max(base,profile.center)+gauss(0,5)));
+    for(const key of STAT_KEYS)stats[key]=clamp(Math.round(Math.max(base,profile.center)+gauss(0,4)),profile.min,profile.max);
     const name=generateUniquePlayerName(used,'日本',rand);used.add(name);const [h,w]=BODY[pos];
     const rosterPhase: Exclude<CareerPhase, 'retired'> = phase === 'retired' ? 'professional' : phase;
     continuing.push({id:`${rosterPhase}-${s.stageYear}-${i+1}-${name.replace(/\s/g,'')}`,name,pos,number:i+1,age:s.age,phase:rosterPhase,team,stats,
@@ -351,7 +351,8 @@ function recordRosterMatch(s: CareerState, my: number, their: number): void {
     p.currentSeason.appearances++;if(my>their)p.currentSeason.wins++;else if(my<their)p.currentSeason.losses++;else p.currentSeason.draws++;
     if(rand()<(['WTB','FB','CTB','N8'].includes(p.pos)?.18:['SH','SO'].includes(p.pos)?.09:.025))p.currentSeason.tries++;
     p.currentSeason.tackles+=int(3,13);if(p.currentSeason.appearances===1)p.currentSeason.starts++;
-    for(const key of STAT_KEYS)p.stats[key]+=Math.max(0,gauss(.05,.08));p.overall=rosterOverall(p.pos,p.stats);
+    // チームメイトは試合による経験値・能力成長を得ない。出場記録だけを更新する。
+     p.overall=rosterOverall(p.pos,p.stats);
   }
 }
 export function newCareer(name: string, pos: Pos, prefIndex = 26, schoolName?: string, talentType: CareerTalentType = '凡人'): CareerState {
@@ -432,7 +433,8 @@ function addPhaseRivals(s: CareerState): void {
     const key = rival.name + '|' + rival.team;
     if (!existing.has(key)) { s.rivals.push(rival); existing.add(key); }
   }
-  if (s.rivals.length > 180) s.rivals = s.rivals.slice(-180);
+  // 全国の高校・大学・クラブから代表候補を比較できるよう、候補者データを十分な数保持する。
+  if (s.rivals.length > 1200) s.rivals = s.rivals.slice(-1200);
 }
 const NATIONAL_COUNTRY_RANK: Record<string, number> = { SouthAfrica: 98, NZ: 97, Ireland: 94, France: 93, England: 92, Australia: 92, Scotland: 91, Argentina: 89, Japan: 87, Fiji: 86, Wales: 85, Italy: 84, Georgia: 81, USA: 79, Portugal: 78, Samoa: 77, Tonga: 76, Uruguay: 75, Chile: 74, Spain: 73, Canada: 72, Romania: 71 };
 const COUNTRY_LABEL: Record<string, string> = { SouthAfrica: '南アフリカ', NZ: 'ニュージーランド', Ireland: 'アイルランド', France: 'フランス', England: 'イングランド', Australia: 'オーストラリア', Scotland: 'スコットランド', Argentina: 'アルゼンチン', Japan: '日本', Fiji: 'フィジー', Wales: 'ウェールズ', Italy: 'イタリア', Georgia: 'ジョージア', USA: 'アメリカ', Portugal: 'ポルトガル', Samoa: 'サモア', Tonga: 'トンガ', Uruguay: 'ウルグアイ', Chile: 'チリ', Spain: 'スペイン', Canada: 'カナダ', Romania: 'ルーマニア' };
@@ -518,7 +520,7 @@ function awardMatchExperience(s: CareerState, my: number, their: number, appeare
   // 能力値自体には上限を設けず、出場経験による伸びは緩やかに設定。
   const focused = s.training;
   for (const key of STAT_KEYS) {
-    const growth = earned * (key === focused ? 0.012 : 0.0025) * s.player.talent * careerGrowthMultiplier(s);
+    const growth = earned * (key === focused ? 0.0035 : 0.0006) * s.player.talent * careerGrowthMultiplier(s);
     s.player.stats[key] = Math.max(0, s.player.stats[key] + growth);
   }
   s.player.peak = Math.max(s.player.peak, careerOverall(s));
@@ -1101,7 +1103,7 @@ function finishSeason(s: CareerState): void {
   updateRivals(s);
   const total = r.wins + r.losses + r.draws;
   s.history.unshift(`${r.age}歳・${r.team} ${r.year}年目：${r.wins}勝${r.losses}敗${r.draws}分、公式リーグ戦${r.leaguePlayed}試合（${r.leagueWins}勝${r.leagueLosses}敗${r.leagueDraws}分）、先発${r.starts}・途中出場${r.substituteApps}・控え${r.bench}・メンバー外${r.notSelected}、出場${r.appearances}試合、${r.tries}トライ。`);
-  if (total > 0 && r.wins / total >= 0.65) { for (const k of STAT_KEYS) s.player.stats[k] += 0.25; s.history.unshift('好成績による自信で、全能力が少し成長した。'); }
+  if (total > 0 && r.wins / total >= 0.65) { for (const k of STAT_KEYS) s.player.stats[k] += 0.05; s.history.unshift('好成績による自信で、全能力がわずかに成長した。'); }
   if (s.phase === 'professional' && s.age < s.retirementAge) {
     const domestic = pick(PRO_TEAMS[s.proDivision].filter((x) => x !== s.professionalTeam));
     const nextDivision = careerOverall(s) >= 72 ? 1 : careerOverall(s) >= 57 ? 2 : 3;
