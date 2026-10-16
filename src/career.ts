@@ -73,6 +73,16 @@ export interface CareerPlayer {
   weight: number;
   peak: number;
 }
+export interface CareerRosterSeason {
+  age: number; phase: Exclude<CareerPhase, 'retired'>; year: number; team: string;
+  appearances: number; starts: number; tries: number; tackles: number; wins: number; losses: number; draws: number;
+}
+export interface CareerRosterPlayer {
+  id: string; name: string; pos: Pos; number: number; age: number; phase: CareerPhase; team: string;
+  stats: Stats; height: number; weight: number; overall: number; isUser?: boolean;
+  seasons: CareerRosterSeason[]; currentSeason: CareerRosterSeason;
+  careerPath: { phase: Exclude<CareerPhase, 'retired'>; age: number; team: string; year: number }[];
+}
 export interface CareerState {
   v: 1;
   phase: CareerPhase;
@@ -110,6 +120,8 @@ export interface CareerState {
   tournamentCompletedMonth?: number;
   training: StatKey;
   player: CareerPlayer;
+  rosterPlayers?: CareerRosterPlayer[];
+  playerArchive?: CareerRosterPlayer[];
   highSchool: string;
   university: string;
   universityTier: string;
@@ -266,6 +278,79 @@ function assignProfessional(s: CareerState): void {
   s.phase = 'professional'; s.stageYear = 1; s.age = 22; s.month = 7; s.currentSeason = newSeason(s); s.proSchedule = buildProSchedule(s);
   addPhaseRivals(s);
 }
+const CAREER_ROSTER_POSITIONS: Pos[] = ['PR','HO','PR','LO','LO','FL','FL','N8','SH','SO','CTB','CTB','WTB','WTB','FB','PR','HO','LO','FL','N8','SH','SO','CTB'];
+function rosterOverall(pos: Pos, stats: Stats): number { return Math.round(overallAt({ pos, stats } as never)); }
+function makeRosterSeason(age: number, phase: CareerPhase, year: number, team: string): CareerRosterSeason {
+  return { age, phase: phase === 'retired' ? 'professional' : phase, year, team, appearances: 0, starts: 0, tries: 0, tackles: 0, wins: 0, losses: 0, draws: 0 };
+}
+function createCareerRoster(s: CareerState): CareerRosterPlayer[] {
+  const team = currentTeam(s), profile = careerTeamStrengthProfile(s.phase, team);
+  const used = new Set<string>([s.player.name, ...s.rivals.map((r) => r.name)]);
+  let userPlaced = false;
+  return CAREER_ROSTER_POSITIONS.map((pos, index) => {
+    const isUser = !userPlaced && pos === s.player.pos;
+    if (isUser) userPlaced = true;
+    const stats = {} as Stats;
+    if (isUser) for (const key of STAT_KEYS) stats[key] = s.player.stats[key];
+    else {
+      const posBase: Record<Pos, number> = { PR: -1, HO: 0, LO: 0, FL: 1, N8: 2, SH: 0, SO: 1, CTB: 2, WTB: 2, FB: 1 };
+      for (const key of STAT_KEYS) stats[key] = Math.max(18, Math.round(profile.center + posBase[pos] + gauss(0, 5.5)));
+    }
+    const name = isUser ? s.player.name : generateUniquePlayerName(used, '日本', rand); used.add(name);
+    const [h,w] = BODY[pos], age = s.age;
+    return { id: `hs-${index+1}-${name.replace(/\s/g,'')}`, name, pos, number:index+1, age, phase:s.phase, team, stats,
+      height:isUser?s.player.height:Math.round(h+gauss(0,3)), weight:isUser?s.player.weight:Math.round(w+gauss(0,4)),
+      overall:isUser?careerOverall(s):rosterOverall(pos,stats), isUser, seasons:[],
+      currentSeason:makeRosterSeason(age,s.phase,s.stageYear,team),
+      careerPath:[{phase:s.phase==='retired'?'professional':s.phase,age,team,year:s.stageYear}] };
+  });
+}
+function finishRosterSeason(s: CareerState): void {
+  for (const p of s.rosterPlayers ?? []) {
+    if (p.isUser) { p.stats = { ...s.player.stats }; p.overall = careerOverall(s); }
+    p.seasons.push({ ...p.currentSeason, age:p.age, phase:p.phase==='retired'?'professional':p.phase, team:p.team });
+  }
+}
+function transitionRoster(s: CareerState): void {
+  const phase=s.phase, team=currentTeam(s), continuing:CareerRosterPlayer[]=[], archive=[...(s.playerArchive??[])];
+  for (const p of s.rosterPlayers??[]) {
+    if (p.isUser) {
+      p.age=s.age; p.phase=phase; p.team=team; p.stats={...s.player.stats}; p.overall=careerOverall(s);
+      p.currentSeason=makeRosterSeason(s.age,phase,s.stageYear,team);
+      p.careerPath.push({phase:phase==='retired'?'professional':phase,age:s.age,team,year:s.stageYear}); continuing.push(p); continue;
+    }
+    const o=rosterOverall(p.pos,p.stats), chance=phase==='university'?(o>=55?.72:o>=45?.42:.16):(o>=72?.55:o>=60?.32:.12);
+    if (phase!=='retired' && rand()<chance) {
+      p.age=s.age;p.phase=phase;p.team=team;
+      for(const key of STAT_KEYS)p.stats[key]+=Math.max(0,gauss(phase==='university'?2.5:3,1.1));
+      p.overall=rosterOverall(p.pos,p.stats);p.currentSeason=makeRosterSeason(p.age,phase,s.stageYear,team);
+      p.careerPath.push({phase,age:p.age,team,year:s.stageYear});continuing.push(p);
+    } else { p.phase='retired'; archive.push(p); }
+  }
+  s.playerArchive=archive;
+  const used=new Set([...continuing.map(p=>p.name),s.player.name]), profile=careerTeamStrengthProfile(phase,team);
+  while(continuing.length<23) {
+    const i=continuing.length,pos=CAREER_ROSTER_POSITIONS[i%23],stats={} as Stats;
+    const base=phase==='university'?57:66;
+    for(const key of STAT_KEYS)stats[key]=Math.max(25,Math.round(Math.max(base,profile.center)+gauss(0,5)));
+    const name=generateUniquePlayerName(used,'日本',rand);used.add(name);const [h,w]=BODY[pos];
+    continuing.push({id:`${phase}-${s.stageYear}-${i+1}-${name.replace(/\s/g,'')}`,name,pos,number:i+1,age:s.age,phase,team,stats,
+      height:Math.round(h+gauss(0,3)),weight:Math.round(w+gauss(0,4)),overall:rosterOverall(pos,stats),seasons:[],
+      currentSeason:makeRosterSeason(s.age,phase,s.stageYear,team),careerPath:[{phase,age:s.age,team,year:s.stageYear}]});
+  }
+  s.rosterPlayers=continuing.slice(0,23).map((p,i)=>({...p,number:i+1}));
+}
+function recordRosterMatch(s: CareerState, my: number, their: number): void {
+  for(const p of s.rosterPlayers??[]) {
+    if(p.isUser){p.stats={...s.player.stats};p.overall=careerOverall(s);continue;}
+    const appeared=rand()<(p.overall>=60?.78:p.overall>=48?.62:.38);
+    if(!appeared)continue;
+    p.currentSeason.appearances++;if(my>their)p.currentSeason.wins++;else if(my<their)p.currentSeason.losses++;else p.currentSeason.draws++;
+    if(rand()<(['WTB','FB','CTB','N8'].includes(p.pos)?.18:['SH','SO'].includes(p.pos)?.09:.025))p.currentSeason.tries++;
+    p.currentSeason.tackles+=int(3,13);if(p.currentSeason.appearances===1)p.currentSeason.starts++;
+    for(const key of STAT_KEYS)p.stats[key]+=Math.max(0,gauss(.05,.08));p.overall=rosterOverall(p.pos,p.stats);
+  }
+}
 export function newCareer(name: string, pos: Pos, prefIndex = 26, schoolName?: string, talentType: CareerTalentType = '凡人'): CareerState {
   const p = POSITIONS.includes(pos) ? pos : 'CTB';
   const base: Record<Pos, number> = { PR: 39, HO: 40, LO: 40, FL: 41, N8: 42, SH: 40, SO: 41, CTB: 42, WTB: 42, FB: 41 };
@@ -305,6 +390,7 @@ export function newCareer(name: string, pos: Pos, prefIndex = 26, schoolName?: s
   };
   player.peak = careerOverall(s);
   s.currentSeason = newSeason(s);
+  s.rosterPlayers = createCareerRoster(s); s.playerArchive = [];
   s.rivals = createCareerRivals(s);
   saveCareer(s);
   return s;
@@ -640,6 +726,7 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   }
   const result = my > their ? '勝利' : my === their ? '引分' : '敗戦';
   scenes.push(my > their ? 'チームは勝利。試合後の評価が上がった。' : my === their ? '接戦の末に引き分け。最後まで集中を切らさなかった。' : '悔しい敗戦。課題を持ち帰り、次戦に向けて修正する。');
+  recordRosterMatch(s, my, their);
   const match: CareerMatch = { date: date || `2025年${s.month}月`, competition: (kind === 'japan-test' || kind === 'world-cup') && !label.includes('日本代表') ? `日本代表 ${label}` : label, opponent: opponent || opponentFor(s, kind), my, their, result, appeared, role, tries, carries, tackles, lineBreaks, kicks, errors, rating, experience: exp, scenes, scoreEvents: live ? scoreReport.events : scoreReport.events };
   if (role === '先発') season.starts = (season.starts ?? 0) + 1;
   else if (role === '途中出場') season.substituteApps = (season.substituteApps ?? 0) + 1;
@@ -1006,6 +1093,7 @@ function finishSeason(s: CareerState): void {
   for (const award of r.awards) if (!s.awards.includes(award)) s.awards.push(award);
   if (r.awards.length) r.notes.push(`シーズン表彰：${r.awards.join('、')}`);
   s.seasons.push(clone(r));
+  finishRosterSeason(s);
   updateRivals(s);
   const total = r.wins + r.losses + r.draws;
   s.history.unshift(`${r.age}歳・${r.team} ${r.year}年目：${r.wins}勝${r.losses}敗${r.draws}分、公式リーグ戦${r.leaguePlayed}試合（${r.leagueWins}勝${r.leagueLosses}敗${r.leagueDraws}分）、先発${r.starts}・途中出場${r.substituteApps}・控え${r.bench}・メンバー外${r.notSelected}、出場${r.appearances}試合、${r.tries}トライ。`);
@@ -1037,6 +1125,7 @@ function advanceCalendar(s: CareerState): void {
       s.history.unshift(s.finalSummary); saveCareerLegacy(s);
     } else {
       s.stageYear++; s.age++; s.month = s.phase === 'professional' ? 7 : 4; s.currentSeason = newSeason(s);
+      transitionRoster(s);
       if (s.phase === 'professional') { s.proMatchIndex = 0; s.proSchedule = buildProSchedule(s); s.proContractYears = Math.max(0, s.proContractYears - 1); }
     }
   } else s.month = s.month === 12 ? 1 : s.month + 1;
@@ -1162,6 +1251,8 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
     // Interactive play mode was removed; discard any stale in-progress match screen from older saves.
     if (s.liveMatch) s.liveMatch = undefined;
     if (!Array.isArray(s.matchHistory)) s.matchHistory = [];
+    if (!Array.isArray(s.playerArchive)) s.playerArchive = [];
+    if (!Array.isArray(s.rosterPlayers) || s.rosterPlayers.length !== 23) s.rosterPlayers = createCareerRoster(s);
     if (typeof s.highSchoolAppearances !== 'number') s.highSchoolAppearances = 0;
     if (typeof s.highSchoolTries !== 'number') s.highSchoolTries = 0;
     if (typeof s.highSchoolRatingTotal !== 'number') s.highSchoolRatingTotal = 0;
