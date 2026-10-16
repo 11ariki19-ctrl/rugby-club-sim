@@ -1378,7 +1378,12 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
         rival.careerPath = history;
       }
     }
-    if (s.phase !== 'highschool' && !s.rivals.some((r) => r.country && r.country !== '日本')) addPhaseRivals(s);
+    if (s.phase !== 'highschool') {
+      // 旧セーブに海外選手がいるだけで現フェーズの日本人候補生成がスキップされないよう、
+      // 現在のキャリア段階に所属する日本人候補数で判定する。
+      const currentPhaseJapanese = s.rivals.filter((r) => !r.retired && r.country === '日本' && r.phase === s.phase);
+      if (currentPhaseJapanese.length < 15) addPhaseRivals(s);
+    }
     if (s.generatedNameVersion !== 2) {
       const usedNames = new Set<string>([s.player.name]);
       const renameMap = new Map<string, string>();
