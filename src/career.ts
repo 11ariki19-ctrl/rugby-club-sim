@@ -709,6 +709,24 @@ function buildCareerScoreEvents(s: CareerState, my: number, their: number, appea
   return { my: ownScore, their: opponentScore, playerTries: events.filter(e => e.side === '自チーム' && e.scorer === s.player.name && (e.points === 5 || e.points === 7)).length, events };
 }
 
+function estimatedOpponentStrength(s: CareerState, opponent: string | undefined, kind: CareerFixture['kind'] | 'highschool' | 'world', fallback: number): number {
+  if (!opponent) return fallback;
+  if (kind === 'japan-test' || kind === 'world-cup') return fallback;
+  if (s.phase === 'highschool' || kind === 'highschool' || kind === 'world') {
+    const school = allSchools().find((item) => item.name === opponent || item.name.includes(opponent) || opponent.includes(item.name.replace(/高等学校|高等部/g, '')));
+    if (school) return careerTeamStrengthProfile('highschool', school.name).center;
+  }
+  if (s.phase === 'university') {
+    const university = Object.values(UNIVERSITY_GROUPS).flat().find((name) => name === opponent || opponent.includes(name) || name.includes(opponent));
+    if (university) return careerTeamStrengthProfile('university', university).center;
+  }
+  if (s.phase === 'professional') {
+    const club = Object.values(PRO_LEAGUES).flatMap((league) => league.teams).find((name) => name === opponent || opponent.includes(name) || name.includes(opponent));
+    if (club) return careerTeamStrengthProfile('professional', club).center;
+  }
+  return fallback;
+}
+
 function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, opponent?: string, date?: string, kind: CareerFixture['kind'] | 'highschool' | 'world' = 'university-league', difficulty?: number, live?: CareerLiveMatch): { my: number; their: number; win: boolean; exp: number; match: CareerMatch } {
   const o = careerOverall(s), expected = s.phase === 'highschool' ? 43 : s.phase === 'university' ? 59 : 66;
   let role: CareerRole = live?.role ?? 'メンバー外';
@@ -731,7 +749,7 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   const strength = teamOverall - fatiguePenalty;
   // 代表戦の相手は自チームより約3高い。国内戦は日程に設定された相手強度を使用する。
   const international = kind === 'japan-test' || kind === 'world-cup';
-  const opponentStrength = international ? teamOverall + 3 : (difficulty ?? expected);
+  const opponentStrength = international ? teamOverall + 3 : estimatedOpponentStrength(s, opponent, kind, difficulty ?? expected);
   const strengthGap = strength - opponentStrength;
   // 強度差を得点差へ反映し、乱数は試合展開の小さな揺れに限定する。
   // 両チームに独立した大きな乱数を与えると、総合値差が結果に反映されなくなる。
