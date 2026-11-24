@@ -916,3 +916,13 @@ body {
 .career-medal.unlocked .career-medal-status { color:#e3c675; font-weight:850; }
 @media (min-width:700px) { .career-medal-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
 @media (max-width:360px) { .career-medal-grid { grid-template-columns:1fr; } }
+
+.career-story-event { border:1px solid rgba(214,177,94,.58); background:linear-gradient(145deg,rgba(68,51,25,.52),rgba(17,31,39,.95)); }
+.career-story-event h3 { margin:7px 0; color:#f0d58d; }
+.career-story-event > p { color:#c1cbca; font-size:12px; line-height:1.55; }
+.career-event-options { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+.career-event-choice { display:flex; flex-direction:column; align-items:flex-start; gap:5px; min-width:0; padding:11px; border:1px solid rgba(214,177,94,.32); background:rgba(8,17,23,.45); text-align:left; }
+.career-event-choice b { color:#f2e8cf; font-size:12px; }
+.career-event-choice span { color:#abb9b9; font-size:10px; line-height:1.4; white-space:normal; }
+.career-event-choice small { margin-top:4px; color:#dfc57d; font-size:9px; line-height:1.35; }
+@media (max-width:420px) { .career-event-options { grid-template-columns:1fr; } }
