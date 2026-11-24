@@ -379,6 +379,7 @@ function liveMatchScreen(s: CareerState): string {
 
 function render(): void {
   if (!root) return;
+  if (state?.pendingEvent) activeCareerTab = 'player';
   if (titleMenu) { root.innerHTML = titleScreen(); return; }
   root.innerHTML = creating || !state ? createScreen() : state.liveMatch ? liveMatchScreen(state) : showMatchResult ? matchResultScreen(state) : homeScreen(state);
 }
