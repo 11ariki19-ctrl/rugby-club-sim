@@ -338,6 +338,7 @@ function liveMatchScreen(s: CareerState): string {
   const g = s.liveMatch;
   if (!g) return homeScreen(s);
   const defending = g.possession === '相手';
+  const teamLabel = g.fixture.kind === 'japan-test' || g.fixture.kind === 'world-cup' ? '日本代表' : currentTeam(s);
   const territory = g.fieldPosition >= 50 ? `敵陣${g.fieldPosition - 50}m` : `自陣${50 - g.fieldPosition}m`;
   const attacks: { id: CareerMatchAction; label: string; detail: string }[] = [
     { id: 'carry', label: '突破を狙う', detail: 'スピードとパワーでゲイン' },
@@ -360,7 +361,7 @@ function liveMatchScreen(s: CareerState): string {
   return `<main class="page career-pennant-shell live-match-shell">
     <div class="career-pennant-ribbon"><span>RUGBY MATCH DAY</span><span>${esc(g.fixture.label)}</span></div>
     <header class="hd career-pennant-header"><div class="school">🏉 試合中</div><div class="date">${esc(g.fixture.date)} ／ ${esc(g.fixture.opponent)}</div></header>
-    <section class="card live-score-card"><div class="live-score-teams"><span>${esc(currentTeam(s))}</span><strong>${g.scoreFor} - ${g.scoreAgainst}</strong><span>${esc(g.fixture.opponent)}</span></div>
+    <section class="card live-score-card"><div class="live-score-teams"><span>${esc(teamLabel)}</span><strong>${g.scoreFor} - ${g.scoreAgainst}</strong><span>${esc(g.fixture.opponent)}</span></div>
       <div class="live-clock"><b>${g.elapsed}'</b><span> / 80分</span><strong>${defending ? '相手ボール' : '自チームボール'}</strong></div>
       <div class="live-progress"><i style="width:${elapsedPercent}%"></i></div>
       <div class="live-territory"><span>ボール位置</span><b>${territory}</b></div>
