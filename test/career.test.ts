@@ -20,8 +20,10 @@ function resolveLiveMatch(s: ReturnType<typeof newCareer>): void {
   assert.equal(s.liveMatch, undefined, 'a live match can be completed within sixteen five-minute decisions');
 }
 function advanceAndResolve(s: ReturnType<typeof newCareer>): void {
+  if (s.pendingEvent) resolveCareerEvent(s, 0);
   advanceCareerMonth(s);
   resolveLiveMatch(s);
+  if (s.pendingEvent) resolveCareerEvent(s, 0);
 }
 
 const eventCareer = newCareer('イベント選択テスト', 'SO');
