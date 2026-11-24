@@ -113,6 +113,20 @@ export interface CareerRosterPlayer {
   seasons: CareerRosterSeason[]; currentSeason: CareerRosterSeason;
   careerPath: { phase: Exclude<CareerPhase, 'retired'>; age: number; team: string; year: number }[];
 }
+export interface CareerStoryEventOption {
+  label: string;
+  description: string;
+  rewardStat: StatKey;
+  rewardGain: number;
+  rewardExp: number;
+  moraleGain: number;
+}
+export interface CareerStoryEvent {
+  id: string;
+  title: string;
+  description: string;
+  options: CareerStoryEventOption[];
+}
 export interface CareerState {
   v: 1;
   phase: CareerPhase;
@@ -139,6 +153,7 @@ export interface CareerState {
   proContractYears: number;
   proSalary: number;
   pendingTransfer?: { offers: { team: string; division: 1 | 2 | 3; salary: number; overseas: boolean; league?: string }[]; age: number };
+  pendingEvent?: CareerStoryEvent;
   transferHistory: string[];
   rivals: CareerRival[];
   generatedNameVersion?: number;
@@ -545,6 +560,68 @@ function updateCareerObjectives(s: CareerState): void {
     s.currentSeason.notes.push(note);
     s.history.unshift(note);
   }
+}
+function maybeCreateCareerEvent(s: CareerState): void {
+  if (s.phase === 'retired' || s.pendingEvent || rand() >= 0.22) return;
+  const events: Omit<CareerStoryEvent, 'id'>[] = [
+    {
+      title: '先輩からの自主練の誘い',
+      description: '練習後、先輩が残って基礎練習に付き合ってくれるという。何を教わる？',
+      options: [
+        { label: 'コンタクトを磨く', description: '強い当たりと低い姿勢を身につける', rewardStat: 'pow', rewardGain: 0.85, rewardExp: 25, moraleGain: 4 },
+        { label: 'パスの精度を磨く', description: '判断の速さとハンドリングを鍛える', rewardStat: 'tec', rewardGain: 0.85, rewardExp: 25, moraleGain: 4 },
+      ],
+    },
+    {
+      title: 'ライバル校の練習を見学',
+      description: '同じポジションのライバルが、いつもと違う練習に取り組んでいる。自分も刺激を受けた。',
+      options: [
+        { label: '走り込みで差をつける', description: 'スピードと走力を重点的に伸ばす', rewardStat: 'spd', rewardGain: 0.9, rewardExp: 30, moraleGain: 3 },
+        { label: '映像を見て研究する', description: '相手の動きと試合の読みを学ぶ', rewardStat: 'men', rewardGain: 0.9, rewardExp: 30, moraleGain: 3 },
+      ],
+    },
+    {
+      title: '地域のラグビー教室',
+      description: '地域の子どもたちにラグビーを教える機会が訪れた。教えることで自分も学べそうだ。',
+      options: [
+        { label: '一緒に走って手本を見せる', description: '運動量と持久力を磨く', rewardStat: 'sta', rewardGain: 0.8, rewardExp: 28, moraleGain: 6 },
+        { label: '基本スキルを丁寧に教える', description: '技術を言葉にして理解を深める', rewardStat: 'tec', rewardGain: 0.8, rewardExp: 28, moraleGain: 6 },
+      ],
+    },
+    {
+      title: '監督からの個別アドバイス',
+      description: '監督から「次の試合で一段上を目指そう」と声をかけられた。準備の仕方を選ぼう。',
+      options: [
+        { label: '試合を想定した実戦練習', description: '判断と技術を実戦で磨く', rewardStat: 'tec', rewardGain: 0.95, rewardExp: 32, moraleGain: 5 },
+        { label: 'フィジカルを徹底強化', description: '当たり負けしない身体づくり', rewardStat: 'pow', rewardGain: 0.95, rewardExp: 32, moraleGain: 5 },
+      ],
+    },
+    {
+      title: 'チームメイトとの自主練',
+      description: '仲の良いチームメイトが自主練に誘ってくれた。二人で課題に取り組む。',
+      options: [
+        { label: 'キックとパスの連係', description: 'ボールを動かす精度を高める', rewardStat: 'tec', rewardGain: 0.8, rewardExp: 24, moraleGain: 7 },
+        { label: '最後まで走り切る練習', description: '試合終盤の運動量を増やす', rewardStat: 'sta', rewardGain: 0.8, rewardExp: 24, moraleGain: 7 },
+      ],
+    },
+  ];
+  const chosen = pick(events);
+  s.pendingEvent = { ...chosen, id: `${careerSeasonKey(s)}:${s.month}:${chosen.title}` };
+}
+export function resolveCareerEvent(s: CareerState, optionIndex: number): boolean {
+  const event = s.pendingEvent;
+  const option = event?.options[optionIndex];
+  if (!event || !option) return false;
+  s.player.stats[option.rewardStat] += option.rewardGain;
+  s.player.peak = Math.max(s.player.peak, careerOverall(s));
+  s.experiencePoints += option.rewardExp;
+  s.morale = clamp(s.morale + option.moraleGain, 0, 100);
+  const note = `イベント「${event.title}」：${option.label}を選択。能力${STAT_LABEL[option.rewardStat]}+${option.rewardGain}・経験点+${option.rewardExp}。`;
+  s.history.unshift(note);
+  s.currentSeason.notes.push(note);
+  s.pendingEvent = undefined;
+  saveCareer(s);
+  return true;
 }
 function updateCareerMilestones(s: CareerState): void {
   const seasons = [...s.seasons, s.currentSeason];
@@ -1468,7 +1545,7 @@ function refreshNationalSelection(s: CareerState): void {
   }
 }
 export function advanceCareerMonth(s: CareerState, _interactive = false): CareerState {
-  if (s.phase === 'retired' || s.liveMatch) return s;
+  if (s.phase === 'retired' || s.liveMatch || s.pendingEvent) return s;
   // UIから次へ進めた場合、提示中の契約オファーは現所属で更新してから進行する。
   refreshNationalSelection(s);
   if (s.pendingTransfer) { s.pendingTransfer = undefined; s.proContractYears = Math.max(2, s.proContractYears); s.history.unshift(`${s.age}歳：契約オファーを見送り、現所属で契約を更新。年俸${s.proSalary}万円でプレーを続ける。`); }
@@ -1476,7 +1553,9 @@ export function advanceCareerMonth(s: CareerState, _interactive = false): Career
   if (s.pendingFixtures?.length) { playNextFixture(s, true); saveCareer(s); return s; }
   if (s.tournamentCompletedMonth === s.month) {
     applyCareerDevelopment(s);
-    advanceCalendar(s); saveCareer(s); return s;
+    advanceCalendar(s);
+    maybeCreateCareerEvent(s);
+    saveCareer(s); return s;
   }
   if (s.phase === 'highschool') {
     let event: { kind: 'summer' | 'pref' | 'nat' | 'newbie' | 'world'; name: string; rounds: number } | null = null;
@@ -1494,7 +1573,9 @@ export function advanceCareerMonth(s: CareerState, _interactive = false): Career
     if (fixtures.length) { s.pendingFixtures = fixtures; playNextFixture(s, true); saveCareer(s); return s; }
   }
   applyCareerDevelopment(s);
-  advanceCalendar(s); saveCareer(s); return s;
+  advanceCalendar(s);
+  maybeCreateCareerEvent(s);
+  saveCareer(s); return s;
 }
 export function saveCareer(s: CareerState): void {
   try {
@@ -1651,6 +1732,10 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
       if (typeof r.leagueWins !== 'number') r.leagueWins = 0;
       if (typeof r.leagueLosses !== 'number') r.leagueLosses = 0;
       if (typeof r.leagueDraws !== 'number') r.leagueDraws = 0;
+    }
+    if (s.pendingEvent && (!Array.isArray(s.pendingEvent.options) || s.pendingEvent.options.length < 2
+      || typeof s.pendingEvent.title !== 'string' || s.pendingEvent.options.some((option) => !option || !STAT_KEYS.includes(option.rewardStat)))) {
+      s.pendingEvent = undefined;
     }
     const currentObjectiveKey = careerSeasonKey(s);
     if (!Array.isArray(s.seasonObjectives) || !s.seasonObjectives.length
