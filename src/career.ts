@@ -1033,6 +1033,7 @@ function finishCareerTournament(s: CareerState): void {
   if (t.kind === 'pref') s.qualified = t.wins >= t.totalRounds - 1;
   if (t.kind === 'nat') s.qualified = false;
   s.pendingTournament = undefined; s.tournamentCompletedMonth = s.month;
+  updateCareerMilestones(s);
 }
 function roundName(round: number, total: number): string {
   if (round === total) return '決勝';
