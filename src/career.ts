@@ -247,7 +247,7 @@ export function careerOverall(s: CareerState): number {
   return Math.round(overallAt({ pos: s.player.pos, stats: s.player.stats } as never));
 }
 function newSeason(s: CareerState): CareerSeason {
-  return { age: s.age, phase: s.phase === 'retired' ? 'professional' : s.phase, year: s.stageYear, team: currentTeam(s), league: s.phase === 'professional' ? s.professionalLeague : undefined, played: 0, leaguePlayed: 0, leagueWins: 0, leagueLosses: 0, leagueDraws: 0, wins: 0, losses: 0, draws: 0, pointsFor: 0, pointsAgainst: 0, appearances: 0, starts: 0, substituteApps: 0, bench: 0, notSelected: 0, tries: 0, awards: [], notes: [] };
+  return { age: s.age, phase: s.phase === 'retired' ? 'professional' : s.phase, year: s.stageYear, team: currentTeam(s), league: s.phase === 'professional' ? s.professionalLeague : undefined, played: 0, leaguePlayed: 0, leagueWins: 0, leagueLosses: 0, leagueDraws: 0, wins: 0, losses: 0, draws: 0, pointsFor: 0, pointsAgainst: 0, appearances: 0, starts: 0, substituteApps: 0, bench: 0, notSelected: 0, tries: 0, tacklesTotal: 0, awards: [], notes: [] };
 }
 export function currentTeam(s: CareerState): string {
   if (s.phase === 'highschool') return s.highSchool;
@@ -481,9 +481,9 @@ export function newCareer(name: string, pos: Pos, prefIndex = 26, schoolName?: s
   };
   player.peak = careerOverall(s);
   s.currentSeason = newSeason(s);
-  s.seasonObjectives = buildCareerObjectives(s);
   s.rosterPlayers = createCareerRoster(s); s.playerArchive = [];
   s.rivals = createCareerRivals(s);
+  s.seasonObjectives = buildCareerObjectives(s);
   saveCareer(s);
   return s;
 }
