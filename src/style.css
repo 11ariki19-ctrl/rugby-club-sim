@@ -926,3 +926,243 @@ body {
 .career-event-choice span { color:#abb9b9; font-size:10px; line-height:1.4; white-space:normal; }
 .career-event-choice small { margin-top:4px; color:#dfc57d; font-size:9px; line-height:1.35; }
 @media (max-width:420px) { .career-event-options { grid-template-columns:1fr; } }
+
+
+/* Visual refresh: generated rugby stadium artwork + sharper career hierarchy */
+.career-pennant-shell {
+  --career-gold:#e4c273;
+  --career-green:#a7d96d;
+  --career-ink:#0c1720;
+}
+.career-title-screen { padding-top:10px; }
+.career-launch-hero {
+  position:relative; isolation:isolate; display:grid; grid-template-columns:minmax(0,1fr) 112px;
+  align-items:center; gap:14px; min-height:260px; margin:14px 0 16px; padding:24px;
+  overflow:hidden; border:1px solid rgba(229,195,115,.5); border-radius:22px;
+  background-image:linear-gradient(90deg,rgba(6,16,24,.95) 0%,rgba(7,18,26,.82) 48%,rgba(8,16,22,.27) 100%),url('/assets/rugby-match-hero.webp');
+  background-size:cover; background-position:center 45%;
+  box-shadow:0 18px 44px rgba(0,0,0,.3);
+}
+.career-launch-hero:before {
+  content:""; position:absolute; inset:0; z-index:-1; pointer-events:none;
+  background:linear-gradient(0deg,rgba(5,13,19,.72),transparent 70%),linear-gradient(135deg,rgba(202,164,83,.12),transparent 44%);
+}
+.career-launch-copy { min-width:0; max-width:590px; }
+.career-visual-eyebrow { display:block; color:var(--career-gold); font-size:9px; font-weight:950; letter-spacing:.2em; line-height:1.35; }
+.career-launch-copy h1,.career-create-hero h1 {
+  margin:9px 0 10px; color:#fff; font-size:clamp(23px,4vw,38px); font-weight:950;
+  line-height:1.16; letter-spacing:-.045em; text-shadow:0 2px 20px rgba(0,0,0,.5);
+}
+.career-launch-copy p,.career-create-hero p { margin:0; color:#dce5e5; font-size:12px; line-height:1.75; text-shadow:0 1px 9px rgba(0,0,0,.55); }
+.career-launch-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:16px; }
+.career-launch-tags span {
+  padding:6px 9px; border:1px solid rgba(235,213,163,.35); border-radius:999px;
+  color:#f1dfb4; background:rgba(6,16,22,.58); font-size:9px; font-weight:800; backdrop-filter:blur(8px);
+}
+.career-launch-emblem {
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+  width:104px; height:126px; justify-self:end; border:1px solid rgba(237,205,131,.55);
+  border-radius:54px 54px 26px 26px; color:#f6e4ba; background:rgba(6,16,22,.43);
+  box-shadow:inset 0 0 28px rgba(220,181,96,.12),0 10px 25px rgba(0,0,0,.2); backdrop-filter:blur(7px);
+}
+.career-launch-emblem > span { color:#fff; font-size:43px; font-weight:1000; line-height:.95; letter-spacing:-.08em; }
+.career-launch-emblem small { color:#e7cd8c; font-size:8px; font-weight:900; line-height:1.15; letter-spacing:.18em; text-align:center; }
+.career-launch-emblem b { margin-top:4px; font-size:18px; }
+.career-title-heading { margin-bottom:14px; }
+.career-save-panel {
+  margin:14px 0; padding:16px; border:1px solid #3b5260; border-radius:18px;
+  background:linear-gradient(145deg,rgba(24,40,54,.96),rgba(12,25,36,.98));
+  box-shadow:0 12px 30px rgba(0,0,0,.19);
+}
+.career-panel-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; }
+.career-panel-heading h2,.career-panel-heading h3 { margin:4px 0 2px; }
+.career-panel-heading p { margin:4px 0 0; color:#aebdc4; font-size:11px; line-height:1.5; }
+.career-save-icon {
+  flex:0 0 auto; display:grid; place-items:center; width:40px; height:40px; border-radius:13px;
+  border:1px solid rgba(224,190,112,.34); color:var(--career-gold); background:rgba(224,190,112,.09); font-size:18px;
+}
+.career-save-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.career-save-grid > .career-save-card {
+  display:flex; flex-direction:column; justify-content:space-between; min-width:0; margin:0;
+  padding:14px; border:1px solid #3b5260; border-radius:14px; background:linear-gradient(145deg,rgba(27,45,57,.96),rgba(17,31,43,.98));
+}
+.career-save-card h3 { margin:0 0 8px; color:#f0d99e; font-size:13px; }
+.career-save-card p { margin:5px 0; color:#c7d2d5; font-size:10px; line-height:1.5; overflow-wrap:anywhere; }
+.career-save-card .btn { width:100%; min-height:42px; margin-top:8px; border-radius:10px; font-size:11px; }
+.career-hall-card { margin-top:12px; padding:15px; }
+.career-hall-card .career-panel-heading { margin-bottom:6px; }
+.career-create-screen { padding-top:10px; }
+.career-create-hero {
+  position:relative; isolation:isolate; display:flex; align-items:center; justify-content:space-between; gap:12px;
+  min-height:185px; margin:14px 0 12px; padding:21px; overflow:hidden;
+  border:1px solid rgba(229,195,115,.43); border-radius:20px;
+  background-image:linear-gradient(90deg,rgba(7,17,25,.96) 0%,rgba(7,17,25,.83) 58%,rgba(7,17,25,.26) 100%),url('/assets/rugby-match-hero.webp');
+  background-size:cover; background-position:center 54%; box-shadow:0 14px 32px rgba(0,0,0,.22);
+}
+.career-create-hero > div { position:relative; z-index:1; max-width:510px; }
+.career-create-ball { flex:0 0 auto; display:grid; place-items:center; width:76px; height:76px; border-radius:50%; border:1px solid rgba(235,210,154,.6); background:rgba(7,16,22,.52); box-shadow:0 0 40px rgba(0,0,0,.28); font-size:34px; }
+.career-back-link { margin:0 0 12px; padding:7px 0; color:#d5b96f; font-size:12px; font-weight:800; }
+.career-create-form-card {
+  padding:18px; border:1px solid #3d5660; border-radius:18px;
+  background:linear-gradient(145deg,rgba(23,40,53,.98),rgba(13,26,38,.99));
+  box-shadow:0 14px 32px rgba(0,0,0,.2);
+}
+.career-create-form-card .career-panel-heading { margin-bottom:14px; }
+.career-create-form-card label { display:block; margin:13px 0; color:#e1e9e5; font-size:12px; font-weight:800; }
+.career-create-form-card .search {
+  min-height:46px; padding:10px 12px; border:1px solid #405867; border-radius:10px;
+  color:#f2f6f5; background:rgba(5,14,22,.65);
+}
+.career-create-form-card .search:focus { outline:2px solid rgba(218,184,104,.55); border-color:#d7b76b; }
+.career-create-form-card .btn.primary.big { width:100%; min-height:56px; margin-top:10px; border-radius:13px; font-size:15px; font-weight:950; }
+.career-create-form-card .note { padding:9px 10px; border-left:2px solid rgba(218,184,104,.55); background:rgba(0,0,0,.12); font-size:10px; line-height:1.55; }
+.career-pennant-shell > .career-player-hero,
+.career-pennant-shell .career-player-hero {
+  position:relative; isolation:isolate; overflow:hidden; border:1px solid rgba(220,190,119,.42);
+  background-image:linear-gradient(105deg,rgba(12,29,27,.95),rgba(12,26,36,.82) 57%,rgba(8,19,28,.42)),url('/assets/rugby-match-hero.webp');
+  background-position:center 44%; background-size:cover;
+  box-shadow:0 16px 30px rgba(0,0,0,.2);
+}
+.career-pennant-shell .career-player-hero:after {
+  content:""; position:absolute; inset:0; z-index:-1; pointer-events:none;
+  background:linear-gradient(0deg,rgba(7,17,24,.36),transparent 65%);
+}
+.career-player-hero .career-avatar {
+  filter:drop-shadow(0 8px 14px rgba(0,0,0,.35));
+  border:2px solid rgba(230,202,145,.72); border-radius:22px;
+}
+.career-player-hero .career-player-name { color:#fff; text-shadow:0 2px 12px rgba(0,0,0,.42); }
+.career-kit-radar { padding:10px 0 0; }
+.career-kit-radar .uniform-preview { padding:8px; border:1px solid rgba(223,199,145,.18); border-radius:13px; background:rgba(2,11,18,.28); }
+.career-kit-radar .radar-wrap { padding:8px; border:1px solid rgba(223,199,145,.18); border-radius:13px; background:rgba(2,11,18,.28); }
+.career-kit-radar .radar-wrap h3 { color:#ead7a8; }
+.career-sticky-progress {
+  box-shadow:0 8px 24px rgba(0,0,0,.25); backdrop-filter:blur(15px);
+}
+.career-pennant-shell .career-tabs { box-shadow:0 8px 22px rgba(0,0,0,.2); }
+.career-pennant-shell .career-tab { transition:background .18s ease,color .18s ease,transform .18s ease; }
+.career-pennant-shell .career-tab:active { transform:scale(.97); }
+.career-pennant-shell .career-advance-button,.career-pennant-shell .career-sticky-progress-button {
+  box-shadow:0 6px 16px rgba(194,153,65,.2); font-weight:950;
+}
+.live-match-shell {
+  max-width:900px; padding-top:10px;
+}
+.live-match-shell:before {
+  height:490px;
+  background:
+    linear-gradient(0deg,rgba(8,18,27,.05),rgba(8,18,27,.34)),
+    url('/assets/rugby-match-hero.webp') center 40% / cover no-repeat;
+  opacity:.8; mask-image:linear-gradient(#000 0%,rgba(0,0,0,.72) 62%,transparent 100%);
+}
+.live-match-shell .career-pennant-ribbon { background:rgba(9,20,29,.82); backdrop-filter:blur(10px); }
+.live-match-shell .career-pennant-header { background:rgba(11,25,34,.78); backdrop-filter:blur(12px); }
+.live-score-card {
+  position:relative; isolation:isolate; overflow:hidden; min-height:210px; padding:18px;
+  border:1px solid rgba(232,204,140,.58); border-radius:18px;
+  background-image:linear-gradient(90deg,rgba(8,25,23,.91),rgba(12,31,34,.72)),url('/assets/rugby-match-hero.webp');
+  background-position:center 42%; background-size:cover;
+  box-shadow:0 16px 35px rgba(0,0,0,.3);
+}
+.live-score-card:after {
+  content:""; position:absolute; inset:0; z-index:-1; pointer-events:none;
+  background:linear-gradient(0deg,rgba(5,15,22,.55),transparent 75%);
+}
+.live-score-kicker,.live-choice-topline { display:flex; justify-content:space-between; align-items:center; gap:8px; color:#e8d7ab; font-size:9px; font-weight:950; letter-spacing:.18em; }
+.live-score-kicker { margin-bottom:12px; }
+.live-score-teams strong { text-shadow:0 4px 20px rgba(0,0,0,.55); }
+.live-clock { margin:15px 0 10px; }
+.live-field { height:34px; border-color:rgba(245,236,208,.42); box-shadow:inset 0 0 16px rgba(0,0,0,.13); }
+.live-event-card,.live-choice-card {
+  border:1px solid #364f5e; border-radius:16px;
+  background:linear-gradient(145deg,rgba(23,39,52,.96),rgba(13,26,38,.98));
+  box-shadow:0 12px 25px rgba(0,0,0,.18);
+}
+.live-choice-topline { margin-bottom:10px; letter-spacing:.12em; }
+.live-choice-step { color:#a9bac2; font-size:9px; letter-spacing:.1em; font-variant-numeric:tabular-nums; }
+.live-action-button {
+  display:flex; flex-direction:column; justify-content:center; gap:4px; min-height:76px;
+  border:1px solid rgba(129,163,143,.42); border-radius:13px;
+  background:linear-gradient(145deg,rgba(31,57,46,.94),rgba(18,35,42,.96));
+  box-shadow:0 5px 13px rgba(0,0,0,.12); transition:transform .16s ease,border-color .16s ease,background .16s ease;
+}
+.live-action-button:active { transform:translateY(1px) scale(.985); }
+.live-action-button b { font-size:13px; color:#fff; }
+.live-action-button span { color:#c3d0ce; font-size:10px; }
+.live-action-button[data-v="carry"] b:before { content:"↗ "; color:#e7c87e; }
+.live-action-button[data-v="pass"] b:before { content:"⇢ "; color:#e7c87e; }
+.live-action-button[data-v="kick"] b:before { content:"⌁ "; color:#e7c87e; }
+.live-action-button[data-v="scrum"] b:before { content:"▣ "; color:#e7c87e; }
+.live-action-button[data-v="lineout"] b:before { content:"↟ "; color:#e7c87e; }
+.live-action-button[data-v="goal"] b:before { content:"◎ "; color:#e7c87e; }
+.live-action-button[data-v="rush"] b:before { content:"➤ "; color:#e7c87e; }
+.live-action-button[data-v="drift"] b:before { content:"↗ "; color:#e7c87e; }
+.live-action-button[data-v="jackal"] b:before { content:"✦ "; color:#e7c87e; }
+.career-quick-sim { border-radius:11px; }
+.career-story-event {
+  overflow:hidden; position:relative;
+  background:linear-gradient(105deg,rgba(46,40,27,.97),rgba(19,31,39,.98));
+}
+.career-story-art {
+  display:flex; align-items:center; justify-content:space-between; margin:-16px -16px 12px; padding:9px 14px;
+  background:linear-gradient(90deg,rgba(194,151,67,.2),rgba(34,51,55,.2));
+  color:#d8bd7c; font-size:9px; font-weight:950; letter-spacing:.2em;
+}
+.career-story-art b { font-size:15px; }
+.career-story-event .career-event-choice { border-radius:12px; background:linear-gradient(145deg,rgba(48,47,33,.72),rgba(17,30,37,.88)); }
+.career-story-event .career-event-choice:active { transform:scale(.985); border-color:#e1bd70; }
+.career-hall-card,.career-save-panel,.career-create-form-card { backdrop-filter:blur(12px); }
+.career-title-screen > .note,.career-create-screen > .note { color:#9eafb6; font-size:10px; }
+@media (min-width:700px) {
+  .career-launch-hero { min-height:300px; padding:30px 34px; }
+  .career-save-grid { gap:14px; }
+  .career-create-hero { min-height:210px; padding:28px; }
+  .career-player-hero .profile-hero { gap:20px; }
+  .live-match-shell:before { height:560px; }
+}
+@media (max-width:520px) {
+  .career-launch-hero { grid-template-columns:minmax(0,1fr) 70px; gap:8px; min-height:236px; padding:17px; background-position:57% center; }
+  .career-launch-copy h1,.career-create-hero h1 { font-size:24px; }
+  .career-launch-copy p,.career-create-hero p { font-size:10px; }
+  .career-launch-tags { gap:4px; margin-top:12px; }
+  .career-launch-tags span { padding:5px 7px; font-size:8px; }
+  .career-launch-emblem { width:66px; height:92px; border-radius:36px 36px 18px 18px; }
+  .career-launch-emblem > span { font-size:31px; }
+  .career-launch-emblem small { font-size:7px; }
+  .career-create-hero { min-height:180px; padding:16px; background-position:58% center; }
+  .career-create-ball { width:50px; height:50px; font-size:24px; }
+  .career-save-panel { padding:12px; }
+  .career-save-grid { grid-template-columns:1fr; gap:8px; }
+  .career-save-grid > .career-save-card { padding:12px; }
+  .career-create-form-card { padding:13px; }
+  .live-score-card { min-height:190px; padding:14px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .career-pennant-shell .career-tab,.live-action-button { transition:none; }
+}
+
+.match-result-screen { padding-top:10px; }
+.match-result-screen:before {
+  height:420px;
+  background:linear-gradient(180deg,rgba(7,18,26,.24),rgba(7,18,26,.9)),url('/assets/rugby-match-hero.webp') center 40% / cover no-repeat;
+  mask-image:linear-gradient(#000 0%,rgba(0,0,0,.86) 55%,transparent 100%);
+}
+.match-result-screen .match-result-card {
+  border:1px solid rgba(225,193,122,.46); border-radius:18px;
+  background:linear-gradient(145deg,rgba(21,39,50,.97),rgba(11,24,36,.98));
+  box-shadow:0 16px 34px rgba(0,0,0,.26);
+}
+.match-result-screen .match-result-card > h2 { color:#f1d99f; font-size:20px; }
+.match-result-screen .scoreboard {
+  padding:17px 10px; border:1px solid rgba(225,193,122,.34); border-radius:15px;
+  background:linear-gradient(105deg,rgba(22,56,41,.82),rgba(15,34,47,.9));
+}
+.match-result-screen .scoreboard strong { color:#f2d78d; font-size:40px; text-shadow:0 3px 14px rgba(0,0,0,.4); }
+.match-result-screen .match-result-top-actions { margin-bottom:10px; }
+.match-result-screen .match-result-top-actions .btn { min-height:48px; border-radius:12px; }
+.match-result-screen .career-review-card { box-shadow:inset 0 0 25px rgba(214,177,94,.035),0 8px 20px rgba(0,0,0,.13); }
+.match-result-screen .match-lineups { margin-top:14px; border-color:#344d5b; border-radius:14px; }
+@media (max-width:520px) {
+  .match-result-screen .scoreboard { padding:12px 6px; }
+  .match-result-screen .scoreboard strong { font-size:32px; }
+}

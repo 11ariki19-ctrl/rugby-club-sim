@@ -51,19 +51,23 @@ function careerUniform(team: string): string {
 function titleScreen(): string {
   const slots = ([1, 2] as const).map((slot) => {
     const s = careerSaveSummary(slot);
-    return `<section class="card"><h3>セーブスロット ${slot}</h3>${s.exists
+    return `<section class="card career-save-card"><h3>セーブスロット ${slot}</h3>${s.exists
       ? `<p><b>${esc(s.name ?? '選手')}</b> ／ ${s.age}歳 ／ ${esc(s.team ?? '')}</p><p>ポジション ${s.pos}・総合値 ${s.overall}・シーズン ${s.years}</p><button class="btn primary" data-career="continue-slot" data-v="${slot}">このデータを続ける</button><button class="btn" data-career="new-slot" data-v="${slot}">この枠で新規開始（上書き）</button>`
       : `<p>データはありません。</p><button class="btn primary" data-career="new-slot" data-v="${slot}">この枠で新規開始</button>`}</section>`;
   }).join('');
   const hall = careerHallOfFame().slice(0, 10).map((p, i) => `<li>${i + 1}位 ${esc(p.name)} — ${p.score}点／${p.appearances}試合・${p.tries}トライ</li>`).join('');
-  return `<main class="page career-pennant-shell"><div class="career-pennant-ribbon"><span>RUGBY PENNANT</span><span>PLAYER CAREER</span></div><header class="hd"><div class="school">🏉 ラグビー人生キャリア</div><div class="date">高校入学から引退まで、一人の選手の物語</div></header><div class="card"><h2>キャリアを選ぶ</h2><p>新しい選手を作るか、2つの独立したセーブデータから再開できます。</p>${slots}</div><div class="card"><h3>歴代選手殿堂</h3><ol class="news">${hall || '<li>引退した選手がここに登録されます。</li>'}</ol></div><p class="note">データはこの端末・ブラウザ内に保存されます。ブラウザのデータ消去や端末変更で失われる場合があります。</p></main>`;
+  return `<main class="page career-pennant-shell career-title-screen"><div class="career-pennant-ribbon"><span>RUGBY PENNANT</span><span>PLAYER CAREER</span></div>
+    <section class="career-launch-hero"><div class="career-launch-copy"><span class="career-visual-eyebrow">YOUR RUGBY STORY STARTS HERE</span><h1>一人の選手が、<br>ラグビー人生を駆け上がる。</h1><p>高校から大学、そして世界の舞台へ。<br>選択と努力で、自分だけのキャリアを刻もう。</p><div class="career-launch-tags"><span>高校ラグビー</span><span>大学リーグ</span><span>リーグワン</span><span>日本代表</span></div></div><div class="career-launch-emblem"><span>15</span><small>YEARS OF<br>RUGBY</small><b>🏉</b></div></section>
+    <header class="hd career-title-heading"><div class="school">🏉 ラグビー人生キャリア</div><div class="date">高校入学から引退まで、一人の選手の物語</div></header>
+    <section class="career-save-panel"><div class="career-panel-heading"><div><span class="career-visual-eyebrow">CONTINUE YOUR JOURNEY</span><h2>キャリアを選ぶ</h2><p>新しい選手を作るか、保存済みの選手から再開できます。</p></div><span class="career-save-icon">▣</span></div><div class="career-save-grid">${slots}</div></section>
+    <div class="card career-hall-card"><div class="career-panel-heading"><div><span class="career-visual-eyebrow">HALL OF FAME</span><h3>歴代選手殿堂</h3></div><span class="career-save-icon">🏆</span></div><ol class="news">${hall || '<li>引退した選手がここに登録されます。</li>'}</ol></div><p class="note">データはこの端末・ブラウザ内に保存されます。ブラウザのデータ消去や端末変更で失われる場合があります。</p></main>`;
 }
 function createScreen(): string {
   const schools = schoolsOf(createPrefIndex);
-  return `<main class="page career-pennant-shell career-create-screen"><div class="career-pennant-ribbon"><span>RUGBY PENNANT</span><span>PLAYER DEVELOPMENT</span></div><button class="link" data-career="title">← タイトルへ</button>
-    <h2>ラグビー人生キャリア</h2>
-    <p>高校入学から社会人引退まで、一人の選手を育てます。高校3年間、大学4年間、そして社会人リーグを同じ選手で進みます。</p>
-    <div class="card"><label>選手名<input id="career-name" class="search" maxlength="24" placeholder="例：佐藤 蓮"></label><button type="button" class="btn" data-career="random-name">名前をランダム生成</button>
+  return `<main class="page career-pennant-shell career-create-screen"><div class="career-pennant-ribbon"><span>RUGBY PENNANT</span><span>PLAYER DEVELOPMENT</span></div>
+    <section class="career-create-hero"><div><span class="career-visual-eyebrow">BUILD YOUR LEGACY</span><h1>自分だけの選手を<br>フィールドへ送り出そう。</h1><p>ポジション、出身校、才能を選び、<br>高校入学からプロ引退までの物語を始めよう。</p></div><span class="career-create-ball">🏉</span></section>
+    <button class="link career-back-link" data-career="title">← タイトルへ</button>
+    <div class="card career-create-form-card"><div class="career-panel-heading"><div><span class="career-visual-eyebrow">PLAYER PROFILE</span><h2>選手プロフィールを作成</h2></div><span class="career-save-icon">✦</span></div><label>選手名<input id="career-name" class="search" maxlength="24" placeholder="例：佐藤 蓮"></label><button type="button" class="btn" data-career="random-name">名前をランダム生成</button>
     <label>ポジション<select id="career-pos" class="search">${CAREER_POSITIONS.map((p) => `<option value="${p.id}" ${p.id === 'CTB' ? 'selected' : ''}>${p.label}（${p.id}）</option>`).join('')}</select></label>
     <label>出身・所属都道府県<select id="career-pref" class="search">${PREFS.map((p, i) => `<option value="${i}" ${i === createPrefIndex ? 'selected' : ''}>${p.name}</option>`).join('')}</select></label>
     <label>高校（県予選に参加）<select id="career-school" class="search">${schools.map((s, i) => `<option value="${i}" ${i === createSchoolIndex ? 'selected' : ''}>${s.name}（戦力★${s.power}）</option>`).join('')}</select></label>
@@ -90,7 +94,7 @@ function storyEventCard(s: CareerState): string {
   const event = s.pendingEvent;
   if (!event) return '';
   const options = event.options.map((option, index) => `<button class="btn mode career-event-choice" data-career="event-choice" data-v="${index}"><b>${esc(option.label)}</b><span>${esc(option.description)}</span><small>報酬：${CAREER_STAT_LABEL[option.rewardStat]}+${option.rewardGain}・経験点+${option.rewardExp}</small></button>`).join('');
-  return `<section class="card career-story-event"><span class="profile-kicker">CAREER STORY EVENT</span><h3>${esc(event.title)}</h3><p>${esc(event.description)}</p><div class="career-event-options">${options}</div></section>`;
+  return `<section class="card career-story-event"><div class="career-story-art"><span>OFF THE PITCH</span><b>✦</b></div><span class="profile-kicker">CAREER STORY EVENT</span><h3>${esc(event.title)}</h3><p>${esc(event.description)}</p><div class="career-event-options">${options}</div></section>`;
 }
 function missionBoard(s: CareerState): string {
   const objectives = s.seasonObjectives ?? [];
@@ -320,7 +324,7 @@ function matchResultScreen(s: CareerState): string {
   const m = s.lastMatch;
   if (!m) return homeScreen(s);
   const detail = selectedRosterMember ? playerDetail(selectedRosterMember) : '';
-  return `<main class="page"><div class="match-result-top-actions"><button class="btn primary big" data-career="result-continue">← キャリアに戻る</button></div><header class="hd"><div class="school">🏉 試合結果</div><div class="date">${esc(m.date)} ／ ${esc(m.competition)}</div></header>
+  return `<main class="page career-pennant-shell match-result-screen"><div class="match-result-top-actions"><button class="btn primary big" data-career="result-continue">← キャリアに戻る</button></div><header class="hd"><div class="school">🏉 試合結果</div><div class="date">${esc(m.date)} ／ ${esc(m.competition)}</div></header>
     ${detail}
     <section class="card match-result-card"><h2>${esc(m.competition)}</h2><p>${esc(m.date)}</p>
       <div class="scoreboard"><div><span>${esc(m.competition.includes('日本代表') ? '日本代表' : currentTeam(s))}</span><strong>${m.my}</strong></div><div class="score-dash">—</div><div><span>${esc(m.opponent)}</span><strong>${m.their}</strong></div></div>
@@ -361,7 +365,7 @@ function liveMatchScreen(s: CareerState): string {
   return `<main class="page career-pennant-shell live-match-shell">
     <div class="career-pennant-ribbon"><span>RUGBY MATCH DAY</span><span>${esc(g.fixture.label)}</span></div>
     <header class="hd career-pennant-header"><div class="school">🏉 試合中</div><div class="date">${esc(g.fixture.date)} ／ ${esc(g.fixture.opponent)}</div></header>
-    <section class="card live-score-card"><div class="live-score-teams"><span>${esc(teamLabel)}</span><strong>${g.scoreFor} - ${g.scoreAgainst}</strong><span>${esc(g.fixture.opponent)}</span></div>
+    <section class="card live-score-card"><div class="live-score-kicker"><span>OFFICIAL MATCH</span><span>80 MINUTES</span></div><div class="live-score-teams"><span>${esc(teamLabel)}</span><strong>${g.scoreFor} - ${g.scoreAgainst}</strong><span>${esc(g.fixture.opponent)}</span></div>
       <div class="live-clock"><b>${g.elapsed}'</b><span> / 80分</span><strong>${defending ? '相手ボール' : '自チームボール'}</strong></div>
       <div class="live-progress"><i style="width:${elapsedPercent}%"></i></div>
       <div class="live-territory"><span>ボール位置</span><b>${territory}</b></div>
@@ -371,7 +375,7 @@ function liveMatchScreen(s: CareerState): string {
       <p>${g.role === '先発' || g.role === '途中出場' ? 'あなたは出場中。選択が試合展開と個人成績に反映されます。' : g.role === '控え' ? '現在は控え。後半開始時に出場機会が訪れる可能性があります。' : '今回はメンバー外ですが、チームの攻守を指示できます。'}</p>
       <div class="live-player-stats"><span>トライ <b>${g.tries}</b></span><span>キャリー <b>${g.carries}</b></span><span>タックル <b>${g.tackles}</b></span><span>ミス <b>${g.errors}</b></span></div>
     </section>
-    <section class="card live-choice-card"><div class="career-section-heading"><span class="career-section-no">${defending ? 'D' : 'A'}</span><div><h3>${defending ? '守備の判断' : '攻撃の判断'}</h3><p class="note">1回の判断で5分進みます。残り時間と敵陣の位置を見て選択してください。</p></div></div>
+    <section class="card live-choice-card"><div class="live-choice-topline"><span class="career-visual-eyebrow">TACTICAL DECISION</span><span class="live-choice-step">DECISION ${g.actions + 1} / 16</span></div><div class="career-section-heading"><span class="career-section-no">${defending ? 'D' : 'A'}</span><div><h3>${defending ? '守備の判断' : '攻撃の判断'}</h3><p class="note">1回の判断で5分進みます。残り時間と敵陣の位置を見て選択してください。</p></div></div>
       <div class="live-action-grid">${options}</div>
       <button class="btn career-quick-sim" data-career="quick-sim">残りの試合をおまかせで進める</button>
     </section>
