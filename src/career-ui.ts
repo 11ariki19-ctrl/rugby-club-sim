@@ -51,7 +51,7 @@ function careerUniform(team: string): string {
 function titleScreen(): string {
   const slots = ([1, 2] as const).map((slot) => {
     const s = careerSaveSummary(slot);
-    return `<section class="card"><h3>セーブスロット ${slot}</h3>${s.exists
+    return `<section class="card career-save-card"><h3>セーブスロット ${slot}</h3>${s.exists
       ? `<p><b>${esc(s.name ?? '選手')}</b> ／ ${s.age}歳 ／ ${esc(s.team ?? '')}</p><p>ポジション ${s.pos}・総合値 ${s.overall}・シーズン ${s.years}</p><button class="btn primary" data-career="continue-slot" data-v="${slot}">このデータを続ける</button><button class="btn" data-career="new-slot" data-v="${slot}">この枠で新規開始（上書き）</button>`
       : `<p>データはありません。</p><button class="btn primary" data-career="new-slot" data-v="${slot}">この枠で新規開始</button>`}</section>`;
   }).join('');
@@ -324,7 +324,7 @@ function matchResultScreen(s: CareerState): string {
   const m = s.lastMatch;
   if (!m) return homeScreen(s);
   const detail = selectedRosterMember ? playerDetail(selectedRosterMember) : '';
-  return `<main class="page"><div class="match-result-top-actions"><button class="btn primary big" data-career="result-continue">← キャリアに戻る</button></div><header class="hd"><div class="school">🏉 試合結果</div><div class="date">${esc(m.date)} ／ ${esc(m.competition)}</div></header>
+  return `<main class="page career-pennant-shell match-result-screen"><div class="match-result-top-actions"><button class="btn primary big" data-career="result-continue">← キャリアに戻る</button></div><header class="hd"><div class="school">🏉 試合結果</div><div class="date">${esc(m.date)} ／ ${esc(m.competition)}</div></header>
     ${detail}
     <section class="card match-result-card"><h2>${esc(m.competition)}</h2><p>${esc(m.date)}</p>
       <div class="scoreboard"><div><span>${esc(m.competition.includes('日本代表') ? '日本代表' : currentTeam(s))}</span><strong>${m.my}</strong></div><div class="score-dash">—</div><div><span>${esc(m.opponent)}</span><strong>${m.their}</strong></div></div>
