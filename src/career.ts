@@ -139,6 +139,48 @@ let activeCareerSlot: 1 | 2 = 1;
 export function setCareerSaveSlot(slot: 1 | 2): void { activeCareerSlot = slot; }
 export function getCareerSaveSlot(): 1 | 2 { return activeCareerSlot; }
 function slotKey(slot: 1 | 2): string { return `${KEY}:slot${slot}`; }
+
+/** Restore ability values from old or partially damaged JSON saves. */
+function normalizeStats(value: unknown, fallback = 0): Stats {
+  const source = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  return Object.fromEntries(STAT_KEYS.map((key) => {
+    const amount = Number(source[key]);
+    return [key, Number.isFinite(amount) ? Math.max(0, amount) : fallback];
+  })) as Stats;
+}
+
+/** Keep the World Cup save migration in one place so missing arrays cannot break loading. */
+function normalizeWorldCupSave(s: CareerState): void {
+  const cup = s.worldCup;
+  if (!cup || typeof cup !== 'object' || !Array.isArray(cup.poolOpponents)
+    || typeof cup.poolPlayed !== 'number' || !Number.isFinite(cup.poolPlayed)) {
+    s.worldCup = undefined;
+    return;
+  }
+
+  const opponents = cup.poolOpponents
+    .filter((team): team is string => typeof team === 'string')
+    .slice(0, 3);
+  const rivalWins = Array.isArray(cup.poolRivalWins) ? cup.poolRivalWins : [];
+
+  cup.poolOpponents = opponents;
+  cup.poolRivalWins = opponents.map((_, index) => {
+    const wins = Number(rivalWins[index]);
+    return Number.isFinite(wins) ? clamp(Math.round(wins), 0, 4) : 2;
+  });
+  cup.poolPlayed = clamp(Math.floor(cup.poolPlayed), 0, 3);
+  if (typeof cup.poolWins !== 'number' || !Number.isFinite(cup.poolWins)) cup.poolWins = 0;
+}
+
+/** Validate the position and stats before any rating calculation uses a loaded player. */
+function normalizeCareerPlayer(s: CareerState): void {
+  if (!POSITIONS.includes(s.player.pos)) s.player.pos = 'CTB';
+  s.player.stats = normalizeStats(s.player.stats);
+  const savedPeak = Number(s.player.peak);
+  s.player.peak = Math.max(Number.isFinite(savedPeak) ? savedPeak : 0, careerOverall(s));
+}
 const POSITIONS: Pos[] = ['PR', 'HO', 'LO', 'FL', 'N8', 'SH', 'SO', 'CTB', 'WTB', 'FB'];
 const BODY: Record<Pos, [number, number]> = {
   PR: [172, 92], HO: [172, 86], LO: [183, 90], FL: [177, 82], N8: [180, 88],
@@ -1307,7 +1349,11 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
     const raw = localStorage.getItem(slotKey(slot)) ?? (slot === 1 ? localStorage.getItem(KEY) : null);
     if (!raw) return null;
     const s = JSON.parse(raw) as CareerState;
-    if (s?.v !== 1 || !s.player?.stats || !Array.isArray(s.seasons)) return null;
+    if (s?.v !== 1 || !s.player || typeof s.player !== 'object'
+      || !s.player.stats || typeof s.player.stats !== 'object'
+      || Array.isArray(s.player.stats) || !Array.isArray(s.seasons)) return null;
+    if (typeof s.player.name !== 'string' || !s.player.name.trim()) s.player.name = 'ラグビー選手';
+    normalizeCareerPlayer(s);
     // 既存のキャリアセーブを新しい大会・個人成績データへ安全に移行する。
     if (typeof s.experiencePoints !== 'number' || !Number.isFinite(s.experiencePoints)) s.experiencePoints = 0;
     if (typeof s.prefIndex !== 'number') s.prefIndex = 26;
@@ -1341,9 +1387,7 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
     if (typeof s.highSchoolRatingCount !== 'number') s.highSchoolRatingCount = 0;
     if (typeof s.nationalCandidate !== 'boolean') s.nationalCandidate = false;
     if (typeof s.worldTournamentWins !== 'number') s.worldTournamentWins = 0;
-    if (s.worldCup && (!Array.isArray(s.worldCup.poolOpponents) || typeof s.worldCup.poolPlayed !== 'number')) s.worldCup = undefined;
-    if (s.worldCup && s.worldCup.poolOpponents.length > 3) { s.worldCup.poolOpponents = s.worldCup.poolOpponents.slice(0, 3); s.worldCup.poolRivalWins = s.worldCup.poolRivalWins.slice(0, 3); s.worldCup.poolPlayed = Math.min(3, s.worldCup.poolPlayed); }
-    if (s.worldCup && !Array.isArray(s.worldCup.poolRivalWins)) s.worldCup.poolRivalWins = s.worldCup.poolOpponents.map(() => 2);
+    normalizeWorldCupSave(s);
     if (!s.player.talentType || !CAREER_TALENTS.some((x) => x.id === s.player.talentType)) s.player.talentType = '凡人';
     if (typeof s.japanNationalTeamSelected !== 'boolean') s.japanNationalTeamSelected = false;
     if (typeof s.japanNationalTeamCaps !== 'number') s.japanNationalTeamCaps = 0;
@@ -1357,13 +1401,13 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
     if (typeof s.proSalary !== 'number') s.proSalary = 0;
     if (!Array.isArray(s.transferHistory)) s.transferHistory = [];
     if (!Array.isArray(s.rivals)) s.rivals = createCareerRivals(s);
+    s.rivals = s.rivals.filter((r): r is CareerRival => Boolean(r && typeof r === 'object' && typeof r.name === 'string' && typeof r.team === 'string'));
     // Migrate older saves once: one canonical rival record stores name, abilities and career history.
     for (const rival of s.rivals) {
+      if (!POSITIONS.includes(rival.pos)) rival.pos = 'CTB';
       if (!rival.id) rival.id = `player-${stablePlayerKey(rival.name + '|' + (rival.country ?? '日本'))}`;
-      if (!rival.stats) {
-        rival.stats = {} as Stats;
-        for (const key of STAT_KEYS) rival.stats[key] = Math.max(0, Math.round(rival.overall + gauss(0, 5)));
-      }
+      const rivalFallback = Number.isFinite(Number(rival.overall)) ? Math.max(0, Number(rival.overall)) : 0;
+      rival.stats = normalizeStats(rival.stats, rivalFallback);
       rival.overall = Math.round(overallAt({ pos: rival.pos, stats: rival.stats } as never));
       if (typeof rival.height !== 'number' || typeof rival.weight !== 'number') {
         const [heightBase, weightBase] = BODY[rival.pos];
@@ -1418,9 +1462,8 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
       } else uniqueRivalNames.add(rival.name);
     }
     if (!Array.isArray(s.awards)) s.awards = [];
-    // 能力値は旧セーブを含めて上限なしで保持する。欠損値のみ安全に補正。
-    for (const k of STAT_KEYS) s.player.stats[k] = Math.max(0, Number(s.player.stats[k]) || 0);
-    s.player.peak = Math.max(Number(s.player.peak) || 0, careerOverall(s));
+    // 能力値は上限なしで保持し、不正値だけを補正する。
+    normalizeCareerPlayer(s);
     for (const r of [...s.seasons, s.currentSeason]) { if (!r) continue; if (typeof r.starts !== 'number') r.starts = r.appearances || 0; if (typeof r.substituteApps !== 'number') r.substituteApps = 0; if (typeof r.bench !== 'number') r.bench = 0; if (typeof r.notSelected !== 'number') r.notSelected = Math.max(0, (r.played || 0) - (r.appearances || 0)); if (!Array.isArray(r.awards)) r.awards = []; }
     for (const m of s.matchHistory) if (!m.role) m.role = m.appeared ? '先発' : 'メンバー外';
     if (!s.universityGroup || !UNIVERSITY_GROUPS[s.universityGroup]) s.universityGroup = groupForUniversity(s.university || '');

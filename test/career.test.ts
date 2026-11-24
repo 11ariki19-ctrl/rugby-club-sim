@@ -74,6 +74,30 @@ setCareerSaveSlot(2); assert.equal(loadCareer(2), null, 'clearing slot two leave
 setCareerSaveSlot(1); assert.equal(loadCareer(1)?.player.name, 'スロット1', 'clearing slot two does not delete slot one');
 setCareerSaveSlot(1);
 console.log('  ok - independent local save slots and slot-specific clearing');
+
+const damagedWorldCupSave = newCareer('ワールドカップ旧セーブ', 'CTB');
+damagedWorldCupSave.worldCup = {
+  year: 2031, pool: 'A',
+  poolOpponents: ['NZ', '南アフリカ', 'アイルランド', 'フランス'],
+  poolRivalWins: undefined as unknown as number[],
+  poolPlayed: 4, poolWins: 2, qualified: false, knockoutStage: 0, completed: false,
+};
+setCareerSaveSlot(1);
+saveCareer(damagedWorldCupSave);
+const repairedWorldCupSave = loadCareer(1);
+assert.ok(repairedWorldCupSave?.worldCup, 'an older World Cup save with a missing results array still loads');
+assert.equal(repairedWorldCupSave?.worldCup?.poolOpponents.length, 3, 'World Cup pools are limited to three opponents');
+assert.deepEqual(repairedWorldCupSave?.worldCup?.poolRivalWins, [2, 2, 2], 'missing rival results receive safe defaults');
+assert.equal(repairedWorldCupSave?.worldCup?.poolPlayed, 3, 'played pool matches stay within the three-match limit');
+
+const damagedStatsSave = newCareer('能力値修復テスト', 'CTB');
+damagedStatsSave.player.pos = 'UNKNOWN' as never;
+damagedStatsSave.player.stats.pow = Number.NaN;
+storageData.set('rugby-club-sim:career:v1:slot1', JSON.stringify(damagedStatsSave));
+const repairedStatsSave = loadCareer(1);
+assert.equal(repairedStatsSave?.player.pos, 'CTB', 'unknown saved positions fall back to a valid position');
+assert.ok(repairedStatsSave && Object.values(repairedStatsSave.player.stats).every(Number.isFinite), 'invalid saved ability values are repaired to finite numbers');
+console.log('  ok - damaged and older save data is normalized without losing the career');
 const squadCareer = newCareer('主将テスト', 'CTB');
 assert.equal(squadCareer.rosterPlayers?.length, 23, 'career start creates a persistent 23-player squad');
 assert.equal(new Set(squadCareer.rosterPlayers?.map((p) => p.name)).size, 23, 'squad player names are unique');
