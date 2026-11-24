@@ -1,7 +1,7 @@
 import {
   advanceCareerMonth, careerOverall, currentTeam, newCareer, setCareerTraining, setCareerTrainingPlan,
   resolveCareerTransfer, careerHallOfFame, careerLegacyScore, UNIVERSITY_GROUPS, selectCareerUniversity,
-  CAREER_POSITIONS, CAREER_STAT_KEYS, CAREER_STAT_LABEL, CAREER_TALENTS, hasCareerSave, loadCareer, saveCareer, setCareerSaveSlot, careerSaveSummary,
+  CAREER_POSITIONS, CAREER_STAT_KEYS, CAREER_STAT_LABEL, CAREER_TALENTS, CAREER_MILESTONES, hasCareerSave, loadCareer, saveCareer, setCareerSaveSlot, careerSaveSummary,
   playCareerMatchAction,
 } from './career';
 import type { CareerState, CareerPhase, CareerTrainingPlan, CareerRosterPlayer, CareerObjective, CareerMatchReview, CareerMatchAction } from './career';
@@ -102,13 +102,21 @@ function missionBoard(s: CareerState): string {
   const completed = objectives.filter((objective) => objective.completed).length;
   return `<section class="card career-mission-board"><div class="career-mission-board-heading"><div><span class="profile-kicker">SEASON QUEST</span><h3>今シーズンのミッション</h3></div><strong>${completed} / ${objectives.length}</strong></div><div class="career-mission-list">${cards}</div></section>`;
 }
+function milestoneCollection(s: CareerState): string {
+  const cards = CAREER_MILESTONES.map((milestone) => {
+    const unlocked = s.awards.includes(milestone.title);
+    return `<article class="career-medal ${unlocked ? 'unlocked' : ''}"><span class="career-medal-icon">${unlocked ? '🏅' : '🔒'}</span><div><b>${esc(milestone.title)}</b><small>${esc(milestone.description)}</small></div><span class="career-medal-status">${unlocked ? '獲得' : '未獲得'}</span></article>`;
+  }).join('');
+  const count = CAREER_MILESTONES.filter((milestone) => s.awards.includes(milestone.title)).length;
+  return `<section class="card career-collection"><div class="career-mission-board-heading"><div><span class="profile-kicker">CAREER COLLECTION</span><h3>称号・実績コレクション</h3></div><strong>${count} / ${CAREER_MILESTONES.length}</strong></div><div class="career-medal-grid">${cards}</div></section>`;
+}
 function matchReviewCard(review?: CareerMatchReview): string {
   if (!review) return '';
   const highlights = review.highlights.map((item) => `<li>${esc(item)}</li>`).join('');
   const improvements = review.improvements.map((item) => `<li>${esc(item)}</li>`).join('');
   return `<section class="card career-review-card"><div class="career-review-heading"><span class="profile-kicker">AUTO COACH REVIEW</span><strong class="career-review-grade">${esc(review.grade)}</strong></div>
     <h3>${esc(review.headline)}</h3><div class="career-review-columns"><div><b>良かった点</b><ul class="news">${highlights}</ul></div><div><b>次に改善したい点</b><ul class="news">${improvements}</ul></div></div>
-    <button class="btn mode career-review-focus" data-career="train" data-v="${review.nextStat}">次戦に向けて「${CAREER_STAT_LABEL[review.nextStat]}」を重点練習</button></section>`;
+    <button class="btn mode career-review-focus" data-career="review-train" data-v="${review.nextStat}">次戦に向けて「${CAREER_STAT_LABEL[review.nextStat]}」を重点練習</button></section>`;
 }
 
 function phaseDescription(s: CareerState): string {
@@ -157,6 +165,7 @@ function homeScreen(s: CareerState): string {
     </nav>
     <section class="career-tab-panel ${activeCareerTab === 'player' ? 'active' : ''}" data-tab-panel="player">
     ${missionBoard(s)}
+    ${milestoneCollection(s)}
     <div class="panel career-player-hero"><div class="profile-hero">${careerPortrait(s.player.name,s.player.pos)}<div><span class="profile-kicker">PLAYER CAREER</span><b class="career-player-name">${esc(s.player.name)}</b><p>${s.player.pos} ／ 総合値 ${o}（${rating}ランク）</p><span class="small">${esc(team)} ・ ${s.player.height}cm / ${s.player.weight}kg</span></div></div><p>${phaseDescription(s)}</p><div class="career-kit-radar">${careerUniform(team)}<div class="radar-wrap"><h3>能力バランス</h3>${careerRadar(s.player.stats as unknown as Record<string,number>)}</div></div></div>
     <div class="card career-history-card"><h3>キャリアの歩み</h3>
       <div class="career-path">
@@ -401,6 +410,14 @@ function act(action: string, value = ''): void {
     return;
   }
   if (action === 'result-continue' && state) { showMatchResult = false; selectedRosterMember = null; activeCareerTab = 'player'; render(); return; }
+  if (action === 'review-train' && state) {
+    setCareerTraining(state, value as StatKey);
+    showMatchResult = false;
+    activeCareerTab = 'player';
+    selectedRosterMember = null;
+    saveCareer(state);
+    render(); return;
+  }
   if (action === 'live-action' && state?.liveMatch) {
     playCareerMatchAction(state, value as CareerMatchAction);
     showMatchResult = !state.liveMatch;
