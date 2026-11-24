@@ -37,6 +37,7 @@ export interface CareerSeason {
   bench?: number;
   notSelected?: number;
   tries: number;
+  tacklesTotal?: number;
   awards?: string[];
   notes: string[];
 }
@@ -47,11 +48,30 @@ export interface CareerScoreEvent {
   scorer: string;
   method: 'ペナルティゴール' | 'トライ（コンバージョン成功）' | 'トライ（コンバージョン失敗）';
 }
+export type CareerObjectiveMetric = 'appearances' | 'tackles' | 'wins';
+export interface CareerObjective {
+  id: string;
+  seasonKey: string;
+  title: string;
+  description: string;
+  metric: CareerObjectiveMetric;
+  target: number;
+  rewardExp: number;
+  rewardStat: StatKey;
+  completed: boolean;
+}
+export interface CareerMatchReview {
+  grade: string;
+  headline: string;
+  highlights: string[];
+  improvements: string[];
+  nextStat: StatKey;
+}
 export interface CareerMatch {
   date: string; competition: string; opponent: string; my: number; their: number;
   result: '勝利' | '引分' | '敗戦'; appeared: boolean; role?: CareerRole; tries: number; carries: number;
   tackles: number; lineBreaks: number; kicks: number; errors: number; rating: number;
-  experience: number; scenes: string[]; scoreEvents?: CareerScoreEvent[];
+  experience: number; scenes: string[]; scoreEvents?: CareerScoreEvent[]; review?: CareerMatchReview;
 }
 export interface CareerFixture {
   date: string; label: string; opponent: string; difficulty: number;
@@ -114,6 +134,7 @@ export interface CareerState {
   generatedNameVersion?: number;
   legacyScore?: number;
   awards: string[];
+  seasonObjectives?: CareerObjective[];
   universityGroup: '関東大学対抗戦A' | '関東大学対抗戦B' | '関東大学リーグ戦1部' | '関東大学リーグ戦2部' | '関西大学Aリーグ' | '関西大学Bリーグ';
   universityQualified: boolean; universityTournamentAlive: boolean; universityPlayoff?: { targetGroup: CareerState['universityGroup']; wins: number; losses: number };
   proDivision: 1 | 2 | 3; proMatchIndex: number; proSchedule: CareerFixture[]; proStandings?: { team: string; wins: number }[];
@@ -460,6 +481,7 @@ export function newCareer(name: string, pos: Pos, prefIndex = 26, schoolName?: s
   };
   player.peak = careerOverall(s);
   s.currentSeason = newSeason(s);
+  s.seasonObjectives = buildCareerObjectives(s);
   s.rosterPlayers = createCareerRoster(s); s.playerArchive = [];
   s.rivals = createCareerRivals(s);
   saveCareer(s);
@@ -470,6 +492,83 @@ export function setCareerTraining(s: CareerState, k: StatKey): void {
 }
 export function setCareerTrainingPlan(s: CareerState, plan: CareerTrainingPlan): void {
   if (['バランス','筋力','技術','持久力'].includes(plan)) s.trainingPlan = plan;
+}
+function careerSeasonKey(s: CareerState): string {
+  return `${s.phase}:${s.age}:${s.stageYear}`;
+}
+function careerObjectiveProgress(s: CareerState, objective: CareerObjective): number {
+  if (objective.metric === 'appearances') return s.currentSeason.appearances;
+  if (objective.metric === 'tackles') return s.currentSeason.tacklesTotal ?? 0;
+  return s.currentSeason.wins;
+}
+function buildCareerObjectives(s: CareerState, preserveExistingProgress = false): CareerObjective[] {
+  const phase = s.phase;
+  const appearanceBase = phase === 'highschool' ? 4 : phase === 'university' ? 5 : 8;
+  const selection = careerAppearanceProbability(s);
+  const appearanceTarget = selection < 0.3 ? Math.max(1, Math.floor(appearanceBase * 0.5))
+    : selection < 0.55 ? Math.max(2, appearanceBase - 1) : appearanceBase;
+  const tackleTarget = phase === 'highschool' ? 25 : phase === 'university' ? 35 : 45;
+  const winTarget = phase === 'highschool' ? 2 : phase === 'university' ? 3 : 5;
+  const seasonKey = careerSeasonKey(s);
+  const objectives: CareerObjective[] = [
+    { id: `${seasonKey}:appearances`, seasonKey, title: '出場機会をつかめ', description: `今季${appearanceTarget}試合に出場する`, metric: 'appearances', target: appearanceTarget, rewardExp: 60, rewardStat: 'sta', completed: false },
+    { id: `${seasonKey}:tackles`, seasonKey, title: '鉄壁のディフェンス', description: `今季${tackleTarget}タックルを記録する`, metric: 'tackles', target: tackleTarget, rewardExp: 80, rewardStat: 'pow', completed: false },
+    { id: `${seasonKey}:wins`, seasonKey, title: '勝利を積み重ねろ', description: `チームで今季${winTarget}勝を挙げる`, metric: 'wins', target: winTarget, rewardExp: 100, rewardStat: 'men', completed: false },
+  ];
+  if (preserveExistingProgress) {
+    for (const objective of objectives) objective.completed = careerObjectiveProgress(s, objective) >= objective.target;
+  }
+  return objectives;
+}
+function updateCareerObjectives(s: CareerState): void {
+  for (const objective of s.seasonObjectives ?? []) {
+    if (objective.completed || careerObjectiveProgress(s, objective) < objective.target) continue;
+    objective.completed = true;
+    s.experiencePoints += objective.rewardExp;
+    s.player.stats[objective.rewardStat] += 0.45;
+    s.player.peak = Math.max(s.player.peak, careerOverall(s));
+    if (!s.awards.includes(objective.title)) s.awards.push(objective.title);
+    s.currentSeason.awards ??= [];
+    if (!s.currentSeason.awards.includes(objective.title)) s.currentSeason.awards.push(objective.title);
+    const reward = `能力${STAT_LABEL[objective.rewardStat]}+0.45・経験点+${objective.rewardExp}`;
+    const note = `シーズン目標達成「${objective.title}」！報酬：${reward}。`;
+    s.currentSeason.notes.push(note);
+    s.history.unshift(note);
+  }
+}
+function buildCareerMatchReview(s: CareerState, match: CareerMatch): CareerMatchReview {
+  const highlights: string[] = [];
+  const improvements: string[] = [];
+  if (match.appeared) {
+    if (match.tries > 0) highlights.push(`トライ${match.tries}本。得点に直結する仕事を果たした。`);
+    if (match.lineBreaks > 0) highlights.push(`ラインブレイク${match.lineBreaks}回。攻撃の流れを変えた。`);
+    if (match.tackles >= 10) highlights.push(`タックル${match.tackles}回。守備で大きく貢献した。`);
+    if (match.kicks >= 3) highlights.push(`キック${match.kicks}回。陣地獲得を支えた。`);
+    if (match.result === '勝利') highlights.push('チームの勝利に貢献した。');
+    if (match.errors >= 2) improvements.push(`ミスが${match.errors}回。プレー選択とボール扱いを見直したい。`);
+    if (match.tackles < 5) improvements.push('守備での関与を増やし、タックルの精度を高めたい。');
+    if (match.rating < 6.5) improvements.push('次戦は基本プレーの成功率を高め、安定した評価を目指したい。');
+    if (match.result === '敗戦' && match.my + 14 < match.their) improvements.push('相手に主導権を握られた。守備の連携と陣地回復が課題。');
+  } else {
+    highlights.push(match.role === '控え' ? 'ベンチ入りを果たし、出場機会に備えた。' : 'チームに帯同して試合を経験した。');
+    improvements.push('同ポジション内の競争を勝ち抜くため、能力と練習成果を積み上げたい。');
+  }
+  if (!highlights.length) highlights.push('派手さはないが、役割を意識した堅実なプレーを続けた。');
+  if (!improvements.length) improvements.push('大きな課題は見られない。得意分野を伸ばして次戦につなげたい。');
+  const nextStat: StatKey = !match.appeared
+    ? [...STAT_KEYS].sort((a, b) => s.player.stats[a] - s.player.stats[b])[0]
+    : match.errors >= 2 ? 'tec'
+      : match.tackles < 5 ? 'sta'
+        : match.lineBreaks === 0 ? 'spd'
+          : match.tries === 0 ? 'pow' : 'men';
+  const grade = !match.appeared ? '—' : match.rating >= 8.5 ? 'S' : match.rating >= 7.5 ? 'A' : match.rating >= 6.5 ? 'B' : match.rating >= 5.5 ? 'C' : 'D';
+  const headline = !match.appeared ? '次はメンバー入り・出場を目指そう'
+    : match.result === '勝利' && match.rating >= 7.5 ? '勝利を引き寄せる好パフォーマンス！'
+      : match.result === '勝利' ? 'チームの勝利に貢献'
+        : match.rating >= 7.5 ? '敗戦の中でも個人としては健闘'
+          : match.result === '引分' ? '接戦。あと一歩の積み上げが必要'
+            : '課題を持ち帰る一戦。次戦で巻き返そう';
+  return { grade, headline, highlights, improvements, nextStat };
 }
 export function careerLegacyScore(s: CareerState): number {
   const includeCurrent = s.phase !== 'retired';
@@ -819,6 +918,15 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   const rawMy = live ? live.scoreFor : Math.max(0, Math.round(24 + matchPace + strengthGap * 0.72 + gauss(0, 2)));
   const rawTheir = live ? live.scoreAgainst : Math.max(0, Math.round(24 + matchPace - strengthGap * 0.72 + gauss(0, 2)));
   const scoreReport = buildCareerScoreEvents(s, rawMy, rawTheir, appeared, opponent || opponentFor(s, kind));
+  if (live && appeared) {
+    let userTriesLeft = live.tries;
+    for (const event of scoreReport.events) {
+      if (userTriesLeft > 0 && event.side === '自チーム' && event.points !== 3) {
+        event.scorer = s.player.name;
+        userTriesLeft--;
+      }
+    }
+  }
   const my = scoreReport.my;
   const their = scoreReport.their;
   const season = s.currentSeason; season.played++;
@@ -833,6 +941,7 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   const lineBreaks = live ? (appeared ? live.lineBreaks : 0) : appeared && rand() < 0.35 ? int(1, 2) : 0;
   const kicks = live ? (appeared ? live.kicks : 0) : appeared && ['SH','SO','FB'].includes(s.player.pos) ? int(1, 6) : 0;
   const errors = live ? (appeared ? live.errors : 0) : appeared ? int(0, 3) : 0;
+  season.tacklesTotal = (season.tacklesTotal ?? 0) + tackles;
   const rating = appeared ? Math.round(clamp(5 + tries * 1.4 + lineBreaks * 0.7 + (my > their ? 0.5 : my < their ? -0.25 : 0) + gauss(0, 0.8), 3, 10) * 10) / 10 : 0;
   const exp = awardMatchExperience(s, my, their, appeared, tries, rating), scenes: string[] = live ? [...live.scenes] : [];
   if (!live && !appeared) scenes.push('出場機会はなかったが、ベンチからチームを支えた。');
@@ -846,7 +955,8 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   const result = my > their ? '勝利' : my === their ? '引分' : '敗戦';
   scenes.push(my > their ? 'チームは勝利。試合後の評価が上がった。' : my === their ? '接戦の末に引き分け。最後まで集中を切らさなかった。' : '悔しい敗戦。課題を持ち帰り、次戦に向けて修正する。');
   recordRosterMatch(s, my, their);
-  const match: CareerMatch = { date: date || `2025年${s.month}月`, competition: (kind === 'japan-test' || kind === 'world-cup') && !label.includes('日本代表') ? `日本代表 ${label}` : label, opponent: opponent || opponentFor(s, kind), my, their, result, appeared, role, tries, carries, tackles, lineBreaks, kicks, errors, rating, experience: exp, scenes, scoreEvents: live ? scoreReport.events : scoreReport.events };
+  const match: CareerMatch = { date: date || `2025年${s.month}月`, competition: (kind === 'japan-test' || kind === 'world-cup') && !label.includes('日本代表') ? `日本代表 ${label}` : label, opponent: opponent || opponentFor(s, kind), my, their, result, appeared, role, tries, carries, tackles, lineBreaks, kicks, errors, rating, experience: exp, scenes, scoreEvents: scoreReport.events };
+  match.review = buildCareerMatchReview(s, match);
   if (role === '先発') season.starts = (season.starts ?? 0) + 1;
   else if (role === '途中出場') season.substituteApps = (season.substituteApps ?? 0) + 1;
   else if (role === '控え') season.bench = (season.bench ?? 0) + 1;
@@ -862,6 +972,7 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   } else if (kind === 'japan-test' || kind === 'world-cup') match.scenes.unshift('日本代表に帯同したが、今回は出場機会がなかった。');
   s.lastMatch = match; s.matchHistory.unshift(match); s.matchHistory = s.matchHistory.slice(0, 80);
   if (appeared) season.appearances++; season.tries += tries;
+  updateCareerObjectives(s);
   if (appeared && rating >= 7.5 && !s.currentSeason.awards?.includes('週間ベストプレーヤー')) { s.currentSeason.awards ??= []; s.currentSeason.awards.push('週間ベストプレーヤー'); }
   if (s.phase === 'highschool' && appeared) { s.highSchoolAppearances++; s.highSchoolTries += tries; s.highSchoolRatingTotal += rating; s.highSchoolRatingCount++; }
   season.notes.push(`${match.date} ${label} vs ${match.opponent} ${my}-${their}（${result}／個人評価 ${appeared ? rating.toFixed(1) : '未出場'}／経験点+${exp}）`);
@@ -901,8 +1012,7 @@ export function beginCareerLiveMatch(s: CareerState, source: 'tournament' | 'fix
     tries: 0, carries: 0, tackles: 0, lineBreaks: 0, kicks: 0, errors: 0, scenes: [],
     lastEvent: `キックオフ！${s.player.name}のチームが試合を始める。`, actions: 0,
   };
-  // Matches are resolved by simulation; no interactive match-play mode is used.
-  finishCareerLiveMatch(s);
+  // Match play stays active until the player makes sixteen five-minute decisions.
   saveCareer(s);
 }
 function finishCareerLiveMatch(s: CareerState): void {
@@ -1048,7 +1158,14 @@ export function playCareerMatchAction(s: CareerState, action: CareerMatchAction)
       } else if (rand() < 0.42) g.possession = '自チーム';
     }
   }
-  g.elapsed = Math.min(80, g.elapsed + 5); g.actions++; g.lastEvent = event;
+  const previousElapsed = g.elapsed;
+  g.elapsed = Math.min(80, g.elapsed + 5);
+  if (g.role === '控え' && previousElapsed < 40 && g.elapsed >= 40) {
+    g.role = '途中出場';
+    event += ` ${s.player.name}が後半から途中出場！`;
+    g.scenes.push(`${s.player.name}が後半開始から途中出場。`);
+  }
+  g.actions++; g.lastEvent = event;
   if (g.elapsed >= 80) { g.scenes.push(`ノーサイド！最終スコア ${g.scoreFor}-${g.scoreAgainst}。`); finishCareerLiveMatch(s); }
   saveCareer(s); return s;
 }
@@ -1249,7 +1366,11 @@ function advanceCalendar(s: CareerState): void {
     }
   } else s.month = s.month === 12 ? 1 : s.month + 1;
   s.pendingFixtures = []; s.tournamentCompletedMonth = undefined;
-  if (s.phase !== 'retired') s.currentSeason.age = s.age;
+  if (s.phase !== 'retired') {
+    s.currentSeason.age = s.age;
+    const key = careerSeasonKey(s);
+    if (!s.seasonObjectives?.length || s.seasonObjectives[0]?.seasonKey !== key) s.seasonObjectives = buildCareerObjectives(s);
+  }
 }
 export function careerGrowthMultiplier(s: CareerState): number {
   return s.player.talentType === '天才' ? 1.35 : s.player.talentType === '秀才' ? 1.12 : 1;
@@ -1313,8 +1434,8 @@ export function advanceCareerMonth(s: CareerState, _interactive = false): Career
   // UIから次へ進めた場合、提示中の契約オファーは現所属で更新してから進行する。
   refreshNationalSelection(s);
   if (s.pendingTransfer) { s.pendingTransfer = undefined; s.proContractYears = Math.max(2, s.proContractYears); s.history.unshift(`${s.age}歳：契約オファーを見送り、現所属で契約を更新。年俸${s.proSalary}万円でプレーを続ける。`); }
-  if (s.pendingTournament) { playCareerTournamentMatch(s, false); saveCareer(s); return s; }
-  if (s.pendingFixtures?.length) { playNextFixture(s, false); saveCareer(s); return s; }
+  if (s.pendingTournament) { playCareerTournamentMatch(s, true); saveCareer(s); return s; }
+  if (s.pendingFixtures?.length) { playNextFixture(s, true); saveCareer(s); return s; }
   if (s.tournamentCompletedMonth === s.month) {
     applyCareerDevelopment(s);
     advanceCalendar(s); saveCareer(s); return s;
@@ -1464,7 +1585,7 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
     if (!Array.isArray(s.awards)) s.awards = [];
     // 能力値は上限なしで保持し、不正値だけを補正する。
     normalizeCareerPlayer(s);
-    for (const r of [...s.seasons, s.currentSeason]) { if (!r) continue; if (typeof r.starts !== 'number') r.starts = r.appearances || 0; if (typeof r.substituteApps !== 'number') r.substituteApps = 0; if (typeof r.bench !== 'number') r.bench = 0; if (typeof r.notSelected !== 'number') r.notSelected = Math.max(0, (r.played || 0) - (r.appearances || 0)); if (!Array.isArray(r.awards)) r.awards = []; }
+    for (const r of [...s.seasons, s.currentSeason]) { if (!r) continue; if (typeof r.starts !== 'number') r.starts = r.appearances || 0; if (typeof r.substituteApps !== 'number') r.substituteApps = 0; if (typeof r.bench !== 'number') r.bench = 0; if (typeof r.notSelected !== 'number') r.notSelected = Math.max(0, (r.played || 0) - (r.appearances || 0)); if (typeof r.tacklesTotal !== 'number' || !Number.isFinite(r.tacklesTotal)) r.tacklesTotal = 0; if (!Array.isArray(r.awards)) r.awards = []; }
     for (const m of s.matchHistory) if (!m.role) m.role = m.appeared ? '先発' : 'メンバー外';
     if (!s.universityGroup || !UNIVERSITY_GROUPS[s.universityGroup]) s.universityGroup = groupForUniversity(s.university || '');
     const allUniversityNames = new Set(Object.values(UNIVERSITY_GROUPS).flat());
@@ -1492,6 +1613,11 @@ export function loadCareer(slot: 1 | 2 = activeCareerSlot): CareerState | null {
       if (typeof r.leagueWins !== 'number') r.leagueWins = 0;
       if (typeof r.leagueLosses !== 'number') r.leagueLosses = 0;
       if (typeof r.leagueDraws !== 'number') r.leagueDraws = 0;
+    }
+    const currentObjectiveKey = careerSeasonKey(s);
+    if (!Array.isArray(s.seasonObjectives) || !s.seasonObjectives.length
+      || s.seasonObjectives.some((objective) => !objective || objective.seasonKey !== currentObjectiveKey)) {
+      s.seasonObjectives = buildCareerObjectives(s, true);
     }
     if (s.phase === 'professional') {
       if (!s.professionalLeague) s.professionalLeague = PRO_TEAMS[s.proDivision].includes(s.professionalTeam) ? (s.proDivision === 1 ? 'リーグワン' : s.proDivision === 2 ? 'リーグワンD2' : 'リーグワンD3') : leagueForClub(s.professionalTeam);
