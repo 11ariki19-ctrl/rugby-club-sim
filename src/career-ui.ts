@@ -2,7 +2,7 @@ import {
   advanceCareerMonth, careerOverall, currentTeam, newCareer, setCareerTraining, setCareerTrainingPlan,
   resolveCareerTransfer, careerHallOfFame, careerLegacyScore, UNIVERSITY_GROUPS, selectCareerUniversity,
   CAREER_POSITIONS, CAREER_STAT_KEYS, CAREER_STAT_LABEL, CAREER_TALENTS, CAREER_MILESTONES, hasCareerSave, loadCareer, saveCareer, setCareerSaveSlot, careerSaveSummary,
-  playCareerMatchAction,
+  playCareerMatchAction, resolveCareerEvent,
 } from './career';
 import type { CareerState, CareerPhase, CareerTrainingPlan, CareerRosterPlayer, CareerObjective, CareerMatchReview, CareerMatchAction } from './career';
 import { STAT_LABEL, overallAt } from './game';
@@ -86,6 +86,12 @@ function objectiveProgress(s: CareerState, objective: CareerObjective): number {
   if (objective.metric === 'tackles') return s.currentSeason.tacklesTotal ?? 0;
   return s.currentSeason.wins;
 }
+function storyEventCard(s: CareerState): string {
+  const event = s.pendingEvent;
+  if (!event) return '';
+  const options = event.options.map((option, index) => `<button class="btn mode career-event-choice" data-career="event-choice" data-v="${index}"><b>${esc(option.label)}</b><span>${esc(option.description)}</span><small>報酬：${CAREER_STAT_LABEL[option.rewardStat]}+${option.rewardGain}・経験点+${option.rewardExp}</small></button>`).join('');
+  return `<section class="card career-story-event"><span class="profile-kicker">CAREER STORY EVENT</span><h3>${esc(event.title)}</h3><p>${esc(event.description)}</p><div class="career-event-options">${options}</div></section>`;
+}
 function missionBoard(s: CareerState): string {
   const objectives = s.seasonObjectives ?? [];
   if (!objectives.length) return '';
@@ -147,7 +153,7 @@ function homeScreen(s: CareerState): string {
   const history = s.history.slice(0, 8).map((h) => `<li>${esc(h)}</li>`).join('');
   const seasons = s.seasons.slice().reverse().slice(0, 12).map((r) => `<div class="card"><b>${r.age}歳・${esc(r.team)}</b><div class="small">${labels[r.phase]} ${r.year}年目：${r.wins}勝${r.losses}敗${r.draws}分 ／ 出場${r.appearances}試合・${r.tries}トライ</div><div class="small">先発${r.starts ?? 0}・途中出場${r.substituteApps ?? 0}・控え${r.bench ?? 0}・メンバー外${r.notSelected ?? 0}</div>${r.awards?.length ? `<div class="small">表彰：${r.awards.map(esc).join('、')}</div>` : ''}</div>`).join('');
   const team = currentTeam(s);
-  const advanceLabel = s.pendingTransfer ? '契約を更新して進む' : s.pendingTournament ? `試合開始（${s.pendingTournament.name}・${s.pendingTournament.rounds + 1}試合目）` : s.pendingFixtures?.length ? `試合開始（${s.pendingFixtures[0].label}）` : s.tournamentCompletedMonth === s.month ? `試合終了：${monthLabel(s.month)}を終えて次の月へ` : (s.phase === 'professional' && [12,1,2,3,4,5,6,8,9].includes(s.month)) || (s.phase === 'university' && [5,6,9,10,11,12,1].includes(s.month)) || (s.phase === 'highschool' && [2,7,11,12].includes(s.month)) ? `試合開始（${monthLabel(s.month)}）` : `${monthLabel(s.month)}を進める`;
+  const advanceLabel = s.pendingEvent ? 'イベントの選択が必要です' : s.pendingTransfer ? '契約を更新して進む' : s.pendingTournament ? `試合開始（${s.pendingTournament.name}・${s.pendingTournament.rounds + 1}試合目）` : s.pendingFixtures?.length ? `試合開始（${s.pendingFixtures[0].label}）` : s.tournamentCompletedMonth === s.month ? `試合終了：${monthLabel(s.month)}を終えて次の月へ` : (s.phase === 'professional' && [12,1,2,3,4,5,6,8,9].includes(s.month)) || (s.phase === 'university' && [5,6,9,10,11,12,1].includes(s.month)) || (s.phase === 'highschool' && [2,7,11,12].includes(s.month)) ? `試合開始（${monthLabel(s.month)}）` : `${monthLabel(s.month)}を進める`;
   const plans: CareerTrainingPlan[] = ['バランス','筋力','技術','持久力'];
   const planButtons = plans.map((p) => `<button class="btn mode ${s.trainingPlan === p ? 'primary' : ''}" data-career="plan" data-v="${p}"><b>${p}</b><span>${s.trainingPlan === p ? '選択中' : ({'バランス':'能力全体をバランスよく育成','筋力':'パワー系能力を重点育成','技術':'技術系能力を重点育成','持久力':'スタミナとスピードを重点育成'} as Record<CareerTrainingPlan,string>)[p]}</span></button>`).join('');
   const sameCategoryRivals = s.rivals.filter((r) => !r.retired && r.phase === s.phase && r.pos === s.player.pos).sort((a,b) => Math.abs(a.age-s.age)-Math.abs(b.age-s.age) || b.overall-a.overall);
@@ -164,6 +170,7 @@ function homeScreen(s: CareerState): string {
       <button class="career-tab ${activeCareerTab === 'records' ? 'active' : ''}" role="tab" aria-selected="${activeCareerTab === 'records'}" data-career="career-tab" data-v="records">戦績・記録</button>
     </nav>
     <section class="career-tab-panel ${activeCareerTab === 'player' ? 'active' : ''}" data-tab-panel="player">
+    ${storyEventCard(s)}
     ${missionBoard(s)}
     ${milestoneCollection(s)}
     <div class="panel career-player-hero"><div class="profile-hero">${careerPortrait(s.player.name,s.player.pos)}<div><span class="profile-kicker">PLAYER CAREER</span><b class="career-player-name">${esc(s.player.name)}</b><p>${s.player.pos} ／ 総合値 ${o}（${rating}ランク）</p><span class="small">${esc(team)} ・ ${s.player.height}cm / ${s.player.weight}kg</span></div></div><p>${phaseDescription(s)}</p><div class="career-kit-radar">${careerUniform(team)}<div class="radar-wrap"><h3>能力バランス</h3>${careerRadar(s.player.stats as unknown as Record<string,number>)}</div></div></div>
@@ -410,6 +417,12 @@ function act(action: string, value = ''): void {
     return;
   }
   if (action === 'result-continue' && state) { showMatchResult = false; selectedRosterMember = null; activeCareerTab = 'player'; render(); return; }
+  if (action === 'event-choice' && state) {
+    resolveCareerEvent(state, Number(value));
+    showMatchResult = false;
+    activeCareerTab = 'player';
+    render(); return;
+  }
   if (action === 'review-train' && state) {
     setCareerTraining(state, value as StatKey);
     showMatchResult = false;
