@@ -3,7 +3,7 @@ import { seed, rand } from '../src/rng';
 import { PREFS, SURNAMES, allSchools, schoolsOf, HANAZONO_FINALS_LAST_10 } from '../src/data';
 import { generateUniquePlayerName, generateUniqueJapaneseName, inferPlayerCountry } from '../src/names';
 import { overallAt } from '../src/game';
-import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, playCareerMatchAction, careerGrowthMultiplier, careerTeamStrengthProfile, WORLD_CUP_TEAMS, worldCupPools, saveCareer, loadCareer, setCareerSaveSlot, clearCareer, nationalCandidatePool, careerRoleByPositionalRank, nationalMatchRole, UNIVERSITY_GROUPS, selectCareerUniversity } from '../src/career';
+import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, playCareerMatchAction, resolveCareerEvent, careerGrowthMultiplier, careerTeamStrengthProfile, WORLD_CUP_TEAMS, worldCupPools, saveCareer, loadCareer, setCareerSaveSlot, clearCareer, nationalCandidatePool, careerRoleByPositionalRank, nationalMatchRole, UNIVERSITY_GROUPS, selectCareerUniversity } from '../src/career';
 
 function resolveLiveMatch(s: ReturnType<typeof newCareer>): void {
   let guard = 0;
@@ -23,6 +23,25 @@ function advanceAndResolve(s: ReturnType<typeof newCareer>): void {
   advanceCareerMonth(s);
   resolveLiveMatch(s);
 }
+
+const eventCareer = newCareer('イベント選択テスト', 'SO');
+const eventMonth = eventCareer.month;
+const eventStatBefore = eventCareer.player.stats.tec;
+const eventExpBefore = eventCareer.experiencePoints;
+eventCareer.pendingEvent = {
+  id: 'test-event', title: 'テストイベント', description: 'イベントの選択を確認する',
+  options: [
+    { label: '技術を磨く', description: '技術を伸ばす', rewardStat: 'tec', rewardGain: 1.25, rewardExp: 15, moraleGain: 4 },
+    { label: '体力を磨く', description: '持久力を伸ばす', rewardStat: 'sta', rewardGain: 1, rewardExp: 10, moraleGain: 2 },
+  ],
+};
+advanceCareerMonth(eventCareer);
+assert.equal(eventCareer.month, eventMonth, 'calendar progression pauses until a story event is resolved');
+assert.equal(resolveCareerEvent(eventCareer, 0), true, 'a valid story event choice resolves successfully');
+assert.equal(eventCareer.player.stats.tec, eventStatBefore + 1.25, 'story event choice applies its selected ability reward');
+assert.equal(eventCareer.experiencePoints, eventExpBefore + 15, 'story event choice grants experience points');
+assert.equal(eventCareer.pendingEvent, undefined, 'resolved story events are cleared from the save');
+assert.equal(resolveCareerEvent(eventCareer, 1), false, 'a resolved event cannot be claimed twice');
 
 console.log('career mode tests');
 const realSchools = allSchools();
