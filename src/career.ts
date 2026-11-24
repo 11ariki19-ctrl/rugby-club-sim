@@ -15,6 +15,16 @@ export const CAREER_TALENTS: { id: CareerTalentType; label: string; description:
   { id: '天才', label: '天才', description: '凡人の初期能力に全ステータス+15' },
   { id: '一芸', label: '一芸', description: '1能力が最低能力の3倍。最低能力は15〜20' },
 ];
+export const CAREER_MILESTONES: { id: string; title: string; description: string; rewardExp: number; rewardStat: StatKey; rewardBonus: number }[] = [
+  { id: 'debut', title: '公式戦デビュー', description: '公式戦に初出場', rewardExp: 20, rewardStat: 'men', rewardBonus: 0.2 },
+  { id: 'first-try', title: '初トライ', description: '初めてトライを記録', rewardExp: 25, rewardStat: 'spd', rewardBonus: 0.2 },
+  { id: 'ten-apps', title: 'レギュラー定着', description: '通算10試合に出場', rewardExp: 50, rewardStat: 'sta', rewardBonus: 0.35 },
+  { id: 'twenty-tries', title: 'トライゲッター', description: '通算20トライを記録', rewardExp: 100, rewardStat: 'pow', rewardBonus: 0.5 },
+  { id: 'hundred-tackles', title: 'タックル職人', description: '通算100タックルを記録', rewardExp: 75, rewardStat: 'pow', rewardBonus: 0.35 },
+  { id: 'japan-debut', title: '桜のジャージ', description: '日本代表として初出場', rewardExp: 150, rewardStat: 'men', rewardBonus: 0.6 },
+  { id: 'ten-caps', title: '国際舞台の常連', description: '日本代表10キャップを達成', rewardExp: 220, rewardStat: 'tec', rewardBonus: 0.7 },
+  { id: 'world-win', title: '世界への挑戦者', description: '高校日本代表の世界大会で勝利', rewardExp: 100, rewardStat: 'men', rewardBonus: 0.4 },
+];
 export interface CareerSeason {
   age: number;
   phase: Exclude<CareerPhase, 'retired'>;
@@ -536,6 +546,32 @@ function updateCareerObjectives(s: CareerState): void {
     s.history.unshift(note);
   }
 }
+function updateCareerMilestones(s: CareerState): void {
+  const seasons = [...s.seasons, s.currentSeason];
+  const appearances = seasons.reduce((sum, season) => sum + season.appearances, 0);
+  const tries = seasons.reduce((sum, season) => sum + season.tries, 0);
+  const tackles = seasons.reduce((sum, season) => sum + (season.tacklesTotal ?? 0), 0);
+  const conditions: Record<string, boolean> = {
+    debut: appearances >= 1,
+    'first-try': tries >= 1,
+    'ten-apps': appearances >= 10,
+    'twenty-tries': tries >= 20,
+    'hundred-tackles': tackles >= 100,
+    'japan-debut': s.japanNationalTeamCaps >= 1,
+    'ten-caps': s.japanNationalTeamCaps >= 10,
+    'world-win': s.worldTournamentWins >= 1,
+  };
+  for (const milestone of CAREER_MILESTONES) {
+    if (!conditions[milestone.id] || s.awards.includes(milestone.title)) continue;
+    s.awards.push(milestone.title);
+    s.experiencePoints += milestone.rewardExp;
+    s.player.stats[milestone.rewardStat] += milestone.rewardBonus;
+    s.player.peak = Math.max(s.player.peak, careerOverall(s));
+    const note = `称号獲得「${milestone.title}」！${milestone.description}。報酬：経験点+${milestone.rewardExp}・${STAT_LABEL[milestone.rewardStat]}+${milestone.rewardBonus}。`;
+    s.currentSeason.notes.push(note);
+    s.history.unshift(note);
+  }
+}
 function buildCareerMatchReview(s: CareerState, match: CareerMatch): CareerMatchReview {
   const highlights: string[] = [];
   const improvements: string[] = [];
@@ -973,6 +1009,7 @@ function simulateMatch(s: CareerState, label = `${s.month}月リーグ戦`, oppo
   s.lastMatch = match; s.matchHistory.unshift(match); s.matchHistory = s.matchHistory.slice(0, 80);
   if (appeared) season.appearances++; season.tries += tries;
   updateCareerObjectives(s);
+  updateCareerMilestones(s);
   if (appeared && rating >= 7.5 && !s.currentSeason.awards?.includes('週間ベストプレーヤー')) { s.currentSeason.awards ??= []; s.currentSeason.awards.push('週間ベストプレーヤー'); }
   if (s.phase === 'highschool' && appeared) { s.highSchoolAppearances++; s.highSchoolTries += tries; s.highSchoolRatingTotal += rating; s.highSchoolRatingCount++; }
   season.notes.push(`${match.date} ${label} vs ${match.opponent} ${my}-${their}（${result}／個人評価 ${appeared ? rating.toFixed(1) : '未出場'}／経験点+${exp}）`);
