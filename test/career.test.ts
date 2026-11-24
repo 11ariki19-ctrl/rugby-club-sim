@@ -3,7 +3,47 @@ import { seed, rand } from '../src/rng';
 import { PREFS, SURNAMES, allSchools, schoolsOf, HANAZONO_FINALS_LAST_10 } from '../src/data';
 import { generateUniquePlayerName, generateUniqueJapaneseName, inferPlayerCountry } from '../src/names';
 import { overallAt } from '../src/game';
-import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, careerGrowthMultiplier, careerTeamStrengthProfile, WORLD_CUP_TEAMS, worldCupPools, saveCareer, loadCareer, setCareerSaveSlot, clearCareer, nationalCandidatePool, careerRoleByPositionalRank, nationalMatchRole, UNIVERSITY_GROUPS, selectCareerUniversity } from '../src/career';
+import { advanceCareerMonth, careerAppearanceProbability, careerOverall, newCareer, setCareerTrainingPlan, resolveCareerTransfer, careerLegacyScore, beginCareerLiveMatch, playCareerMatchAction, resolveCareerEvent, careerGrowthMultiplier, careerTeamStrengthProfile, WORLD_CUP_TEAMS, worldCupPools, saveCareer, loadCareer, setCareerSaveSlot, clearCareer, nationalCandidatePool, careerRoleByPositionalRank, nationalMatchRole, UNIVERSITY_GROUPS, selectCareerUniversity } from '../src/career';
+
+function resolveLiveMatch(s: ReturnType<typeof newCareer>): void {
+  let guard = 0;
+  while (s.liveMatch && guard < 17) {
+    const match = s.liveMatch;
+    const action = match.possession === '相手'
+      ? 'rush'
+      : match.fieldPosition < 35 ? 'kick'
+        : match.fieldPosition >= 88 ? 'carry'
+          : match.fieldPosition >= 55 ? 'goal' : 'pass';
+    playCareerMatchAction(s, action);
+    guard++;
+  }
+  assert.equal(s.liveMatch, undefined, 'a live match can be completed within sixteen five-minute decisions');
+}
+function advanceAndResolve(s: ReturnType<typeof newCareer>): void {
+  if (s.pendingEvent) resolveCareerEvent(s, 0);
+  advanceCareerMonth(s);
+  resolveLiveMatch(s);
+  if (s.pendingEvent) resolveCareerEvent(s, 0);
+}
+
+const eventCareer = newCareer('イベント選択テスト', 'SO');
+const eventMonth = eventCareer.month;
+const eventStatBefore = eventCareer.player.stats.tec;
+const eventExpBefore = eventCareer.experiencePoints;
+eventCareer.pendingEvent = {
+  id: 'test-event', title: 'テストイベント', description: 'イベントの選択を確認する',
+  options: [
+    { label: '技術を磨く', description: '技術を伸ばす', rewardStat: 'tec', rewardGain: 1.25, rewardExp: 15, moraleGain: 4 },
+    { label: '体力を磨く', description: '持久力を伸ばす', rewardStat: 'sta', rewardGain: 1, rewardExp: 10, moraleGain: 2 },
+  ],
+};
+advanceCareerMonth(eventCareer);
+assert.equal(eventCareer.month, eventMonth, 'calendar progression pauses until a story event is resolved');
+assert.equal(resolveCareerEvent(eventCareer, 0), true, 'a valid story event choice resolves successfully');
+assert.equal(eventCareer.player.stats.tec, eventStatBefore + 1.25, 'story event choice applies its selected ability reward');
+assert.equal(eventCareer.experiencePoints, eventExpBefore + 15, 'story event choice grants experience points');
+assert.equal(eventCareer.pendingEvent, undefined, 'resolved story events are cleared from the save');
+assert.equal(resolveCareerEvent(eventCareer, 1), false, 'a resolved event cannot be claimed twice');
 
 console.log('career mode tests');
 const realSchools = allSchools();
@@ -111,13 +151,13 @@ const continuity = newCareer('進路引継ぎテスト', 'CTB');
 const originalUserRecord = continuity.rosterPlayers!.find((p) => p.isUser)!;
 continuity.stageYear = 3; continuity.age = 17; continuity.month = 3;
 continuity.currentSeason.age = 17; continuity.currentSeason.year = 3;
-advanceCareerMonth(continuity);
+advanceAndResolve(continuity);
 assert.equal(continuity.phase, 'university', 'third high school year transitions to university');
 assert.ok(continuity.rosterPlayers!.some((p) => p.isUser && p.name === '進路引継ぎテスト' && p.careerPath.some((h) => h.phase === 'university')), 'player identity and history carry into university');
 assert.ok(continuity.rosterPlayers!.some((p) => p.id === originalUserRecord.id), 'the same player record is retained across the first transition');
 continuity.stageYear = 4; continuity.age = 21; continuity.month = 3;
 continuity.currentSeason.age = 21; continuity.currentSeason.year = 4;
-advanceCareerMonth(continuity);
+advanceAndResolve(continuity);
 assert.equal(continuity.phase, 'professional', 'fourth university year transitions to professional rugby');
 assert.ok(nationalCandidatePool(continuity).filter((p) => p.team !== continuity.professionalTeam).length > 0, 'professional Japan squad candidates include players from other clubs, not only the user team');
 assert.ok(continuity.rosterPlayers!.some((p) => p.isUser && p.careerPath.some((h) => h.phase === 'professional')), 'player identity and career path carry into professional rugby');
@@ -132,14 +172,14 @@ const strongResultCareer = newCareer('高総合値テスト', 'CTB');
 strongResultCareer.month = 7;
 for (const key of Object.keys(strongResultCareer.player.stats) as (keyof typeof strongResultCareer.player.stats)[]) strongResultCareer.player.stats[key] = 100;
 seed(551);
-advanceCareerMonth(strongResultCareer);
+advanceAndResolve(strongResultCareer);
 const strongMargin = strongResultCareer.lastMatch!.my - strongResultCareer.lastMatch!.their;
 seed(1441);
 const weakResultCareer = newCareer('低総合値テスト', 'CTB');
 weakResultCareer.month = 7;
 for (const key of Object.keys(weakResultCareer.player.stats) as (keyof typeof weakResultCareer.player.stats)[]) weakResultCareer.player.stats[key] = 30;
 seed(551);
-advanceCareerMonth(weakResultCareer);
+advanceAndResolve(weakResultCareer);
 const weakMargin = weakResultCareer.lastMatch!.my - weakResultCareer.lastMatch!.their;
 assert.ok(strongMargin > weakMargin, 'higher player overall should produce a better expected match margin under the same random seed');
 console.log('  ok - match scores respond to the player’s overall rating');
@@ -155,7 +195,7 @@ assert.equal(loadedUncappedSave.player.stats.pow, 245.5, 'saving and loading pre
 assert.equal(loadedUncappedSave.player.stats.spd, 231.25, 'saving and loading preserves decimal ability values above 200');
 assert.ok(careerOverall(loadedUncappedSave) > 200, 'overall rating reflects uncapped ability values');
 const preGrowth = { ...loadedUncappedSave.player.stats };
-advanceCareerMonth(loadedUncappedSave);
+advanceAndResolve(loadedUncappedSave);
 assert.ok(Object.keys(preGrowth).some((key) => loadedUncappedSave.player.stats[key as keyof typeof preGrowth] > preGrowth[key as keyof typeof preGrowth]), 'abilities above 200 can continue growing');
 console.log('  ok - uncapped ability values persist and continue growing after save/load');
 const legacySchoolSave = newCareer('旧高校データ移行', 'CTB', 26, '大阪学院高校');
@@ -188,7 +228,7 @@ assert.ok(eliteUniversityProfile.max <= 94, 'university squad ratings should rem
 function advanceCalendarMonth(s: ReturnType<typeof newCareer>): void {
   const month = s.month, age = s.age, phase = s.phase;
   let guard = 0;
-  do { advanceCareerMonth(s); guard++; } while (s.month === month && s.age === age && s.phase === phase && guard < 20);
+  do { advanceAndResolve(s); guard++; } while (s.month === month && s.age === age && s.phase === phase && guard < 20);
   assert.ok(guard < 20, 'calendar month should advance without getting stuck');
 }
 seed(901);
@@ -258,7 +298,7 @@ assert.equal(schedule.prefIndex, 26);
 assert.equal(PREFS[schedule.prefIndex].name, '大阪府');
 while (!(schedule.phase === 'university' && schedule.month === 9)) advanceCalendarMonth(schedule);
 for (let month = 9; month <= 11; month++) {
-  while (schedule.month === month) advanceCareerMonth(schedule);
+  while (schedule.month === month) advanceAndResolve(schedule);
   if (month < 11) assert.equal(schedule.month, month + 1);
 }
 assert.equal(schedule.currentSeason.leaguePlayed, 7, 'university league follows the 2025 season schedule');
@@ -281,7 +321,7 @@ candidate.stageYear = 3; candidate.month = 2;
 for (const key of Object.keys(candidate.player.stats) as (keyof typeof candidate.player.stats)[]) candidate.player.stats[key] = 140;
 candidate.highSchoolAppearances = 6; candidate.highSchoolTries = 3;
 candidate.highSchoolRatingTotal = 42; candidate.highSchoolRatingCount = 6;
-advanceCareerMonth(candidate);
+advanceAndResolve(candidate);
 assert.equal(candidate.nationalCandidate, true);
 assert.equal(candidate.pendingTournament?.kind, 'world');
 assert.ok(candidate.lastMatch?.opponent === 'オーストラリア');
@@ -291,11 +331,11 @@ seed(906);
 const national = newCareer('日本代表テスト', 'SO', 26, '大阪学院高校', '天才');
 national.phase = 'university'; national.age = 19; national.stageYear = 2; national.month = 5;
 for (const key of Object.keys(national.player.stats) as (keyof typeof national.player.stats)[]) national.player.stats[key] = 120;
-advanceCareerMonth(national);
+advanceAndResolve(national);
 assert.equal(national.japanNationalTeamSelected, true, 'university standout should be selected for Japan by positional ranking');
 assert.ok((national.nationalSquad ?? []).some((p) => p.name === national.player.name && p.year === '2年'), 'university representative roster should show school year');
 let internationalGuard = 0;
-while (national.japanNationalTeamCaps === 0 && internationalGuard < 30) { advanceCareerMonth(national); internationalGuard++; }
+while (national.japanNationalTeamCaps === 0 && internationalGuard < 30) { advanceAndResolve(national); internationalGuard++; }
 assert.ok(national.japanNationalTeamCaps > 0, 'university Japan selection should play international tests');
 console.log('  ok - university standouts can be selected for Japan and play test matches');
 // 学年・高校時代の実績・大学での競争・プロ入り時の契約を出場確率に反映する。
@@ -374,11 +414,26 @@ const simulatedCareer = newCareer('自動試合テスト', 'CTB');
 simulatedCareer.phase = 'professional'; simulatedCareer.stageYear = 1; simulatedCareer.professionalStarterGuaranteed = true;
 for (const key of Object.keys(simulatedCareer.player.stats) as (keyof typeof simulatedCareer.player.stats)[]) simulatedCareer.player.stats[key] = 150;
 const preMatchStats = { ...simulatedCareer.player.stats };
+const appearanceObjective = simulatedCareer.seasonObjectives!.find((objective) => objective.metric === 'appearances')!;
+appearanceObjective.target = 1;
+const preMatchExperience = simulatedCareer.experiencePoints;
 const preMatchTeammates = simulatedCareer.rosterPlayers.filter(p => !p.isUser).map(p => ({ id: p.id, stats: { ...p.stats } }));
 beginCareerLiveMatch(simulatedCareer, 'fixture', { date: 'テスト日', label: 'キャリア自動試合テスト', opponent: 'テストクラブ', difficulty: 45, kind: 'university-spring' });
-assert.equal(simulatedCareer.liveMatch, undefined, 'matches resolve automatically without entering a playable mode');
-assert.equal(simulatedCareer.matchHistory.length, 1, 'automatically simulated match is recorded');
+assert.ok(simulatedCareer.liveMatch, 'matches now open in an interactive playable mode');
+assert.equal(simulatedCareer.matchHistory.length, 0, 'match results are not recorded until the match is completed');
+assert.equal(simulatedCareer.seasonObjectives?.length, 3, 'each season begins with three player objectives');
+resolveLiveMatch(simulatedCareer);
+assert.equal(simulatedCareer.matchHistory.length, 1, 'completed interactive match is recorded');
 assert.equal(simulatedCareer.lastMatch?.competition, 'キャリア自動試合テスト');
+assert.ok(simulatedCareer.lastMatch?.review?.headline, 'completed matches include an automatic coaching review');
+assert.ok(['S','A','B','C','D','—'].includes(simulatedCareer.lastMatch?.review?.grade ?? ''), 'coaching review assigns a consistent performance grade');
+assert.ok(simulatedCareer.lastMatch?.review?.highlights.length, 'coaching review identifies at least one positive or participation highlight');
+assert.ok(simulatedCareer.lastMatch?.review?.improvements.length, 'coaching review gives a concrete improvement point');
+assert.ok(simulatedCareer.seasonObjectives?.every((objective) => typeof objective.completed === 'boolean'), 'season objectives preserve their completion state');
+assert.equal(appearanceObjective.completed, true, 'a completed season objective is detected immediately after the match');
+assert.ok(simulatedCareer.awards.includes('出場機会をつかめ'), 'completed objectives add a collectible achievement');
+assert.ok(simulatedCareer.experiencePoints > preMatchExperience, 'objective rewards add experience points');
+assert.ok(simulatedCareer.awards.includes('公式戦デビュー'), 'the first appearance unlocks a career milestone');
 assert.equal(simulatedCareer.currentSeason.played, 1, 'automatic simulation updates the season record exactly once');
 assert.ok(simulatedCareer.lastMatch?.experience! > 0, 'a guaranteed starter earns match experience');
 assert.ok(Object.keys(preMatchStats).some((key) => simulatedCareer.player.stats[key as keyof typeof preMatchStats] > preMatchStats[key as keyof typeof preMatchStats]), 'match experience increases player abilities');
@@ -387,5 +442,5 @@ assert.ok(preMatchTeammates.every(before => {
   const after = simulatedCareer.rosterPlayers.find(p => p.id === before.id);
   return after && Object.keys(before.stats).every(key => after.stats[key as keyof typeof before.stats] === before.stats[key as keyof typeof before.stats]);
 }), 'teammates do not gain abilities from match appearances');
-console.log('  ok - matches are simulated automatically without an interactive play mode');
+console.log('  ok - live match decisions, automatic coaching reviews, and season objectives are integrated');
 console.log('\n10 passed');

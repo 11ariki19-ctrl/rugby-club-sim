@@ -1,9 +1,10 @@
 import {
   advanceCareerMonth, careerOverall, currentTeam, newCareer, setCareerTraining, setCareerTrainingPlan,
   resolveCareerTransfer, careerHallOfFame, careerLegacyScore, UNIVERSITY_GROUPS, selectCareerUniversity,
-  CAREER_POSITIONS, CAREER_STAT_KEYS, CAREER_STAT_LABEL, CAREER_TALENTS, hasCareerSave, loadCareer, saveCareer, setCareerSaveSlot, careerSaveSummary,
+  CAREER_POSITIONS, CAREER_STAT_KEYS, CAREER_STAT_LABEL, CAREER_TALENTS, CAREER_MILESTONES, hasCareerSave, loadCareer, saveCareer, setCareerSaveSlot, careerSaveSummary,
+  playCareerMatchAction, resolveCareerEvent,
 } from './career';
-import type { CareerState, CareerPhase, CareerTrainingPlan, CareerRosterPlayer } from './career';
+import type { CareerState, CareerPhase, CareerTrainingPlan, CareerRosterPlayer, CareerObjective, CareerMatchReview, CareerMatchAction } from './career';
 import { STAT_LABEL, overallAt } from './game';
 import type { Pos, StatKey } from './game';
 import { PREFS, schoolsOf } from './data';
@@ -79,6 +80,51 @@ function seasonCard(s: CareerState): string {
     <div class="card stat"><span class="k">出場</span><b>${r.appearances}</b></div><div class="card stat"><span class="k">トライ</span><b>${r.tries}</b></div><div class="card stat"><span class="k">先発</span><b>${r.starts ?? 0}</b></div><div class="card stat"><span class="k">途中出場</span><b>${r.substituteApps ?? 0}</b></div><div class="card stat"><span class="k">控え/メンバー外</span><b>${(r.bench ?? 0) + (r.notSelected ?? 0)}</b></div></div>
     ${r.notes.length ? `<ul class="news">${r.notes.slice().reverse().map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : '<p class="note">大会・リーグ戦の日程に合わせて試合を行います。</p>'}</div>`;
 }
+
+function objectiveProgress(s: CareerState, objective: CareerObjective): number {
+  if (objective.metric === 'appearances') return s.currentSeason.appearances;
+  if (objective.metric === 'tackles') return s.currentSeason.tacklesTotal ?? 0;
+  return s.currentSeason.wins;
+}
+function storyEventCard(s: CareerState): string {
+  const event = s.pendingEvent;
+  if (!event) return '';
+  const options = event.options.map((option, index) => `<button class="btn mode career-event-choice" data-career="event-choice" data-v="${index}"><b>${esc(option.label)}</b><span>${esc(option.description)}</span><small>報酬：${CAREER_STAT_LABEL[option.rewardStat]}+${option.rewardGain}・経験点+${option.rewardExp}</small></button>`).join('');
+  return `<section class="card career-story-event"><span class="profile-kicker">CAREER STORY EVENT</span><h3>${esc(event.title)}</h3><p>${esc(event.description)}</p><div class="career-event-options">${options}</div></section>`;
+}
+function missionBoard(s: CareerState): string {
+  const objectives = s.seasonObjectives ?? [];
+  if (!objectives.length) return '';
+  const cards = objectives.map((objective) => {
+    const progress = objectiveProgress(s, objective);
+    const ratio = Math.min(100, Math.round(progress / Math.max(1, objective.target) * 100));
+    return `<article class="career-mission ${objective.completed ? 'completed' : ''}">
+      <div class="career-mission-heading"><b>${esc(objective.title)}</b><span>${objective.completed ? '達成' : '進行中'}</span></div>
+      <p>${esc(objective.description)}</p>
+      <div class="career-mission-track"><i style="width:${ratio}%"></i></div>
+      <div class="career-mission-meta"><span>${Math.min(progress, objective.target)} / ${objective.target}</span><small>報酬：経験点+${objective.rewardExp}・${CAREER_STAT_LABEL[objective.rewardStat]}+0.45</small></div>
+    </article>`;
+  }).join('');
+  const completed = objectives.filter((objective) => objective.completed).length;
+  return `<section class="card career-mission-board"><div class="career-mission-board-heading"><div><span class="profile-kicker">SEASON QUEST</span><h3>今シーズンのミッション</h3></div><strong>${completed} / ${objectives.length}</strong></div><div class="career-mission-list">${cards}</div></section>`;
+}
+function milestoneCollection(s: CareerState): string {
+  const cards = CAREER_MILESTONES.map((milestone) => {
+    const unlocked = s.awards.includes(milestone.title);
+    return `<article class="career-medal ${unlocked ? 'unlocked' : ''}"><span class="career-medal-icon">${unlocked ? '🏅' : '🔒'}</span><div><b>${esc(milestone.title)}</b><small>${esc(milestone.description)}</small></div><span class="career-medal-status">${unlocked ? '獲得' : '未獲得'}</span></article>`;
+  }).join('');
+  const count = CAREER_MILESTONES.filter((milestone) => s.awards.includes(milestone.title)).length;
+  return `<section class="card career-collection"><div class="career-mission-board-heading"><div><span class="profile-kicker">CAREER COLLECTION</span><h3>称号・実績コレクション</h3></div><strong>${count} / ${CAREER_MILESTONES.length}</strong></div><div class="career-medal-grid">${cards}</div></section>`;
+}
+function matchReviewCard(review?: CareerMatchReview): string {
+  if (!review) return '';
+  const highlights = review.highlights.map((item) => `<li>${esc(item)}</li>`).join('');
+  const improvements = review.improvements.map((item) => `<li>${esc(item)}</li>`).join('');
+  return `<section class="card career-review-card"><div class="career-review-heading"><span class="profile-kicker">AUTO COACH REVIEW</span><strong class="career-review-grade">${esc(review.grade)}</strong></div>
+    <h3>${esc(review.headline)}</h3><div class="career-review-columns"><div><b>良かった点</b><ul class="news">${highlights}</ul></div><div><b>次に改善したい点</b><ul class="news">${improvements}</ul></div></div>
+    <button class="btn mode career-review-focus" data-career="review-train" data-v="${review.nextStat}">次戦に向けて「${CAREER_STAT_LABEL[review.nextStat]}」を重点練習</button></section>`;
+}
+
 function phaseDescription(s: CareerState): string {
   if (s.worldCup && !s.worldCup.completed) return `日本代表としてラグビーワールドカップ${s.worldCup.year}に出場中。プール${s.worldCup.pool}：${s.worldCup.poolPlayed}/4試合、${s.worldCup.poolWins}勝。${s.worldCup.qualified ? '決勝トーナメント進出！' : 'プール戦の結果で決勝トーナメント進出を目指します。'}`;
   if (s.phase === 'highschool') return `高校${s.stageYear}年生。${PREFS[s.prefIndex]?.name ?? ''}の県予選から進みます。大会での成績が優秀なら2月に高校日本代表候補へ選出され、世界大会に出場します。`;
@@ -96,6 +142,7 @@ function lastMatchCard(s: CareerState): string {
     <div class="cards"><div class="card stat"><span class="k">トライ</span><b>${m.tries}</b></div><div class="card stat"><span class="k">キャリー</span><b>${m.carries}</b></div>
     <div class="card stat"><span class="k">タックル</span><b>${m.tackles}</b></div><div class="card stat"><span class="k">ラインブレイク</span><b>${m.lineBreaks}</b></div>
     <div class="card stat"><span class="k">キック</span><b>${m.kicks}</b></div><div class="card stat"><span class="k">ミス</span><b>${m.errors}</b></div></div>
+    ${matchReviewCard(m.review)}
     <h4>活躍シーン</h4><ul class="news">${m.scenes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>`;
 }
 function homeScreen(s: CareerState): string {
@@ -106,7 +153,7 @@ function homeScreen(s: CareerState): string {
   const history = s.history.slice(0, 8).map((h) => `<li>${esc(h)}</li>`).join('');
   const seasons = s.seasons.slice().reverse().slice(0, 12).map((r) => `<div class="card"><b>${r.age}歳・${esc(r.team)}</b><div class="small">${labels[r.phase]} ${r.year}年目：${r.wins}勝${r.losses}敗${r.draws}分 ／ 出場${r.appearances}試合・${r.tries}トライ</div><div class="small">先発${r.starts ?? 0}・途中出場${r.substituteApps ?? 0}・控え${r.bench ?? 0}・メンバー外${r.notSelected ?? 0}</div>${r.awards?.length ? `<div class="small">表彰：${r.awards.map(esc).join('、')}</div>` : ''}</div>`).join('');
   const team = currentTeam(s);
-  const advanceLabel = s.pendingTransfer ? '契約を更新して進む' : s.pendingTournament ? `試合開始（${s.pendingTournament.name}・${s.pendingTournament.rounds + 1}試合目）` : s.pendingFixtures?.length ? `試合開始（${s.pendingFixtures[0].label}）` : s.tournamentCompletedMonth === s.month ? `試合終了：${monthLabel(s.month)}を終えて次の月へ` : (s.phase === 'professional' && [12,1,2,3,4,5,6,8,9].includes(s.month)) || (s.phase === 'university' && [5,6,9,10,11,12,1].includes(s.month)) || (s.phase === 'highschool' && [2,7,11,12].includes(s.month)) ? `試合開始（${monthLabel(s.month)}）` : `${monthLabel(s.month)}を進める`;
+  const advanceLabel = s.pendingEvent ? 'イベントの選択が必要です' : s.pendingTransfer ? '契約を更新して進む' : s.pendingTournament ? `試合開始（${s.pendingTournament.name}・${s.pendingTournament.rounds + 1}試合目）` : s.pendingFixtures?.length ? `試合開始（${s.pendingFixtures[0].label}）` : s.tournamentCompletedMonth === s.month ? `試合終了：${monthLabel(s.month)}を終えて次の月へ` : (s.phase === 'professional' && [12,1,2,3,4,5,6,8,9].includes(s.month)) || (s.phase === 'university' && [5,6,9,10,11,12,1].includes(s.month)) || (s.phase === 'highschool' && [2,7,11,12].includes(s.month)) ? `試合開始（${monthLabel(s.month)}）` : `${monthLabel(s.month)}を進める`;
   const plans: CareerTrainingPlan[] = ['バランス','筋力','技術','持久力'];
   const planButtons = plans.map((p) => `<button class="btn mode ${s.trainingPlan === p ? 'primary' : ''}" data-career="plan" data-v="${p}"><b>${p}</b><span>${s.trainingPlan === p ? '選択中' : ({'バランス':'能力全体をバランスよく育成','筋力':'パワー系能力を重点育成','技術':'技術系能力を重点育成','持久力':'スタミナとスピードを重点育成'} as Record<CareerTrainingPlan,string>)[p]}</span></button>`).join('');
   const sameCategoryRivals = s.rivals.filter((r) => !r.retired && r.phase === s.phase && r.pos === s.player.pos).sort((a,b) => Math.abs(a.age-s.age)-Math.abs(b.age-s.age) || b.overall-a.overall);
@@ -123,6 +170,9 @@ function homeScreen(s: CareerState): string {
       <button class="career-tab ${activeCareerTab === 'records' ? 'active' : ''}" role="tab" aria-selected="${activeCareerTab === 'records'}" data-career="career-tab" data-v="records">戦績・記録</button>
     </nav>
     <section class="career-tab-panel ${activeCareerTab === 'player' ? 'active' : ''}" data-tab-panel="player">
+    ${storyEventCard(s)}
+    ${missionBoard(s)}
+    ${milestoneCollection(s)}
     <div class="panel career-player-hero"><div class="profile-hero">${careerPortrait(s.player.name,s.player.pos)}<div><span class="profile-kicker">PLAYER CAREER</span><b class="career-player-name">${esc(s.player.name)}</b><p>${s.player.pos} ／ 総合値 ${o}（${rating}ランク）</p><span class="small">${esc(team)} ・ ${s.player.height}cm / ${s.player.weight}kg</span></div></div><p>${phaseDescription(s)}</p><div class="career-kit-radar">${careerUniform(team)}<div class="radar-wrap"><h3>能力バランス</h3>${careerRadar(s.player.stats as unknown as Record<string,number>)}</div></div></div>
     <div class="card career-history-card"><h3>キャリアの歩み</h3>
       <div class="career-path">
@@ -277,15 +327,62 @@ function matchResultScreen(s: CareerState): string {
       <p><b>${m.result}</b> ／ 起用：${esc(m.role ?? (m.appeared ? '先発' : 'メンバー外'))} ／ ${m.appeared ? `評価 ${m.rating.toFixed(1)}/10` : '出場機会なし'}</p>
       <h3>得点経過</h3><ol class="news">${(m.scoreEvents ?? []).map(e => `<li>${e.minute}分 ${esc(e.side === '自チーム' ? currentTeam(s) : m.opponent)}：${esc(e.scorer)} — ${esc(e.method)}（+${e.points}点）</li>`).join('') || '<li>得点経過データはありません（過去の試合記録）。</li>'}</ol>
       <div class="cards"><div class="card stat"><span class="k">トライ</span><b>${m.tries}</b></div><div class="card stat"><span class="k">キャリー</span><b>${m.carries}</b></div><div class="card stat"><span class="k">タックル</span><b>${m.tackles}</b></div><div class="card stat"><span class="k">突破</span><b>${m.lineBreaks}</b></div></div>
+      ${matchReviewCard(m.review)}
       <h3>試合レポート</h3><ul class="news">${m.scenes.map((scene) => `<li>${esc(scene)}</li>`).join('')}</ul>
     </section>
     <details class="match-lineups"><summary>メンバー表を表示（両チーム23名）</summary><div class="lineup-grid">${lineupCard(s, currentTeam(s), true)}${lineupCard(s, m.opponent, false)}</div></details>
     </main>`;
 }
+
+function liveMatchScreen(s: CareerState): string {
+  const g = s.liveMatch;
+  if (!g) return homeScreen(s);
+  const defending = g.possession === '相手';
+  const teamLabel = g.fixture.kind === 'japan-test' || g.fixture.kind === 'world-cup' ? '日本代表' : currentTeam(s);
+  const territory = g.fieldPosition >= 50 ? `敵陣${g.fieldPosition - 50}m` : `自陣${50 - g.fieldPosition}m`;
+  const attacks: { id: CareerMatchAction; label: string; detail: string }[] = [
+    { id: 'carry', label: '突破を狙う', detail: 'スピードとパワーでゲイン' },
+    { id: 'pass', label: 'パスで展開', detail: '味方につないで攻撃継続' },
+    { id: 'kick', label: 'タッチキック', detail: '大きく陣地を回復' },
+    { id: 'scrum', label: 'スクラム', detail: 'FWで押し込み前進' },
+    { id: 'lineout', label: 'ラインアウト', detail: 'セットプレーから攻める' },
+    ...(g.fieldPosition >= 55 ? [{ id: 'goal' as const, label: 'PGを狙う', detail: '成功すれば3点' }] : []),
+  ];
+  const defense: { id: CareerMatchAction; label: string; detail: string }[] = [
+    { id: 'rush', label: '前に出て止める', detail: '素早くプレッシャーをかける' },
+    { id: 'drift', label: '外へ追い込む', detail: '相手の攻撃範囲を狭める' },
+    { id: 'jackal', label: 'ジャッカル', detail: 'ボールを奪い返す' },
+  ];
+  const options = (defending ? defense : attacks).map((item) =>
+    `<button class="btn mode live-action-button" data-career="live-action" data-v="${item.id}"><b>${item.label}</b><span>${item.detail}</span></button>`
+  ).join('');
+  const elapsedPercent = Math.round(g.elapsed / 80 * 100);
+  const fieldPercent = Math.round(g.fieldPosition);
+  return `<main class="page career-pennant-shell live-match-shell">
+    <div class="career-pennant-ribbon"><span>RUGBY MATCH DAY</span><span>${esc(g.fixture.label)}</span></div>
+    <header class="hd career-pennant-header"><div class="school">🏉 試合中</div><div class="date">${esc(g.fixture.date)} ／ ${esc(g.fixture.opponent)}</div></header>
+    <section class="card live-score-card"><div class="live-score-teams"><span>${esc(teamLabel)}</span><strong>${g.scoreFor} - ${g.scoreAgainst}</strong><span>${esc(g.fixture.opponent)}</span></div>
+      <div class="live-clock"><b>${g.elapsed}'</b><span> / 80分</span><strong>${defending ? '相手ボール' : '自チームボール'}</strong></div>
+      <div class="live-progress"><i style="width:${elapsedPercent}%"></i></div>
+      <div class="live-territory"><span>ボール位置</span><b>${territory}</b></div>
+      <div class="live-field"><div class="live-field-half"></div><i style="left:${fieldPercent}%"></i><span>自陣</span><span>敵陣</span></div>
+    </section>
+    <section class="card live-event-card"><span class="profile-kicker">MATCH MOMENT</span><h3>${esc(g.lastEvent)}</h3>
+      <p>${g.role === '先発' || g.role === '途中出場' ? 'あなたは出場中。選択が試合展開と個人成績に反映されます。' : g.role === '控え' ? '現在は控え。後半開始時に出場機会が訪れる可能性があります。' : '今回はメンバー外ですが、チームの攻守を指示できます。'}</p>
+      <div class="live-player-stats"><span>トライ <b>${g.tries}</b></span><span>キャリー <b>${g.carries}</b></span><span>タックル <b>${g.tackles}</b></span><span>ミス <b>${g.errors}</b></span></div>
+    </section>
+    <section class="card live-choice-card"><div class="career-section-heading"><span class="career-section-no">${defending ? 'D' : 'A'}</span><div><h3>${defending ? '守備の判断' : '攻撃の判断'}</h3><p class="note">1回の判断で5分進みます。残り時間と敵陣の位置を見て選択してください。</p></div></div>
+      <div class="live-action-grid">${options}</div>
+      <button class="btn career-quick-sim" data-career="quick-sim">残りの試合をおまかせで進める</button>
+    </section>
+  </main>`;
+}
+
 function render(): void {
   if (!root) return;
+  if (state?.pendingEvent) activeCareerTab = 'player';
   if (titleMenu) { root.innerHTML = titleScreen(); return; }
-  root.innerHTML = creating || !state ? createScreen() : showMatchResult ? matchResultScreen(state) : homeScreen(state);
+  root.innerHTML = creating || !state ? createScreen() : state.liveMatch ? liveMatchScreen(state) : showMatchResult ? matchResultScreen(state) : homeScreen(state);
 }
 function act(action: string, value = ''): void {
   if (!root) return;
@@ -322,6 +419,41 @@ function act(action: string, value = ''): void {
     return;
   }
   if (action === 'result-continue' && state) { showMatchResult = false; selectedRosterMember = null; activeCareerTab = 'player'; render(); return; }
+  if (action === 'event-choice' && state) {
+    resolveCareerEvent(state, Number(value));
+    showMatchResult = false;
+    activeCareerTab = 'player';
+    render(); return;
+  }
+  if (action === 'review-train' && state) {
+    setCareerTraining(state, value as StatKey);
+    showMatchResult = false;
+    activeCareerTab = 'player';
+    selectedRosterMember = null;
+    saveCareer(state);
+    render(); return;
+  }
+  if (action === 'live-action' && state?.liveMatch) {
+    playCareerMatchAction(state, value as CareerMatchAction);
+    showMatchResult = !state.liveMatch;
+    selectedRosterMember = null;
+    render(); return;
+  }
+  if (action === 'quick-sim' && state?.liveMatch) {
+    let guard = 0;
+    while (state.liveMatch && guard < 17) {
+      const match = state.liveMatch;
+      const choice: CareerMatchAction = match.possession === '相手'
+        ? 'rush'
+        : match.fieldPosition < 35 ? 'kick'
+          : match.fieldPosition >= 88 ? 'carry'
+            : match.fieldPosition >= 55 ? 'goal' : 'pass';
+      playCareerMatchAction(state, choice);
+      guard++;
+    }
+    showMatchResult = !state.liveMatch;
+    render(); return;
+  }
   if (action === 'random-name') {
     const input = root.querySelector<HTMLInputElement>('#career-name');
     if (input) { input.value = generateUniquePlayerName(new Set<string>(), '日本'); input.focus(); }
@@ -345,9 +477,8 @@ function act(action: string, value = ''): void {
     resolveCareerTransfer(state, Number(value));
   } else if (action === 'advance' && state) {
     const previousMatchCount = state.matchHistory.length;
-    state.liveMatch = undefined;
-    advanceCareerMonth(state, false);
-    showMatchResult = state.matchHistory.length > previousMatchCount;
+    advanceCareerMonth(state, true);
+    showMatchResult = !state.liveMatch && state.matchHistory.length > previousMatchCount;
     selectedRosterMember = null;
   }
   render();
